@@ -101,7 +101,11 @@ jobs:
           SLUG: ${{ steps.slug.outputs.slug }}
         run: |
           set -euo pipefail
-          run_id=$(grep -oE 'Workflow run ID[^0-9]*[0-9]+' "$RUNNER_TEMP/issue-body.md" | grep -oE '[0-9]+' | head -1)
+          # Issue-form answers land on the line AFTER their heading, so flatten
+          # newlines before matching; `|| true` keeps set -e from killing the
+          # assignment on no-match so the guard below can report it properly
+          # (main's fix from #6, carried into this rewrite).
+          run_id=$(tr '\n' ' ' < "$RUNNER_TEMP/issue-body.md" | grep -oE 'Workflow run ID[^0-9]*[0-9]+' | grep -oE '[0-9]+' | head -1 || true)
           [ -n "$run_id" ] || { echo "::error::no run ID found in the issue"; exit 1; }
           artifact_id=$(gh api "repos/$SLUG/actions/runs/$run_id/artifacts" \
             --jq '.artifacts[] | select(.name=="sscsb-scan-record") | .id' | head -1)
