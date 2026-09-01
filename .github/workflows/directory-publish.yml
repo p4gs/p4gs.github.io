@@ -96,7 +96,7 @@ jobs:
         id: app
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ vars.DIRECTORY_BOT_APP_ID }}
+          client-id: ${{ vars.DIRECTORY_BOT_CLIENT_ID }}
           private-key: ${{ secrets.DIRECTORY_BOT_KEY }}
       - name: Branch, commit record, open PR
         env:
