@@ -1,53 +1,85 @@
-/** Product homepage: what sscsb is, install, and the directory hook. */
-import { ACTION_REPO_URL, REPO_URL, SUBMIT_URL } from "../config";
+/** Product homepage: the verification receipt, five phases, and the directory hook. */
+import { ACTION_REPO_URL, SUBMIT_URL } from "../config";
+import { seal } from "./components";
 import { href, page } from "./layout";
 
-export function renderHome(repoCount: number): string {
+const RECEIPT = `<div class="card">
+  <div class="card-head">
+    <span class="receipt-head-title">VERIFICATION RECEIPT</span>
+    <span class="receipt-head-ver">sscsb 0.3.0</span>
+  </div>
+  <div class="receipt-body">
+    <div><span class="r-dim">$</span> sscsb verify</div>
+    <div><span class="r-pass">[PASS]</span> secrets <span class="r-dim">· trufflehog + gitleaks</span></div>
+    <div><span class="r-pass">[PASS]</span> commit-signing <span class="r-dim">· human-only on main</span></div>
+    <div><span class="r-pass">[PASS]</span> branch-protection <span class="r-dim">· PRs · sigs · checks</span></div>
+    <div><span class="r-pass">[PASS]</span> slsa-provenance <span class="r-dim">· build L3</span></div>
+    <div><span class="r-fail">[FAIL]</span> harden-runner <span class="r-dim">· 1 job unmonitored</span></div>
+    <div><span class="r-skip">[·····]</span> signing-model <span class="r-dim">· awaiting attestation</span></div>
+    <div class="receipt-sum">verify: <strong>1 failed, 1 degraded</strong></div>
+  </div>
+</div>`;
+
+const PHASE_STRIP = [
+  ["PHASE-1", "Commit integrity", "Secrets blocked at the hook. Humans sign; AI declares."],
+  ["PHASE-2", "Dependencies", "SBOMs, dual scanners, a trust gate for every new package."],
+  ["PHASE-3", "Provenance", "Keyless signatures and SLSA attestations, bound to digests."],
+  ["PHASE-4", "SAST & CI", "OpenGrep, CodeQL, egress-monitored, pinned workflows."],
+  ["PHASE-5", "Posture", "VEX, Security Insights, a compliance map that stays true."],
+]
+  .map(
+    ([eyebrow, title, copy]) => `<div class="phase-cell">
+    <div class="phase-cell-eyebrow">${eyebrow}</div>
+    <div class="phase-cell-title">${title}</div>
+    <div class="phase-cell-copy">${copy}</div>
+  </div>`,
+  )
+  .join("\n  ");
+
+export function renderHome(_repoCount: number): string {
   const body = `
 <section class="hero">
-  <h1>Software supply chain security,<br>bootstrapped in one command.</h1>
-  <p class="lede"><strong>sscsb</strong> stands up 44 individually toggleable controls across
-  five phases — secret scanning, commit signing policy, SBOMs, vulnerability
-  scanning, SAST, dependency trust, SLSA provenance, and continuous posture —
-  opinionated for solo developers and small teams in AI-heavy workflows.</p>
-  <pre class="install"><code>brew install p4gs/p4gs/sscsb
-cd your-repo && sscsb init</code></pre>
-  <p class="hero-links">
-    <a class="btn" href="${href("directory/")}">Browse the directory (${repoCount} repos)</a>
-    <a class="btn btn-secondary" href="${SUBMIT_URL}">Submit your repo for a scan</a>
-  </p>
+  <div class="hero-copy">
+    <p class="eyebrow">phase-0 · bootstrap</p>
+    <h1 class="display-hl">Supply chain<br>security,<br>stamped&nbsp;in.</h1>
+    <p class="lede">44 verifiable controls across five phases — secret scanning, signing
+    policy, SBOMs, provenance, SAST — bootstrapped into any repo in one command.
+    An unperformed check is never a verdict.</p>
+    <div class="hero-cta">
+      <pre class="install-cmd"><code>brew install p4gs/p4gs/sscsb</code></pre>
+      <a class="arrow-link" href="${href("directory/")}">Browse the directory →</a>
+    </div>
+  </div>
+  ${RECEIPT}
 </section>
 
-<section class="phases-overview">
-  <h2>Five phases, one boundary at a time</h2>
-  <ol>
-    <li><strong>Commit integrity</strong> — secret scanning hooks, human-only signing on protected branches, AI provenance trailers, branch protection.</li>
-    <li><strong>Dependencies &amp; SBOM</strong> — Syft SBOMs, Trivy + OSV-Scanner, Renovate, a package-trust gate, OpenSSF Scorecard.</li>
-    <li><strong>Provenance</strong> — Sigstore keyless signing, SLSA Build L3, GitHub attestations, immutable releases, Harden-Runner.</li>
-    <li><strong>SAST &amp; CI hardening</strong> — OpenGrep, CodeQL, ClusterFuzzLite, extended workflow audits.</li>
-    <li><strong>Continuous posture</strong> — OpenVEX, Security Insights, Best Practices Badge, OSPS Baseline, a compliance map across SLSA/SSDF/CRA.</li>
-  </ol>
-  <p>Every control verifies with evidence, and an unperformed check is reported as
-  <em>degraded</em>, never silently passed — <a href="${REPO_URL}#readme">read the philosophy</a>.</p>
+<section class="phase-strip" aria-label="The five phases">
+  ${PHASE_STRIP}
 </section>
 
-<section class="action-teaser">
-  <h2>Authenticated scans, from your own CI</h2>
-  <p>External directory scans are honest about their limits: local-environment
-  controls show as unverified. The <a href="${ACTION_REPO_URL}">sscsb-action</a>
-  runs sscsb inside your repository's own workflow, sees what an external scan
-  cannot, and submits an authenticated record through the same reviewed
-  publish gate.</p>
-</section>
-
-<section class="directory-teaser">
-  <h2>The public directory</h2>
-  <p>Like OpenSSF Scorecard's directory, but for supply-chain <em>control adoption</em>:
-  every listed repository was scanned with sscsb itself, scored with a
-  <a href="${href("methodology/")}">published, versioned methodology</a> that never
-  counts evidence the scanner created and never converts an unperformed check
-  into a verdict. Submit any public GitHub repository — scans run automatically
-  in an isolated job, and a maintainer reviews every listing before it publishes.</p>
+<section class="twocol">
+  <div class="col-block">
+    <h2 class="h2-display">The public directory</h2>
+    <p class="body-copy">Every listed repository was scanned with sscsb itself and scored by
+    a published, versioned methodology. Evidence the scanner created never counts.
+    Checks that couldn't run are shown, not spun.</p>
+    <div class="seal-demo">
+      ${seal("B", { size: 74, rotationKey: "demo-B" })}
+      <p class="seal-demo-copy">Grades are inspection seals:
+      <strong class="mono">A+</strong> is reserved for exactly&nbsp;100%.
+      Unverified controls sit outside every denominator.</p>
+    </div>
+  </div>
+  <div class="col-block">
+    <h2 class="h2-display">Authenticated scans</h2>
+    <p class="body-copy">External scans are honest about their limits. Run
+    <span class="code-chip">sscsb-action</span> in your own CI to publish a record
+    that sees what an outside scan cannot — through the same reviewed gate.</p>
+    <div class="btn-row">
+      <a class="btn" href="${ACTION_REPO_URL}">Install the Action</a>
+      <a class="btn-outline" href="${SUBMIT_URL}">Submit a repo</a>
+    </div>
+  </div>
 </section>`;
   return page({ title: "SSCS Bootstrapper", body });
 }
