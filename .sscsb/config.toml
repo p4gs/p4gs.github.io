@@ -120,8 +120,11 @@ catalog = ""
 enabled = true
 
 # Socket Firewall (optional): Malicious-package detection/blocking at install time
+# Enabled (default off): the Socket GitHub App is already installed on this repo
+# (its PR checks run here) and the sfw CLI is present on the dev machine —
+# wrap installs as `sfw bun install` / `sfw npm install`.
 [controls.socket-firewall]
-enabled = false
+enabled = true
 
 # ── Phase 3 — Provenance, signing & credential federation ──
 
