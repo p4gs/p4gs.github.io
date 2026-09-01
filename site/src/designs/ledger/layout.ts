@@ -1,5 +1,21 @@
-/** Shared page chrome. All hrefs are BASE_PATH-prefixed by construction. */
-import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL } from "../config";
+/** Shared page chrome. All hrefs are prefix-scoped by construction. */
+import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import type { DesignCtx } from "../types";
+
+/**
+ * Current render context. The four-up build sets this per page via setCtx();
+ * outside the build (tests, direct calls) the default keeps the original
+ * BASE_PATH-rooted, switcherless behavior.
+ */
+let ctx: DesignCtx = {
+  prefix: BASE_PATH,
+  h: (p: string) => `${BASE_PATH}${p.replace(/^\//, "")}`,
+  switcher: "",
+  active: "",
+};
+export function setCtx(next: DesignCtx): void {
+  ctx = next;
+}
 
 export function escapeHtml(s: string): string {
   return s
@@ -12,7 +28,7 @@ export function escapeHtml(s: string): string {
 
 /** Internal link helper — the only sanctioned way to build an internal href. */
 export function href(path: string): string {
-  return `${BASE_PATH}${path.replace(/^\//, "")}`;
+  return ctx.h(path);
 }
 
 /** Google Fonts: Archivo (display), Public Sans (body), Spline Sans Mono (data). */
@@ -28,8 +44,9 @@ export function page(opts: {
   head?: string;
   active?: ActivePage;
 }): string {
+  const active = opts.active ?? ctx.active;
   const nav = (target: ActivePage, label: string, path: string) =>
-    `<a href="${href(path)}"${opts.active === target ? ' class="active"' : ""}>${label}</a>`;
+    `<a href="${href(path)}"${active === target ? ' class="active"' : ""}>${label}</a>`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -61,6 +78,7 @@ ${opts.body}
     <span>Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>
+${ctx.switcher}
 </body>
 </html>`;
 }
