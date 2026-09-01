@@ -10,7 +10,9 @@
 # Three independent gates against artifact poisoning:
 #   1. the artifact comes only from a successful directory-scan.yml run in
 #      THIS repo for THIS issue;
-#   2. the record revalidates against the schema and the issue's parsed slug;
+#   2. the record revalidates against the schema and the issue's parsed slug
+#      (and, for signed authenticated-lane records, its Sigstore bundle was
+#      verified at ingest against the producing workflow's identity);
 #   3. the result is a human-reviewed PR into a protected branch.
 # Plus: the labeler's write+ permission is re-checked via the collaborators
 # API — belt and braces over GitHub's own triage-role requirement for labels.
@@ -114,6 +116,18 @@ jobs:
           mkdir -p site/data/repos
           cp scan-record.json "site/data/repos/${slug}.json"
           git add "site/data/repos/${slug}.json"
+          # Authenticated-lane submissions carry a trust sidecar (and, when
+          # signed, the Sigstore bundle) from directory-ingest.yml. Publish
+          # them beside the record so the listing can show provenance and
+          # anyone can re-verify. External scans have neither — by construction.
+          if [ -s scan-record.trust.json ]; then
+            mkdir -p site/data/trust
+            cp scan-record.trust.json "site/data/trust/${slug}.json"
+            if [ -s scan-record.json.sigstore.json ]; then
+              cp scan-record.json.sigstore.json "site/data/trust/${slug}.sigstore.json"
+            fi
+            git add site/data/trust
+          fi
           git commit -m "directory: publish ${human} (grade ${grade}, issue #${ISSUE})"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${branch}" --force-with-lease
           gh pr create --head "$branch" \

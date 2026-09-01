@@ -12,3 +12,16 @@ The site is a bun + TypeScript static build (`site/`), deployed by
 `.github/workflows/pages.yml`. Scan records live in `site/data/repos/`;
 every record lands via a maintainer-reviewed PR. Scoring is documented at
 [/sscsb/methodology/](https://tools.sensiblesecurity.xyz/sscsb/methodology/).
+
+Authenticated records that arrive **signed** (sscsb-action with `id-token:
+write`) are verified at ingest against the producing repository's workflow
+identity — `OWNER/REPO/.github/workflows/sscsb-scan.yml` on its live default
+branch — and listed as ✓ verified, with the Sigstore bundle published beside
+the record (`site/data/trust/`) so anyone can re-verify. Unsigned
+authenticated records are listed as unverified claims. Trust model:
+[/sscsb/methodology/#trust](https://tools.sensiblesecurity.xyz/sscsb/methodology/#trust).
+
+Repositories that run `sscsb-scan.yml` can skip the cross-repo submission
+token entirely: add `owner/repo` to `site/data/registry.json` by PR and
+`directory-collect.yml` polls the run, files the submission issue with this
+repo's own token, and dispatches ingest.

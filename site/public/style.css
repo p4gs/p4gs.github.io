@@ -108,3 +108,12 @@ th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 .mv { font-size: 14px; color: var(--ink-dim); font-family: var(--mono); }
 .method-table td { font-size: 14px; }
 details summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+
+/* Provenance lane markers (directory listing + detail heading). */
+.lane { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
+.lane-verified { background: #dcfce7; color: #166534; }
+.lane-unsigned-action { background: #fef3c7; color: #92400e; }
+.lane-external { background: #e5e7eb; color: #374151; }
+.trust { border-left: 4px solid #16a34a; padding: 0.25rem 1rem; margin: 1.25rem 0; }
+.trust-unsigned { border-left-color: #d97706; }
+.trust pre { overflow-x: auto; }
