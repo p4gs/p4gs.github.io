@@ -1,0 +1,194 @@
+# Directory scan: run sscsb against a submitted public repository.
+#
+# Trust model (Plans/alright-i-want-to-binary-feigenbaum.md §5/§8):
+# - Anyone can submit via the scan-request issue form; the scan runs
+#   automatically but NOTHING publishes without a maintainer's `publish` label
+#   (directory-publish.yml).
+# - The scan job has ZERO write permissions and no secrets beyond the
+#   read-only GITHUB_TOKEN. Commenting is a separate job holding the only
+#   `issues: write`.
+# - The target's code is NEVER executed: no build, no scanners over its tree —
+#   verify's evidence is committed files + the GitHub API. That is what makes
+#   the egress allowlist below possible.
+# - Attacker-influenced strings (issue body) enter ONLY via env, never
+#   ${{ }}-interpolated into run: (deploy-gate.yml precedent).
+# - issues:-triggered workflows always run the default branch's definition —
+#   a submitter cannot alter the pipeline they trigger.
+name: Directory scan
+on:
+  issues:
+    types: [opened, edited, labeled]
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "owner/repo to scan"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One run per issue (or dispatch target); a superseding edit cancels the stale run.
+concurrency:
+  group: directory-scan-${{ github.event.issue.number || inputs.repo }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       contains(github.event.issue.labels.*.name, 'scan-request'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            oven-sh.github.io:443
+            bun.sh:443
+            registry.npmjs.org:443
+            static.rust-lang.org:443
+            index.crates.io:443
+            crates.io:443
+      - name: Checkout (this repo)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install site deps
+        working-directory: site
+        run: bun install --frozen-lockfile
+      - name: Parse and validate request
+        id: req
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          DISPATCH_REPO: ${{ inputs.repo }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bun run site/src/scan/parse-request.ts | tee "$RUNNER_TEMP/parse.log"
+      - name: Build sscsb (locked, from the tool repo)
+        # This repo holds the site; the scanner lives in p4gs/sscs-bootstrapper.
+        # The release install path (cosign/slsa-verifier-verified tarball) needs
+        # `verify --format json`, which ships in the tool's NEXT release —
+        # until then, build from a shallow clone of main.
+        # TODO: switch to the verified-release install once released.
+        run: |
+          set -euo pipefail
+          GIT_TERMINAL_PROMPT=0 git clone --depth 1 --single-branch \
+            https://github.com/p4gs/sscs-bootstrapper.git "$RUNNER_TEMP/sscsb-src"
+          cargo build --release --locked --manifest-path "$RUNNER_TEMP/sscsb-src/Cargo.toml"
+          echo "$RUNNER_TEMP/sscsb-src/target/release" >> "$GITHUB_PATH"
+      - name: Clone target (data, never code)
+        env:
+          SLUG: ${{ steps.req.outputs.slug }}
+        run: |
+          set -euo pipefail
+          GIT_TERMINAL_PROMPT=0 git clone --depth 1 --no-tags --single-branch \
+            -c core.symlinks=false -c core.hooksPath=/dev/null \
+            "https://github.com/${SLUG}.git" "$RUNNER_TEMP/target"
+      - name: Guard rails
+        run: |
+          set -euo pipefail
+          count=$(git -C "$RUNNER_TEMP/target" ls-files | wc -l)
+          bytes=$(du -sk "$RUNNER_TEMP/target" | cut -f1)
+          echo "files=$count disk=${bytes}KB"
+          [ "$count" -le 200000 ] || { echo "::error::file count $count exceeds 200k"; exit 1; }
+          [ "$bytes" -le 2097152 ] || { echo "::error::checkout exceeds 2 GB"; exit 1; }
+      - name: Snapshot, init, verify, report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BIN="$RUNNER_TEMP/sscsb-src/target/release/sscsb"
+          git -C "$RUNNER_TEMP/target" ls-files -z > "$RUNNER_TEMP/pre-files.z"
+          git -C "$RUNNER_TEMP/target" rev-parse HEAD > "$RUNNER_TEMP/commit.sha"
+          (cd "$RUNNER_TEMP/target" && "$BIN" init) | tee "$RUNNER_TEMP/init.log"
+          # exit 1 (controls failed) is DATA for the directory, not a job failure;
+          # exit 2 (operational error) must still fail the job.
+          set +e
+          (cd "$RUNNER_TEMP/target" && "$BIN" verify --format json) > "$RUNNER_TEMP/verify.json"
+          rc=$?
+          set -e
+          [ "$rc" -le 1 ] || { echo "::error::sscsb verify exited $rc"; exit "$rc"; }
+          (cd "$RUNNER_TEMP/target" && "$BIN" report --format json) > "$RUNNER_TEMP/report.json"
+          # Registry defaults from a fresh init in an empty repo — same binary,
+          # so the default-on scope can never drift from the scanner version.
+          mkdir "$RUNNER_TEMP/defaults-repo"
+          git -C "$RUNNER_TEMP/defaults-repo" init -q -b main
+          (cd "$RUNNER_TEMP/defaults-repo" && "$BIN" init > /dev/null && "$BIN" report --format json) \
+            > "$RUNNER_TEMP/defaults.json"
+      - name: Reclassify and score
+        env:
+          PRE_FILES_PATH: ${{ runner.temp }}/pre-files.z
+          VERIFY_JSON_PATH: ${{ runner.temp }}/verify.json
+          REPORT_JSON_PATH: ${{ runner.temp }}/report.json
+          DEFAULTS_JSON_PATH: ${{ runner.temp }}/defaults.json
+          SLUG: ${{ steps.req.outputs.slug }}
+          DEFAULT_BRANCH: ${{ steps.req.outputs.default_branch }}
+          DESCRIPTION: ${{ steps.req.outputs.description }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          OUT_PATH: scan-record.json
+        run: |
+          set -euo pipefail
+          export COMMIT_SHA=$(cat "$RUNNER_TEMP/commit.sha")
+          export SSCSB_VERSION=$(sscsb --version | awk '{print $2}')
+          bun run site/src/scan/build-record.ts
+      - name: Delete clone
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/target"
+      - name: Upload scan record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scan-record-${{ github.event.issue.number || 'dispatch' }}
+          path: scan-record.json
+          if-no-files-found: error
+          retention-days: 30
+
+  comment:
+    needs: [scan]
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write # the ONLY write permission in this workflow
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout (this repo)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install site deps
+        working-directory: site
+        run: bun install --frozen-lockfile
+      - name: Download scan record
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: scan-record-${{ github.event.issue.number }}
+      - name: Render summary
+        env:
+          RECORD_PATH: scan-record.json
+          COMMENT_PATH: scan-comment.md
+        run: bun run site/src/scan/render-comment.ts
+      - name: Post comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file scan-comment.md

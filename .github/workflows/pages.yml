@@ -1,0 +1,72 @@
+# Site deploy: site/data + templates → static HTML → GitHub Pages.
+#
+# Serves at tools.sensiblesecurity.xyz/sscs-bootstrapper/ (the custom domain
+# lives on the p4gs user site; project sites path-route under it). The repo's
+# Pages source must be set to "GitHub Actions" or deploy-pages fails.
+#
+# Dogfooding: this workflow must itself pass `sscsb verify actions-audit` —
+# SHA-pinned, least-privilege, harden-runner first. Write permissions live
+# only on the deploy job, and only the two Pages needs.
+name: Deploy site
+on:
+  push:
+    branches: ["main"]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One Pages deployment at a time; never cancel a deploy mid-flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install, test, build
+        working-directory: site
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bunx tsc --noEmit
+          bun test
+          bun run build
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # the deployment itself
+      id-token: write # Pages OIDC deployment verification
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

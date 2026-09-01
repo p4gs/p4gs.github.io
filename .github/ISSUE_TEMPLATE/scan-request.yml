@@ -1,0 +1,28 @@
+name: Directory scan request
+description: Request a public repository be scanned with sscsb for the directory
+title: "[scan] "
+labels: ["scan-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit a public GitHub repository for an sscsb supply-chain posture scan.
+        The scan runs automatically in an isolated job — the repository's code is
+        **never executed** — and a maintainer reviews every result before it
+        appears in the public directory. Scoring methodology:
+        https://tools.sensiblesecurity.xyz/sscsb/methodology/
+  - type: input
+    id: repo_url
+    attributes:
+      label: Repository URL
+      description: Public GitHub repository to scan
+      placeholder: https://github.com/owner/repo
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Confirmation
+      options:
+        - label: I understand the result may be published publicly with a letter grade
+          required: true

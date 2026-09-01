@@ -1,0 +1,110 @@
+/* SSCS Bootstrapper site — one deliberate palette, system-theme aware. */
+:root {
+  --paper: #f4f4f0;
+  --ink: #1c2022;
+  --ink-dim: #5a6167;
+  --line: #d8d8d0;
+  --card: #fdfdfa;
+  --accent: #2e6e4e; /* supply-chain green — also the pass color family */
+  --pass: #2e8b57;
+  --fail: #b0483a;
+  --unverified: #9aa0a6;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #16191b;
+    --ink: #e6e4dc;
+    --ink-dim: #9aa0a6;
+    --line: #33383b;
+    --card: #1d2124;
+    --accent: #6fbf92;
+    --pass: #4caf7d;
+    --fail: #d9705f;
+    --unverified: #6b7176;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.55 -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 960px; margin: 0 auto; padding: 0 20px 80px; }
+a { color: var(--accent); }
+code, pre { font-family: var(--mono); }
+pre {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+
+.site-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  max-width: 960px; margin: 0 auto; padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.site-header .brand { font-weight: 700; text-decoration: none; color: var(--ink); font-family: var(--mono); }
+.site-header nav a { margin-left: 18px; text-decoration: none; }
+.site-footer { max-width: 960px; margin: 0 auto; padding: 20px; border-top: 1px solid var(--line); color: var(--ink-dim); font-size: 14px; }
+
+.hero { padding: 48px 0 12px; }
+.hero h1 { font-size: clamp(28px, 4.5vw, 42px); line-height: 1.15; margin: 0 0 14px; }
+.lede { max-width: 64ch; color: var(--ink-dim); }
+.install { max-width: 480px; }
+.btn {
+  display: inline-block; background: var(--accent); color: var(--paper);
+  padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;
+  margin-right: 10px;
+}
+.btn-secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+.grade {
+  display: inline-block; font-family: var(--mono); font-weight: 700;
+  padding: 2px 10px; border-radius: 6px; font-size: 15px;
+}
+.grade-aplus, .grade-a { background: var(--pass); color: #fff; }
+.grade-b { background: #7da53f; color: #fff; }
+.grade-c { background: #c9972c; color: #fff; }
+.grade-d { background: #c46a2d; color: #fff; }
+.grade-f { background: var(--fail); color: #fff; }
+.grade-na { background: var(--unverified); color: #fff; }
+.provisional { font-size: 11px; color: var(--ink-dim); margin-left: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.phase-bars { display: grid; gap: 4px; margin: 10px 0; }
+.phase-row { display: grid; grid-template-columns: 170px 1fr 52px; gap: 10px; align-items: center; font-size: 13px; }
+.phase-name { color: var(--ink-dim); }
+.phase-pct { font-family: var(--mono); text-align: right; }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); }
+.bar-empty { font-size: 10px; color: var(--ink-dim); background: none; }
+.seg { height: 100%; }
+.seg-pass { background: var(--pass); }
+.seg-fail { background: var(--fail); }
+.seg-unverified {
+  background: repeating-linear-gradient(45deg, var(--unverified), var(--unverified) 3px, transparent 3px, transparent 6px);
+}
+
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-dim); }
+.directory .desc { font-size: 13px; color: var(--ink-dim); }
+.dir-controls { margin: 16px 0; }
+#dir-filter {
+  width: 100%; max-width: 380px; padding: 9px 12px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--card); color: var(--ink); font-size: 15px;
+}
+.oc-fail .outcome, .oc-gap .outcome { color: var(--fail); }
+.oc-pass .outcome { color: var(--pass); }
+.oc-unverified .outcome { color: var(--unverified); }
+.out-of-scope { opacity: 0.55; }
+.oos, .raw { font-size: 11px; color: var(--ink-dim); }
+.reason { font-size: 13px; color: var(--ink-dim); }
+.transparency-note { font-size: 14px; color: var(--ink-dim); }
+.crumbs { margin-top: 20px; font-size: 14px; }
+.repo-meta, .score-line { font-size: 14px; color: var(--ink-dim); }
+.mv { font-size: 14px; color: var(--ink-dim); font-family: var(--mono); }
+.method-table td { font-size: 14px; }
+details summary { cursor: pointer; font-size: 13px; color: var(--accent); }

@@ -1,0 +1,28 @@
+name: Authenticated scan result (sscsb-action)
+description: Submit a scan record produced by sscsb-action in your own repository's CI
+title: "[action-scan] "
+labels: ["action-scan-result"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For maintainers who ran [sscsb-action](https://github.com/p4gs/sscsb-action)
+        in their repository's own CI. The pipeline downloads the `sscsb-scan-record`
+        artifact from your public workflow run, revalidates it, and routes it through
+        the same maintainer-reviewed publish gate as external scans. (sscsb-action
+        with `submit: true` files this issue for you.)
+  - type: input
+    id: repo_url
+    attributes:
+      label: Repository URL
+      placeholder: https://github.com/owner/repo
+    validations:
+      required: true
+  - type: input
+    id: run_id
+    attributes:
+      label: Workflow run ID
+      description: The run of YOUR workflow that uploaded the sscsb-scan-record artifact
+      placeholder: "123456789"
+    validations:
+      required: true

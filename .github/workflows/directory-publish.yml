@@ -1,0 +1,126 @@
+# Directory publish: a maintainer's `publish` label turns a completed scan
+# into a bot PR adding the record to site/data/repos/.
+#
+# Why a GitHub App token (not GITHUB_TOKEN): events caused by GITHUB_TOKEN do
+# not trigger `pull_request` workflows, and main requires PR checks — a
+# GITHUB_TOKEN-created PR would sit unmergeable. The App is a dedicated,
+# minimal identity (contents: write + pull_requests: write on this repo only);
+# its key lives in the DIRECTORY_BOT_KEY secret.
+#
+# Three independent gates against artifact poisoning:
+#   1. the artifact comes only from a successful directory-scan.yml run in
+#      THIS repo for THIS issue;
+#   2. the record revalidates against the schema and the issue's parsed slug;
+#   3. the result is a human-reviewed PR into a protected branch.
+# Plus: the labeler's write+ permission is re-checked via the collaborators
+# API — belt and braces over GitHub's own triage-role requirement for labels.
+name: Directory publish
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: directory-publish-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.label.name == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read # locate + download the scan artifact
+      issues: write # confirmation / failure comment
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Verify labeler authority
+        env:
+          ACTOR: ${{ github.event.sender.login }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$ACTOR/permission" --jq .permission)
+          case "$perm" in
+            admin|maintain|write) echo "labeler $ACTOR has $perm" ;;
+            *) echo "::error::label applied by $ACTOR ($perm) — publish requires write+"; exit 1 ;;
+          esac
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install site deps
+        working-directory: site
+        run: bun install --frozen-lockfile
+      - name: Locate latest successful scan run for this issue
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          # Both lanes upload scan-record-<issue>: external scans from
+          # directory-scan.yml, authenticated submissions via directory-ingest.yml.
+          run_id=$( (gh api "repos/$GITHUB_REPOSITORY/actions/workflows/directory-scan.yml/runs?status=success&per_page=50" \
+            --jq ".workflow_runs[].id"; \
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/directory-ingest.yml/runs?status=success&per_page=50" \
+            --jq ".workflow_runs[].id") | while read -r id; do
+              if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" \
+                   --jq ".artifacts[].name" | grep -qx "scan-record-$ISSUE"; then
+                echo "$id"; break
+              fi
+            done)
+          [ -n "$run_id" ] || { echo "::error::no successful scan run with an artifact for issue #$ISSUE"; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download scan record
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: scan-record-${{ github.event.issue.number }}
+          run-id: ${{ steps.run.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Revalidate record against the request
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          RECORD_PATH: scan-record.json
+        run: |
+          set -euo pipefail
+          bun run site/src/scan/validate-record.ts
+      - name: Mint bot token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.DIRECTORY_BOT_APP_ID }}
+          private-key: ${{ secrets.DIRECTORY_BOT_KEY }}
+      - name: Branch, commit record, open PR
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          slug=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(`${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}`)')
+          human=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(`${r.repo.owner}/${r.repo.name}`)')
+          grade=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(r.score.grade)')
+          branch="directory/${slug}"
+          git config user.name "sscsb-directory[bot]"
+          git config user.email "sscsb-directory[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          mkdir -p site/data/repos
+          cp scan-record.json "site/data/repos/${slug}.json"
+          git add "site/data/repos/${slug}.json"
+          git commit -m "directory: publish ${human} (grade ${grade}, issue #${ISSUE})"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${branch}" --force-with-lease
+          gh pr create --head "$branch" \
+            --title "directory: publish ${human} (${grade})" \
+            --body "Adds the reviewed scan record for \`${human}\` from issue #${ISSUE}. The \`site\` CI job validates the record; merging deploys the directory."
+      - name: Confirm on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Publish PR opened — the listing goes live when it merges."
