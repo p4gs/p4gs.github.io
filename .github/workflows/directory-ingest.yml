@@ -54,7 +54,10 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           set -euo pipefail
-          run_id=$(printf '%s' "$ISSUE_BODY" | grep -oE 'Workflow run ID[^0-9]*[0-9]+' | grep -oE '[0-9]+' | head -1)
+          # Issue-form answers land on the line AFTER their heading, so flatten
+          # newlines before matching; `|| true` keeps set-e from killing the
+          # assignment on no-match so the guard below can report it properly.
+          run_id=$(printf '%s' "$ISSUE_BODY" | tr '\n' ' ' | grep -oE 'Workflow run ID[^0-9]*[0-9]+' | grep -oE '[0-9]+' | head -1 || true)
           [ -n "$run_id" ] || { echo "::error::no run ID found in the issue"; exit 1; }
           artifact_id=$(gh api "repos/$SLUG/actions/runs/$run_id/artifacts" \
             --jq '.artifacts[] | select(.name=="sscsb-scan-record") | .id' | head -1)
