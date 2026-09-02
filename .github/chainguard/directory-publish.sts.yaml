@@ -13,7 +13,10 @@ issuer: https://token.actions.githubusercontent.com
 
 # Exact subject: `issues` events run on the default branch, so the workflow's
 # OIDC subject is the branch ref, never a PR or environment subject.
-subject: repo:p4gs/p4gs.github.io:ref:refs/heads/main
+# GitHub's OIDC `sub` carries the account and repository IDs
+# (repo:p4gs@10093271/p4gs.github.io@1354031532:ref:…), so pin them: a
+# renamed or recycled name can never satisfy this policy.
+subject_pattern: 'repo:p4gs(@10093271)?/p4gs\.github\.io(@1354031532)?:ref:refs/heads/main'
 
 # And only the publish workflow itself — no other workflow on main can mint a
 # write-capable token through this policy. `claim_pattern` values are REGEXES
