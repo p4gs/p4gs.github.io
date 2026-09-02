@@ -1,0 +1,183 @@
+# sscsb: verification gate before deploy. The Pages deployment CANNOT run
+# unless signature verification (cosign), attestation verification (gh
+# attestation verify — build provenance AND SBOM) and SLSA provenance
+# verification (slsa-verifier) ALL pass — `needs:` in the caller enforces the
+# ordering, and only the bytes this job verified become the Pages artifact.
+#
+# This repo has no releases: its deploy is its release. So instead of the
+# template's draft-release-then-publish shape, the gate is a `workflow_call`
+# reusable workflow that pages.yml runs between provenance and deploy:
+#   build → attest + provenance → THIS GATE → deploy-pages
+# One implementation, one file per control, nothing duplicated.
+name: Deploy Gate — Verify then Stage
+on:
+  workflow_call:
+    inputs:
+      archive-artifact:
+        description: "Run artifact holding the archive (and its SBOM)"
+        required: true
+        type: string
+      archive:
+        description: "Archive filename inside that artifact, e.g. site.tar.gz"
+        required: true
+        type: string
+      archive-sha256:
+        description: "sha256 the build job computed for the archive"
+        required: true
+        type: string
+      signature-artifact:
+        description: "Run artifact holding <archive>.sigstore.json (cosign bundle)"
+        required: true
+        type: string
+      provenance-artifact:
+        description: "Run artifact holding the SLSA provenance (*.intoto.jsonl)"
+        required: true
+        type: string
+      builder-id:
+        description: "Trusted builder id the SLSA provenance must carry"
+        required: true
+        type: string
+      signer-workflow:
+        description: "Repo-relative path of the workflow that signed and attested, e.g. .github/workflows/pages.yml"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: read # fetch attestations via the API (required for private repos; public repos merely tolerate its absence)
+    # Inputs reach the shell through the ENVIRONMENT, never interpolated into
+    # a shell command — `run: cosign verify-blob "${{ inputs.archive }}"`
+    # would splice a caller-influenced string straight into bash, the exact
+    # script-injection shape `sscsb verify workflow-audit-extended` flags.
+    env:
+      ARCHIVE: ${{ inputs.archive }}
+      EXPECTED_SHA256: ${{ inputs.archive-sha256 }}
+      PROVENANCE: ${{ inputs.provenance-artifact }}
+      BUILDER_ID: ${{ inputs.builder-id }}
+      SIGNER_WORKFLOW: ${{ inputs.signer-workflow }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Download archive + SBOM
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.archive-artifact }}
+          path: assets
+      - name: Download signature bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.signature-artifact }}
+          path: assets
+      - name: Download SLSA provenance
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.provenance-artifact }}
+          path: assets
+      # Every gate below fails EXPLICITLY when there is nothing to verify.
+      # "We found no archive, so nothing failed" must never be a way to reach
+      # the deploy job; nor may the gate certify bytes other than the ones the
+      # build job hashed.
+      - name: Refuse to gate a missing or different archive
+        run: |
+          set -euo pipefail
+          cd assets
+          if [ ! -s "$ARCHIVE" ]; then
+            echo "::error::$ARCHIVE is missing or empty — nothing to verify"
+            exit 1
+          fi
+          actual="$(sha256sum "$ARCHIVE" | cut -d' ' -f1)"
+          if [ -z "$EXPECTED_SHA256" ] || [ "$actual" != "$EXPECTED_SHA256" ]; then
+            echo "::error::$ARCHIVE digest $actual does not match the build's $EXPECTED_SHA256"
+            exit 1
+          fi
+          if [ ! -s "$ARCHIVE.sigstore.json" ]; then
+            echo "::error::$ARCHIVE.sigstore.json missing — refusing to certify an unsigned archive"
+            exit 1
+          fi
+          if [ ! -s "$PROVENANCE" ]; then
+            echo "::error::$PROVENANCE missing — refusing to deploy an unprovenanced archive"
+            exit 1
+          fi
+          case "$GITHUB_REF" in
+            refs/heads/*) ;;
+            *) echo "::error::gate only certifies branch builds (got $GITHUB_REF)"; exit 1 ;;
+          esac
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Install slsa-verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@ea584f4502babc6f60d9bc799dbbb13c1caa9ee6 # v2.7.1
+      # Identity regexp is ANCHORED (^…$) with every regex metacharacter in
+      # the identity escaped, so it matches exactly one Fulcio SAN: the signer
+      # workflow, in THIS repository, at the ref this run is building — not a
+      # look-alike host, a repo whose name merely starts with ours, or another
+      # workflow in this repo.
+      - name: Verify cosign bundle (signature gate)
+        run: |
+          set -euo pipefail
+          cd assets
+          identity="https://github.com/${GITHUB_REPOSITORY}/${SIGNER_WORKFLOW}@${GITHUB_REF}"
+          regexp="^$(printf '%s' "$identity" | sed 's/[][\.*^$+?(){}|]/\\&/g')\$"
+          cosign verify-blob "$ARCHIVE" \
+            --bundle "$ARCHIVE.sigstore.json" \
+            --certificate-identity-regexp "$regexp" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+      # Identity is pinned to BOTH the repository and the signer workflow path —
+      # verifying that *something* attested the archive is close to worthless;
+      # verifying that *this repo's deploy workflow* did is the control.
+      # --predicate-type is REQUIRED for the SBOM attestation: `gh attestation
+      # verify` defaults to the build-provenance predicate, so without it the
+      # SBOM attestation is invisible. `set -e` so the FIRST verify failing
+      # fails the step — a shell that ran on to the second call would let the
+      # SBOM verdict mask a missing build-provenance attestation.
+      - name: Verify GitHub attestations (build provenance + SBOM gate)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd assets
+          gh attestation verify "$ARCHIVE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/$SIGNER_WORKFLOW"
+          gh attestation verify "$ARCHIVE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --predicate-type https://cyclonedx.org/bom \
+            --signer-workflow "$GITHUB_REPOSITORY/$SIGNER_WORKFLOW"
+      # --builder-id is OPTIONAL to slsa-verifier, and omitting it makes this
+      # gate accept provenance from ANY builder slsa-verifier trusts for this
+      # repository — not the one that actually builds these deploys. The caller
+      # passes the id that tracks the generator it pins. No tag here: the
+      # deployable is built from a branch, so the source is checked by branch.
+      - name: Verify SLSA provenance (provenance gate)
+        run: |
+          set -euo pipefail
+          cd assets
+          slsa-verifier verify-artifact "$ARCHIVE" \
+            --provenance-path "$PROVENANCE" \
+            --source-uri "github.com/${GITHUB_REPOSITORY}" \
+            --source-branch "${GITHUB_REF#refs/heads/}" \
+            --builder-id "$BUILDER_ID"
+      # Promote: only the bytes that passed all three gates become the Pages
+      # artifact. deploy-pages in the caller deploys exactly this.
+      - name: Unpack the verified archive
+        run: |
+          set -euo pipefail
+          mkdir -p verified
+          tar -xzf "assets/$ARCHIVE" -C verified
+          if [ ! -s verified/index.html ]; then
+            echo "::error::verified archive holds no index.html — refusing to stage an empty site"
+            exit 1
+          fi
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Upload verified site as the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: verified
