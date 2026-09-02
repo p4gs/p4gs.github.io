@@ -1,5 +1,9 @@
-/** Shared page chrome. All hrefs are BASE_PATH-prefixed by construction. */
-import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL } from "../config";
+/**
+ * Console page chrome — ctx-native: every render takes the DesignCtx and all
+ * internal hrefs go through ctx.h(), so links stay inside this design's tree.
+ */
+import { ACTION_REPO_URL, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import type { DesignCtx } from "../types";
 
 export function escapeHtml(s: string): string {
   return s
@@ -10,41 +14,33 @@ export function escapeHtml(s: string): string {
     .replaceAll("'", "&#39;");
 }
 
-/** Internal link helper — the only sanctioned way to build an internal href. */
-export function href(path: string): string {
-  return `${BASE_PATH}${path.replace(/^\//, "")}`;
-}
-
-/** Google Fonts: Archivo (display), Public Sans (body), Spline Sans Mono (data). */
+/** Geist (UI) + Geist Mono (instrument labels), with real fallback stacks in CSS. */
 export const FONTS_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;900&family=Public+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500;700&display=swap">`;
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;700&display=swap">`;
 
-export type ActivePage = "directory" | "methodology";
-
-export function page(opts: {
-  title: string;
-  body: string;
-  head?: string;
-  active?: ActivePage;
-}): string {
-  const nav = (target: ActivePage, label: string, path: string) =>
-    `<a href="${href(path)}"${opts.active === target ? ' class="active"' : ""}>${label}</a>`;
+export function page(
+  ctx: DesignCtx,
+  opts: { title: string; body: string; head?: string },
+): string {
+  const nav = (target: string, label: string, path: string) =>
+    `<a href="${ctx.h(path)}"${ctx.active === target ? ' class="active" aria-current="page"' : ""}>${label}</a>`;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>${escapeHtml(opts.title)}</title>
 ${FONTS_HEAD}
-<link rel="stylesheet" href="${href("style.css")}">
+<link rel="stylesheet" href="${ctx.h("style.css")}">
 ${opts.head ?? ""}
 </head>
 <body>
 <header class="topbar">
   <div class="topbar-in">
-    <a class="wordmark" href="${href("")}">sscsb<span class="caret">▮</span></a>
-    <nav class="topnav">
+    <a class="wordmark" href="${ctx.h("")}"><span class="wm-dot" aria-hidden="true"></span><span class="wm-name">SSCSB</span><span class="wm-ver">v0.3.0</span></a>
+    <nav class="topnav" aria-label="Main">
       ${nav("directory", "Directory", "directory/")}
       ${nav("methodology", "Methodology", "methodology/")}
       <a href="${ACTION_REPO_URL}">Action</a>
@@ -61,6 +57,7 @@ ${opts.body}
     <span>Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>
+${ctx.switcher}
 </body>
 </html>`;
 }

@@ -1,5 +1,5 @@
 /** Shared visual components: inspection seals and the five phase bars. */
-import type { PhaseScore, Score } from "../schema";
+import type { PhaseScore, Score } from "../../schema";
 import { escapeHtml } from "./layout";
 
 export const PHASE_NAMES: Readonly<Record<number, string>> = {

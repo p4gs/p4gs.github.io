@@ -3,7 +3,7 @@
  * from RECORD_PATH, writes markdown to COMMENT_PATH (consumed via
  * `gh issue comment --body-file` — never shell-interpolated).
  */
-import { PHASE_NAMES } from "../render/components";
+import { PHASE_NAMES } from "../designs/ledger/components";
 import { validateScanRecord } from "../schema";
 
 /** Markdown-escape untrusted text destined for a GitHub comment. */

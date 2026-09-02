@@ -1,6 +1,6 @@
 /** Directory listing + per-repo detail pages. */
-import { ACTION_REPO_URL, SITE_REPO_URL, SUBMIT_URL } from "../config";
-import type { ScanRecord } from "../schema";
+import { ACTION_REPO_URL, SITE_REPO_URL, SUBMIT_URL } from "../../config";
+import type { ScanRecord } from "../../schema";
 import { gradeBadge, PHASE_NAMES, phaseBars } from "./components";
 import { escapeHtml, href, page } from "./layout";
 

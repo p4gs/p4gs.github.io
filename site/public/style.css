@@ -446,3 +446,24 @@ details ul { font-size: 13px; color: var(--ink-dim); }
   .topbar-in, .footer-in, .landing-bar-in, .landing-foot-in { padding-left: 20px; padding-right: 20px; }
   .hero { padding: 44px 0 40px; }
 }
+
+/* ── Design switcher (four-up trial) ─────────────────────────────────── */
+.design-switcher {
+  position: fixed; right: 18px; bottom: 18px; z-index: 50;
+  display: flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 rgba(22, 33, 31, 0.12);
+  padding: 6px 8px; font-family: var(--mono); font-size: 12px;
+}
+.design-switcher .ds-label {
+  color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 10px; margin-right: 6px;
+}
+.design-switcher a {
+  color: var(--ink); text-decoration: none; padding: 4px 8px;
+}
+.design-switcher a:hover { color: var(--stamp); }
+.design-switcher a[aria-current="true"] {
+  background: var(--ink); color: var(--paper);
+}
+@media (max-width: 640px) { .design-switcher { right: 10px; bottom: 10px; } }
