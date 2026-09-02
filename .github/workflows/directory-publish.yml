@@ -43,7 +43,7 @@ permissions:
 # behind the winner's merge. Serialising here means each PR is created
 # against the main that exists when it is created.
 concurrency:
-  group: directory-publish
+  group: directory-publish-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
@@ -61,14 +61,24 @@ jobs:
         with:
           egress-policy: audit
       - name: Verify labeler authority
+        id: auth
         env:
           ACTOR: ${{ github.event.sender.login }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Two legitimate labelers: a maintainer (write+), or the directory's
+          # own auto-publish gate acting as the Octo STS federated identity.
+          # The bot's label is NOT trusted on its own — it is authorized below
+          # against the ingested trust sidecar and the registry, so a bot
+          # label on anything unsigned, unregistered, or off-lane still fails.
+          if [ "$ACTOR" = "octo-sts[bot]" ]; then
+            echo "label applied by $ACTOR — deferring to the trust-sidecar authorization step"
+            echo "bot_label=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$ACTOR/permission" --jq .permission)
           case "$perm" in
-            admin|maintain|write) echo "labeler $ACTOR has $perm" ;;
+            admin|maintain|write) echo "labeler $ACTOR has $perm"; echo "bot_label=false" >> "$GITHUB_OUTPUT" ;;
             *) echo "::error::label applied by $ACTOR ($perm) — publish requires write+"; exit 1 ;;
           esac
       - name: Checkout
@@ -113,6 +123,28 @@ jobs:
         run: |
           set -euo pipefail
           bun run site/src/scan/validate-record.ts
+      - name: Authorize a bot-applied label against the trust sidecar
+        if: steps.auth.outputs.bot_label == 'true'
+        env:
+          ISSUE: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [ -s scan-record.trust.json ] || { echo "::error::bot-applied label but no trust sidecar was ingested — refusing"; exit 1; }
+          lane=$(jq -r '.lane // ""' scan-record.trust.json); sig=$(jq -r '.signature // ""' scan-record.trust.json)
+          identity=$(jq -r '.identity // ""' scan-record.trust.json)
+          slug=$(jq -r '"\(.repo.owner)/\(.repo.name)"' scan-record.json)
+          in_registry=$(jq -r --arg s "$slug" '[.repos[] | ascii_downcase] | index($s | ascii_downcase) != null' site/data/registry.json)
+          reason=""
+          [ "$lane" = "action" ] || reason="lane '$lane' is not the authenticated action lane"
+          [ -n "$reason" ] || [ "$sig" = "verified" ] || reason="signature is '$sig', not verified"
+          [ -n "$reason" ] || [[ "$identity" == *"github.com/${slug}/.github/workflows/sscsb-scan.yml@"* ]] || reason="verified identity is not ${slug}'s canonical sscsb-scan.yml"
+          [ -n "$reason" ] || [ "$in_registry" = "true" ] || reason="${slug} is not in site/data/registry.json"
+          if [ -n "$reason" ]; then
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Publish refused a bot-applied label: ${reason}. A maintainer must apply \`publish\` by hand if this record should be listed."
+            echo "::error::bot label not authorized: $reason"; exit 1
+          fi
+          echo "bot label authorized: $slug — lane=$lane signature=$sig registry=yes"
       # Preferred: federate. A failure here (App not installed yet, policy
       # rejected) is logged and the fallback below carries the publish; it
       # never lets an unauthenticated push proceed — the push step has no
@@ -175,14 +207,28 @@ jobs:
           # above), or the record arrived through the verified authenticated
           # lane (directory-ingest.yml verified its Sigstore bundle at ingest).
           # The only gate left is main's required `site` check, so the PR
-          # merges itself once that check is green. (Strict checks mean a PR
-          # whose base moved before merge is out of date; the repo-wide
-          # concurrency group above keeps publishes serial so that does not
-          # happen in practice.) Squash so the commit that lands on
+          # merges itself once that check is green. Strict checks mean a PR
+          # whose base moved before merge is out of date and auto-merge will
+          # not update it, so the loop below brings it up to date (the App
+          # identity holds contents: write) until it merges. Squash so the commit that lands on
           # main is created — and signed — by GitHub, satisfying main's
           # required-signatures rule. Same token as the PR: the App identity
           # holds pull_requests: write, the minimum that enables auto-merge.
           gh pr merge --auto --squash "$branch"
+          # Concurrent publishes race each other onto main; each time this PR
+          # falls behind, update its branch so the required check re-runs and
+          # auto-merge can complete. Bounded: ~8 minutes, then leave auto-merge
+          # armed and report.
+          n=$(gh pr view "$branch" --json number --jq .number)
+          for i in $(seq 1 32); do
+            st=$(gh pr view "$n" --json state,mergeStateStatus --jq '.state + " " + .mergeStateStatus')
+            case "$st" in
+              MERGED*) echo "PR #$n merged"; break ;;
+              *BEHIND*) echo "PR #$n is behind main — updating branch"; gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$n/update-branch" >/dev/null || true ;;
+            esac
+            sleep 15
+          done
+          echo "final: $(gh pr view "$n" --json state,mergeStateStatus --jq '.state + " " + .mergeStateStatus')"
       # No silent, unmergeable outcome: when BOTH identities failed to mint,
       # say so on the issue the maintainer is watching, not only in run logs.
       - name: Report on the issue when no publish token could be minted
