@@ -131,6 +131,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 32px 72px; }
   border: 2px solid var(--stamp);
 }
 .btn:hover { filter: brightness(1.08); }
+button.btn { font-family: var(--font-body); cursor: pointer; }
+button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
 .btn-outline {
   display: inline-block; background: transparent; color: var(--ink);
   padding: 11px 20px; font-weight: 600; font-size: 15px; text-decoration: none;
@@ -272,12 +274,33 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 32px 72px; }
 .page-head-copy .body-copy { font-size: 16px; color: var(--ink-dim); max-width: 60ch; line-height: 1.6; margin: 0; }
 
 .dir-controls { margin: 8px 0 20px; }
+.dir-controls-label {
+  display: block; margin: 0 0 8px;
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
 #dir-filter {
-  width: 100%; max-width: 420px; padding: 12px 16px;
+  width: 100%; max-width: 520px; padding: 12px 16px;
   border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink);
   font-family: var(--font-mono); font-size: 14px; border-radius: 0;
 }
 #dir-filter::placeholder { color: var(--muted); }
+
+/* Scan-intake callout: revealed by filter.js when the query is a repo slug
+   with no directory entry. Quiet — dashed rule, no shadow, not a hero. */
+.dir-scan {
+  max-width: 520px; margin: 14px 0 0; padding: 18px 22px;
+  background: var(--surface); border: 2px dashed var(--line-strong);
+}
+.dir-scan-copy {
+  margin: 0 0 14px; font-size: 14px; color: var(--ink-dim);
+  line-height: 1.55; max-width: 52ch;
+}
+.dir-scan-status {
+  margin: 12px 0 0; font-family: var(--font-mono); font-size: 12.5px;
+  color: var(--ink-dim); line-height: 1.6;
+}
+.dir-scan-status a { color: var(--stamp); }
 
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }

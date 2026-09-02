@@ -4,7 +4,7 @@
  * meters fill on load (staggered CSS transitions armed by a tiny inline
  * script; prefers-reduced-motion and no-JS both show the final state).
  */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL } from "../../config";
 import type { PhaseScore } from "../../schema";
 import { gradeChip, meterStack } from "./components";
 import { page } from "./layout";
@@ -83,7 +83,7 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
     never counts, and checks that couldn't run stay hatched on the meter —
     shown, not spun.</p>
     <div class="btn-row">
-      <a class="btn-outline" href="${SUBMIT_URL}">Submit a repo</a>
+      <a class="btn-outline" href="${ctx.h("directory/")}?submit=1">Submit a repo</a>
       <a class="btn-outline" href="${ctx.h("methodology/")}">Read the methodology</a>
     </div>
   </div>

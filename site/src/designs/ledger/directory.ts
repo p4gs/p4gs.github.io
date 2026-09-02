@@ -1,5 +1,5 @@
 /** Directory listing + per-repo detail pages. */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
 import {
   resolveTrustKind,
@@ -99,10 +99,18 @@ export function renderDirectory(
     were produced in the repository's own CI and cryptographically verified against
     its workflow identity (<a href="${href("methodology/#trust")}">how</a>).</p>
   </div>
-  <a class="btn" href="${SUBMIT_URL}">Submit a repository</a>
 </div>
 <div class="dir-controls">
-  <input type="search" id="dir-filter" placeholder="⌕ filter by owner/repo…" aria-label="Filter repositories">
+  <label class="dir-controls-label" for="dir-filter">Search the ledger — or submit a repository</label>
+  <input type="search" id="dir-filter" placeholder="⌕ owner/repo — search, or paste a repo to request a scan…"
+    aria-label="Search the directory, or enter owner/repo to submit a repository for scanning">
+  <div id="dir-scan" class="dir-scan" hidden
+    data-api="${escapeHtml(SCAN_API_URL)}" data-fallback="${escapeHtml(SUBMIT_URL)}">
+    <p class="dir-scan-copy">Not in the ledger yet. Request an unauthenticated sscsb scan —
+    every record passes a maintainer's review before it's published.</p>
+    <button type="button" id="dir-scan-cta" class="btn">Scan now</button>
+    <p id="dir-scan-status" class="dir-scan-status" aria-live="polite" hidden></p>
+  </div>
 </div>
 <div class="table-scroll">
 <table class="directory">

@@ -2,13 +2,15 @@
  * Chain — directory card grid + per-repo detail pages.
  *
  * The grid keeps the shipped filter.js contract exactly: an input with
- * id="dir-filter" and cards that ARE `table.directory tbody tr` elements
+ * id="dir-filter" (which doubles as the scan-submission field — filter.js
+ * reveals #dir-scan when the query parses as owner/repo with no exact row)
+ * and cards that ARE `table.directory tbody tr` elements
  * carrying data-name (filter.js toggles their inline display; "" restores
  * the stylesheet value, so the CSS grid survives filtering). The table is
  * restyled into a card grid; a visually-hidden header row keeps the markup
  * honest for assistive tech.
  */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
 import { resolveTrustKind, trustKeyOf, type TrustInfo, type TrustKind } from "../../trust";
 import {
@@ -95,12 +97,22 @@ export function renderDirectory(
     <h1 class="page-title">Scan directory</h1>
     <p class="body-copy">Repositories scanned with sscsb, scored by the
     <a href="${href("methodology/")}">published methodology</a>. Every listing passed
-    a maintainer's review before appearing here.</p>
+    a maintainer's review before appearing here. Type any <code>owner/repo</code>
+    below to search the record — or to put a repository that isn't in it yet
+    into the scan queue.</p>
   </div>
-  <a class="btn" href="${SUBMIT_URL}">Submit a repository</a>
 </div>
 <div class="dir-controls">
-  <input type="search" id="dir-filter" placeholder="⌕ filter by owner/repo…" aria-label="Filter repositories">
+  <input type="search" id="dir-filter" placeholder="⌕ search — or submit any owner/repo…"
+    aria-label="Search the directory, or submit a repository to scan (owner/repo or GitHub URL)">
+  <div class="card scan-card" id="dir-scan" hidden
+    data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
+    <p class="scan-copy"><strong>No record for this repository yet.</strong>
+    Request an unauthenticated sscsb scan — a maintainer reviews every record
+    before it enters the directory.</p>
+    <button type="button" class="btn" id="dir-scan-cta">Scan now</button>
+    <p class="scan-status mono" id="dir-scan-status" aria-live="polite" hidden></p>
+  </div>
 </div>
 <table class="directory">
   <thead class="sr-only"><tr><th scope="col">Repository scan record</th></tr></thead>

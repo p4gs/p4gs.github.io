@@ -176,6 +176,17 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 32px 72px; }
 #dir-filter { width: 100%; max-width: 420px; font-family: var(--mono); font-size: 14px; color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; }
 #dir-filter::placeholder { color: var(--faint); }
 #dir-filter:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.dir-filter-label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--faint); margin-bottom: 7px; }
+
+/* unified scan intake — revealed by filter.js when the query is a repo slug
+   with no directory row (quiet callout, not a hero) */
+#dir-scan { margin-top: 12px; max-width: 640px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 16px 18px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+#dir-scan[hidden] { display: none; }
+.scan-copy { flex: 1 1 260px; font-size: 13px; color: var(--dim); margin: 0; }
+.scan-eyebrow { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--accent); border: 1px solid rgba(111, 211, 232, 0.4); border-radius: 4px; padding: 1px 7px; margin-right: 8px; vertical-align: middle; white-space: nowrap; }
+#dir-scan .btn { white-space: nowrap; }
+.scan-status { flex-basis: 100%; font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.scan-status a { color: var(--accent); }
 
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 table.directory { width: 100%; border-collapse: collapse; min-width: 860px; }

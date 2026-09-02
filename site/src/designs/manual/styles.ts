@@ -204,6 +204,25 @@ main { padding-bottom: 40px; }
 #dir-filter::placeholder { color: var(--dim); font-style: italic; font-family: var(--serif); }
 #dir-filter:focus { border-bottom-color: var(--rust); }
 
+/* the scan-intake callout the merged field reveals (filter.js contract) */
+#dir-scan {
+  max-width: 32rem; margin: 24px auto 0;
+  background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+  padding: 22px 26px; text-align: center;
+}
+#dir-scan[hidden] { display: none; }
+.scan-copy { font-size: 14px; line-height: 1.65; color: var(--dim); margin: 0 0 16px; }
+.scan-cta {
+  font-family: var(--sans); cursor: pointer;
+  max-width: 100%; overflow-wrap: anywhere;
+}
+.scan-cta:disabled { opacity: 0.55; cursor: default; }
+.scan-status {
+  font-family: var(--serif); font-style: italic; font-size: 14px;
+  line-height: 1.6; color: var(--dim); margin: 14px 0 0; overflow-wrap: anywhere;
+}
+.scan-status[hidden] { display: none; }
+
 /* the shared filter.js expects table.directory tbody tr — reset to entries */
 table.directory { display: block; max-width: 860px; margin: 40px auto 0; padding: 0 24px; border-collapse: collapse; }
 table.directory tbody { display: block; }

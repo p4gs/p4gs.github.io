@@ -1,12 +1,14 @@
 /**
  * Manual — the directory as an editorial index and the per-repo manual entry.
  *
- * The index keeps the shared filter.js contract — an #dir-filter input and
- * `table.directory tbody tr` rows carrying data-name — but the table is
+ * The index keeps the shared filter.js contract — one #dir-filter input that
+ * both searches the index and takes an owner/repo submission (revealing the
+ * #dir-scan callout), plus `table.directory tbody tr` rows carrying
+ * data-name — but the table is
  * CSS-reset to block/grid layout so each row reads as a ruled entry, not a
  * data grid.
  */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
 import { lookupTrust, resolveTrustKind, type TrustInfo, type TrustKind } from "../../trust";
 import type { DesignCtx } from "../types";
@@ -83,8 +85,16 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
   <p class="dir-lede">Repositories scanned with sscsb and scored under the
   <a href="${ctx.h("methodology/")}">published methodology</a>. Every listing passed a
   maintainer's review before appearing here; every seal names its own limits.
-  <a href="${SUBMIT_URL}">Submit a repository</a> to be scanned.</p>
-  <input type="search" id="dir-filter" placeholder="Filter by owner/repo…" aria-label="Filter repositories">
+  To submit a repository, type its <code>owner/repo</code> into the field below.</p>
+  <input type="search" id="dir-filter"
+    placeholder="Search the directory, or submit owner/repo…"
+    aria-label="Search the directory, or submit a repository as owner/repo">
+  <div id="dir-scan" hidden data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
+    <p class="scan-copy">This repository isn't in the directory yet. Run an unauthenticated
+    sscsb scan — a maintainer reviews every result before it is published.</p>
+    <button type="button" id="dir-scan-cta" class="btn-fill scan-cta">Scan now</button>
+    <p id="dir-scan-status" class="scan-status" aria-live="polite" hidden></p>
+  </div>
 </section>
 <table class="directory" aria-label="Scanned repositories">
   <tbody>

@@ -1,5 +1,5 @@
 /** Console directory listing + per-repo telemetry detail pages. */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
 import { lookupTrust, resolveTrustKind, type TrustInfo, type TrustKind } from "../../trust";
 import { compactMeters, gradeBadge, meterStack, PHASE_NAMES } from "./components";
@@ -66,10 +66,19 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
     <a href="${ctx.h("methodology/")}">published methodology</a>. Every listing passed
     a maintainer's review before appearing here.</p>
   </div>
-  <a class="btn" href="${SUBMIT_URL}">Submit a repository</a>
 </div>
 <div class="dir-controls">
-  <input type="search" id="dir-filter" placeholder="⌕ filter by owner/repo…" aria-label="Filter repositories">
+  <label class="dir-filter-label" for="dir-filter">SEARCH · OR SUBMIT OWNER/REPO</label>
+  <input type="search" id="dir-filter"
+    placeholder="⌕ search the directory — or type owner/repo to submit…"
+    aria-label="Search the directory, or submit a repository by typing owner/repo or a GitHub URL">
+  <div id="dir-scan" hidden data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
+    <p class="scan-copy"><span class="scan-eyebrow">NO RECORD</span>
+    This repository isn't in the directory yet — run an unauthenticated sscsb scan.
+    A maintainer reviews every result before it's published.</p>
+    <button type="button" class="btn" id="dir-scan-cta">Scan now</button>
+    <p id="dir-scan-status" class="scan-status" aria-live="polite" hidden></p>
+  </div>
 </div>
 <div class="table-scroll">
 <table class="directory">
