@@ -180,6 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      actions: write # hand off to directory-autopublish.yml (see the last step)
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -209,3 +210,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ needs.ingest.outputs.issue }}
         run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file scan-comment.md
+      # Hand the ingested record to the authenticated-lane auto-publish gate.
+      # directory-autopublish.yml also declares `workflow_run` on this
+      # workflow, but that event never fires for a run this workflow reached
+      # through a GITHUB_TOKEN dispatch (the collector's path) — GitHub's
+      # anti-recursion rule. workflow_dispatch is the documented exception,
+      # so dispatch explicitly; the gate re-reads the trust sidecar and still
+      # declines anything unsigned, unregistered, or off-lane.
+      - name: Hand off to auto-publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.ingest.outputs.issue }}
+        run: gh workflow run directory-autopublish.yml --repo "$GITHUB_REPOSITORY" -f "issue=$ISSUE"
