@@ -3,17 +3,17 @@
   "methodology_version": 1,
   "repo": {
     "owner": "p4gs",
-    "name": "sscsb-action",
-    "url": "https://github.com/p4gs/sscsb-action",
+    "name": "p4gs.github.io",
+    "url": "https://github.com/p4gs/p4gs.github.io",
     "default_branch": "main",
-    "commit": "3da0f406bf61ee1e67ea91b16a5afbe55f033062",
-    "description": "Run sscsb supply-chain-security scans in your own CI — authenticated scan records for tools.sensiblesecurity.xyz/sscsb/"
+    "commit": "f1b64570026511da267155a01241c0e1fd237c21",
+    "description": "Sensible Security tools — tools.sensiblesecurity.xyz (landing, sscsb site + public scan directory)"
   },
-  "scanned_at": "2026-09-02T03:07:01.852Z",
+  "scanned_at": "2026-09-02T03:06:50.387Z",
   "scanner": {
     "sscsb_version": "0.3.0",
-    "workflow_run_id": 33585769997,
-    "workflow_run_url": "https://github.com/p4gs/sscsb-action/actions/runs/33585769997"
+    "workflow_run_id": 33585754494,
+    "workflow_run_url": "https://github.com/p4gs/p4gs.github.io/actions/runs/33585754494"
   },
   "request_issue": null,
   "controls": [
@@ -232,7 +232,7 @@
       "messages": [
         "new-package approval gate enforced in commit-msg hook",
         "pre-commit + commit-msg + pre-push shims installed, executable, and unmodified (core.hooksPath=.sscsb/hooks)",
-        "approved baseline present (0 package(s))",
+        "approved baseline present (2 package(s))",
         "registry existence validation ON for `sscsb deps check` and approvals (anti-slopsquat)",
         "typosquat proximity heuristic ON for `sscsb deps check`, approvals, and the commit gate"
       ]
@@ -264,13 +264,14 @@
     {
       "id": "socket-firewall",
       "phase": 2,
-      "in_scope": false,
-      "raw_outcome": "disabled",
-      "scan_outcome": "info",
+      "in_scope": true,
+      "raw_outcome": "degraded",
+      "scan_outcome": "unverified",
       "reclassified": false,
-      "reason": "optional control not enabled by this repository",
+      "reason": "requires the local development environment; not observable in a repository scan",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        "Socket Firewall CLI (sfw) not found — install per https://docs.socket.dev/docs/socket-firewall and wrap installs: `sfw npm install`, `sfw pip install`, `sfw cargo add`",
+        "socket-firewall blocks known-malicious packages at install time (optional layer)"
       ]
     },
     {
@@ -378,14 +379,14 @@
       "reclassified": false,
       "reason": null,
       "messages": [
-        "ci.yml: harden-runner present in job `self-test`",
+        "ci.yml: harden-runner present in job `site`",
         "codeql.yml: harden-runner present in job `analyze`",
-        "sast-opengrep.yml: harden-runner present in job `opengrep`",
-        "sbom.yml: harden-runner present in job `sbom`",
-        "scorecard.yml: harden-runner present in job `analysis`",
-        "secrets-scan.yml: harden-runner present in job `trufflehog`",
-        "secrets-scan.yml: harden-runner present in job `gitleaks`",
-        "sscsb-scan.yml: harden-runner present in job `scan`"
+        "directory-ingest.yml: harden-runner present in job `ingest`",
+        "directory-ingest.yml: harden-runner present in job `comment`",
+        "directory-publish.yml: harden-runner present in job `publish`",
+        "directory-scan.yml: harden-runner present in job `scan`",
+        "directory-scan.yml: harden-runner present in job `comment`",
+        "pages.yml: harden-runner present in job `build`"
       ]
     },
     {
@@ -409,7 +410,7 @@
       "reclassified": true,
       "reason": "runner-tool availability is the scanner's environment, not the repository's; all registered artifacts pre-exist",
       "messages": [
-        "engine: opengrep (rules: /home/runner/work/sscsb-action/sscsb-action/.sscsb/rules)",
+        "engine: opengrep (rules: /home/runner/work/p4gs.github.io/p4gs.github.io/.sscsb/rules)",
         "local ruleset present (1 file(s))",
         "opengrep not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 1.25.0. Install: No Homebrew formula; install a pinned release binary: https://github.com/opengrep/opengrep/releases (https://github.com/opengrep/opengrep)"
       ]
@@ -589,7 +590,7 @@
     "grade": "D",
     "provisional": true,
     "overall_percent": 60,
-    "evidence_coverage_percent": 66.7,
+    "evidence_coverage_percent": 64.5,
     "phases": [
       {
         "phase": 1,
@@ -605,7 +606,7 @@
         "pass": 3,
         "fail": 0,
         "gap": 0,
-        "unverified": 4,
+        "unverified": 5,
         "info": 0,
         "percent": 100
       },
