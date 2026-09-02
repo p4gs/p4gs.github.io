@@ -6,14 +6,14 @@
     "name": "sscsb-action",
     "url": "https://github.com/p4gs/sscsb-action",
     "default_branch": "main",
-    "commit": "3da0f406bf61ee1e67ea91b16a5afbe55f033062",
+    "commit": "3f78b87de7b8d573f390dd744f269c7263acbbe7",
     "description": "Run sscsb supply-chain-security scans in your own CI — authenticated scan records for tools.sensiblesecurity.xyz/sscsb/"
   },
-  "scanned_at": "2026-09-02T03:07:01.852Z",
+  "scanned_at": "2026-09-02T03:30:59.639Z",
   "scanner": {
     "sscsb_version": "0.3.0",
-    "workflow_run_id": 33585769997,
-    "workflow_run_url": "https://github.com/p4gs/sscsb-action/actions/runs/33585769997"
+    "workflow_run_id": 33587306912,
+    "workflow_run_url": "https://github.com/p4gs/sscsb-action/actions/runs/33587306912"
   },
   "request_issue": null,
   "controls": [
@@ -100,12 +100,12 @@
       "id": "actions-audit",
       "phase": 1,
       "in_scope": true,
-      "raw_outcome": "fail",
-      "scan_outcome": "fail",
+      "raw_outcome": "pass",
+      "scan_outcome": "pass",
       "reclassified": false,
       "reason": null,
       "messages": [
-        "[ERROR] .github/workflows/sscsb-scan.yml: `p4gs/sscsb-action@v1` uses mutable ref `@v1` — pin to a full 40-char commit SHA"
+        "all workflows pass (SHA-pinned, least-privilege)"
       ]
     },
     {
@@ -454,12 +454,12 @@
       "id": "workflow-audit-extended",
       "phase": 4,
       "in_scope": true,
-      "raw_outcome": "fail",
-      "scan_outcome": "fail",
+      "raw_outcome": "pass",
+      "scan_outcome": "pass",
       "reclassified": false,
       "reason": null,
       "messages": [
-        "[ERROR] .github/workflows/sscsb-scan.yml: `p4gs/sscsb-action@v1` uses mutable ref `@v1` — pin to a full 40-char commit SHA"
+        "all workflows pass (SHA-pinned, least-privilege)"
       ]
     },
     {
@@ -586,19 +586,19 @@
     }
   ],
   "score": {
-    "grade": "D",
+    "grade": "C",
     "provisional": true,
-    "overall_percent": 60,
+    "overall_percent": 70,
     "evidence_coverage_percent": 66.7,
     "phases": [
       {
         "phase": 1,
-        "pass": 3,
-        "fail": 1,
+        "pass": 4,
+        "fail": 0,
         "gap": 0,
         "unverified": 5,
         "info": 0,
-        "percent": 75
+        "percent": 100
       },
       {
         "phase": 2,
@@ -620,12 +620,12 @@
       },
       {
         "phase": 4,
-        "pass": 2,
-        "fail": 1,
+        "pass": 3,
+        "fail": 0,
         "gap": 0,
         "unverified": 0,
         "info": 0,
-        "percent": 66.7
+        "percent": 100
       },
       {
         "phase": 5,
