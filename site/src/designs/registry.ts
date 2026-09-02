@@ -4,7 +4,8 @@
  * implement Design in designs/<id>/index.ts and register it here.
  */
 import type { Design } from "./types";
+import { consoleDesign } from "./console/index";
 import { ledger } from "./ledger/index";
 
-export const DESIGNS: Design[] = [ledger];
+export const DESIGNS: Design[] = [ledger, consoleDesign];
 export const DEFAULT_DESIGN = DESIGNS[0]!;
