@@ -1,0 +1,164 @@
+# Directory auto-publish — authenticated lane only.
+#
+# Closes the last manual mile of the directory pipeline for records that need
+# no human judgment: the record came from the TARGET repository's own CI
+# (lane "action"), its Sigstore bundle verified against that repository's
+# canonical sscsb-scan.yml identity at ingest (signature "verified" — ingest
+# REFUSES a bundle that fails, so "verified" is evidence, not a claim), and the
+# repository opted into the directory by PR to site/data/registry.json. Such a
+# record is the repository's own attested statement about itself; a maintainer
+# review would add nothing. Everything else — unsigned records, repositories
+# not in the registry, and every external (unauthenticated) scan request —
+# still waits for the maintainer `publish` label exactly as before.
+#
+# How it hands off: it applies the `publish` label with an Octo STS federated
+# token (a GitHub App identity), because label events caused by GITHUB_TOKEN
+# never trigger workflows (GitHub's anti-recursion rule). directory-publish.yml
+# then runs unchanged. The trust policy that permits this lives at
+# .github/chainguard/sscsb-automation.sts.yaml; the Octo STS App must be
+# installed on this repository for federation to succeed — when it is not,
+# this workflow fails loudly on the issue instead of silently skipping.
+#
+# workflow_run fires on the default branch after "Directory ingest (action
+# results)" completes, including runs that ingest was itself dispatched into
+# by directory-collect.yml (workflow_dispatch is the documented exception to
+# the anti-recursion rule, and workflow_run is not subject to it).
+name: Directory auto-publish (authenticated lane)
+
+on:
+  workflow_run:
+    workflows: ["Directory ingest (action results)"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "action-scan-result issue number (already ingested)"
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: directory-autopublish-${{ github.event.workflow_run.id || inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Verify lane, signature, registry — then hand off
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # site/data/registry.json
+      actions: read # download the ingest run's scan-record-<issue> artifact
+      issues: write # explain the decision on the submission issue
+      id-token: write # Octo STS federation (label is applied as the App identity)
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout (registry only)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: site/data/registry.json
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve the ingested issue and its ingest run
+        id: req
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_ISSUE: ${{ inputs.issue }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            issue="$INPUT_ISSUE"
+            [[ "$issue" =~ ^[0-9]+$ ]] || { echo "::error::issue must be a number"; exit 1; }
+            # Latest successful ingest run that produced scan-record-<issue>.
+            run_id=""
+            for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/directory-ingest.yml/runs?status=success&per_page=25" --jq '.workflow_runs[].id'); do
+              if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[].name' | grep -qx "scan-record-$issue"; then run_id="$id"; break; fi
+            done
+            [ -n "$run_id" ] || { echo "::error::no successful ingest run carries scan-record-$issue"; exit 1; }
+          else
+            run_id="$RUN_ID"
+            issue=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
+              --jq '[.artifacts[].name | select(startswith("scan-record-"))][0] // "" | sub("^scan-record-"; "")')
+            [[ "$issue" =~ ^[0-9]+$ ]] || { echo "ingest run $run_id uploaded no scan-record-<issue> artifact — nothing to publish"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          fi
+          echo "issue=$issue" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Download the ingested record + trust sidecar
+        if: steps.req.outputs.skip != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: scan-record-${{ steps.req.outputs.issue }}
+          run-id: ${{ steps.req.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ingested
+
+      - name: Decide — authenticated, verified, opted in
+        if: steps.req.outputs.skip != 'true'
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ steps.req.outputs.issue }}
+        run: |
+          set -euo pipefail
+          trust=$(find ingested -name 'scan-record.trust.json' | head -1)
+          record=$(find ingested -name 'scan-record.json' | head -1)
+          [ -s "$trust" ] && [ -s "$record" ] || { echo "::error::ingest artifact lacks scan-record.json / scan-record.trust.json"; exit 1; }
+          lane=$(jq -r '.lane // ""' "$trust")
+          sig=$(jq -r '.signature // ""' "$trust")
+          identity=$(jq -r '.identity // ""' "$trust")
+          slug=$(jq -r '"\(.repo.owner)/\(.repo.name)"' "$record")
+          [[ "$slug" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}$ ]] || { echo "::error::record carries an invalid repo slug"; exit 1; }
+          in_registry=$(jq -r --arg s "$slug" '[.repos[] | ascii_downcase] | index($s | ascii_downcase) != null' site/data/registry.json)
+          reason=""
+          [ "$lane" = "action" ] || reason="lane is '$lane', not the authenticated action lane"
+          [ -n "$reason" ] || [ "$sig" = "verified" ] || reason="record is not signature-verified (signature='$sig')"
+          # Defense in depth: the verified identity must be THIS repository's canonical workflow.
+          [ -n "$reason" ] || [[ "$identity" == *"github.com/${slug}/.github/workflows/sscsb-scan.yml@"* ]] || reason="verified identity '$identity' is not ${slug}'s canonical sscsb-scan.yml"
+          [ -n "$reason" ] || [ "$in_registry" = "true" ] || reason="${slug} has not opted into the registry (site/data/registry.json)"
+          if [ -n "$reason" ]; then
+            echo "auto=false" >> "$GITHUB_OUTPUT"
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Auto-publish declined — ${reason}. This record waits for a maintainer's \`publish\` label like any other submission."
+            echo "declined: $reason"
+          else
+            echo "auto=true" >> "$GITHUB_OUTPUT"
+            echo "slug=$slug" >> "$GITHUB_OUTPUT"
+            echo "identity=$identity" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Federate a scoped token (Octo STS)
+        if: steps.decide.outputs.auto == 'true'
+        id: sts
+        uses: octo-sts/action@f603d3be9d8dd9871a265776e625a27b00effe05 # v1.1.1
+        with:
+          scope: ${{ github.repository }}
+          identity: directory-publish
+
+      - name: Hand off — apply the publish label as the federated identity
+        if: steps.decide.outputs.auto == 'true'
+        env:
+          GH_TOKEN: ${{ steps.sts.outputs.token }}
+          ISSUE: ${{ steps.req.outputs.issue }}
+          SLUG: ${{ steps.decide.outputs.slug }}
+          IDENTITY: ${{ steps.decide.outputs.identity }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Auto-publishing: authenticated record for \`${SLUG}\`, signature verified against \`${IDENTITY}\`, repository is in the registry. Applying \`publish\` — directory-publish.yml takes it from here."
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label publish
+
+      - name: Explain a federation failure on the issue
+        if: failure() && steps.decide.outputs.auto == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ steps.req.outputs.issue }}
+        run: |
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Auto-publish could not federate a token (is the Octo STS GitHub App installed on this repository, and does .github/chainguard/sscsb-automation.sts.yaml grant issues:write to refs/heads/main?). The record is verified and eligible — a maintainer can apply \`publish\` by hand meanwhile."

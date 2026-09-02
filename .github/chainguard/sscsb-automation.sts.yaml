@@ -1,0 +1,43 @@
+# sscsb Octo STS trust policy — lives at .github/chainguard/sscsb-automation.sts.yaml
+# in the repo that GRANTS access. The workflow identity in `subject` below can
+# exchange its OIDC identity for a short-lived token with EXACTLY these
+# permissions on THIS repo. No PAT, nothing stored, expires in ~1 hour.
+#
+# Consumers: the directory's automation on refs/heads/main — today the
+# read-only federation probe .github/workflows/octo-sts-example.yml (which
+# exercises only `contents: read` of this grant), next the auto-publish
+# workflow that applies the `publish` label through this identity. The
+# label-to-PR publish path has its own, separately scoped policy:
+# directory-publish.sts.yaml.
+#
+# Docs: https://github.com/octo-sts/app
+issuer: https://token.actions.githubusercontent.com
+
+# Exact subject (not a pattern): only workflows on this repo's default branch.
+subject: repo:p4gs/p4gs.github.io:ref:refs/heads/main
+
+# And only THIS workflow on that branch — not every workflow that runs on
+# main. `claim_pattern` values are REGEXES (Octo STS anchors them), so every
+# `.` is escaped: an unescaped dot would also match `p4gs/p4gsXgithub.io` or
+# `octo-sts-exampleXyml`. When the auto-publish workflow lands, add it here
+# as a grouped alternation, e.g. `(octo-sts-example|<its-name>)\.yml` — a
+# workflow not listed here cannot mint through this identity.
+claim_pattern:
+  job_workflow_ref: 'p4gs/p4gs\.github\.io/\.github/workflows/octo-sts-example\.yml@refs/heads/main'
+
+permissions:
+  # Exactly what the directory's automation needs from refs/heads/main:
+  #   contents: write       — commit + push a record branch
+  #   pull_requests: write  — open / auto-merge the publish PR
+  #   issues: write         — apply the `publish` label to a scan issue (the
+  #                           auto-publish workflow's trigger for
+  #                           directory-publish.yml) and comment on it
+  # octo-sts-example.yml stays read-only in USE (`gh api … --jq .full_name`);
+  # the grant is the identity's ceiling, not that probe's footprint.
+  # Least privilege for what actually consumes this identity TODAY: the
+  # read-only probe in octo-sts-example.yml. The write grants listed above
+  # (contents / pull_requests / issues) land in the SAME pull request that
+  # adds the auto-publish workflow to the claim pattern, so grant and
+  # consumer are reviewed together — never a write-capable token minted for
+  # a job that only reads.
+  contents: read

@@ -9,7 +9,13 @@ Router + site repo for Sensible Security's open-source tools.
   [sscsb-action](https://github.com/p4gs/sscsb-action))
 
 The site is a bun + TypeScript static build (`site/`), deployed by
-`.github/workflows/pages.yml`. Scan records live in `site/data/repos/`;
+`.github/workflows/pages.yml`. The deploy is this repo's release: the build
+is packed to one `site.tar.gz`, keyless-signed (Cosign), attested (GitHub
+build provenance + CycloneDX SBOM) and given SLSA Build L3 provenance
+(slsa-github-generator), and `.github/workflows/deploy-gate.yml` verifies all
+three trails before the verified bytes reach Pages. Re-verify any deploy from
+its run artifacts: `gh attestation verify site.tar.gz --repo p4gs/p4gs.github.io`.
+Scan records live in `site/data/repos/`;
 every record lands via a maintainer-reviewed PR. Scoring is documented at
 [/sscsb/methodology/](https://tools.sensiblesecurity.xyz/sscsb/methodology/).
 

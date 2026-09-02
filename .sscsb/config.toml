@@ -128,52 +128,76 @@ enabled = true
 
 # ── Phase 3 — Provenance, signing & credential federation ──
 
+# This repo has no GitHub releases: its deploy IS its release. The artifact
+# that ships is the Pages deployment, packed by .github/workflows/pages.yml
+# into one file (site.tar.gz) with one digest, and the four provenance
+# controls below all bind to that digest inside that workflow (consolidated
+# evidence, not the modular release-*.yml templates, which assume tags).
+
 # Sigstore keyless signing: Cosign keyless signing + SBOM/provenance attestations bound to digests
-# Disabled: static GitHub Pages site with NO release artifacts — there is nothing
-# to Cosign-sign; the deployable is the Pages deployment itself, not a binary.
+# Implemented in pages.yml `attest` job: sigstore/cosign-installer +
+# `cosign sign-blob site.tar.gz --bundle site.tar.gz.sigstore.json --yes`
+# under id-token: write; the bundle ships as the `site-signature` run artifact
+# and deploy-gate.yml verifies it (anchored identity = pages.yml@refs/heads/main).
 [controls.sigstore-signing]
-enabled = false
+enabled = true
 
 # SLSA Build L3 provenance: slsa-github-generator reusable workflow (tag-pinned per its trust model)
-# Disabled: no release artifacts to attach SLSA provenance to (static site,
-# no release pipeline).
+# Implemented in pages.yml `provenance` job: generator_generic_slsa3.yml@v2.1.0
+# over site.tar.gz's sha256 (upload-assets: false — no release to attach to;
+# the provenance is a run artifact deploy-gate.yml downloads and verifies).
 [controls.slsa-provenance]
-enabled = false
+enabled = true
 
 # GitHub artifact attestations: GitHub-native build provenance (attest-build-provenance) — additive to Cosign/SLSA, verified with `gh attestation verify`
-# Disabled: no build artifacts published as releases — nothing for
-# attest-build-provenance to bind to (static site).
+# Implemented in pages.yml `attest` job: actions/attest-build-provenance with
+# subject-path: site.tar.gz (attestations: write + id-token: write); verified
+# by deploy-gate.yml with `gh attestation verify --signer-workflow` and
+# re-verifiable by anyone: `gh attestation verify site.tar.gz --repo p4gs/p4gs.github.io`.
 [controls.github-attestations]
-enabled = false
+enabled = true
 
 # GitHub SBOM attestation: GitHub-native SBOM attestation bound to the artifact digest (actions/attest, sbom-path) — additive, verified with `gh attestation verify`
-# Disabled: SBOM generation itself stays ON (controls.sbom), but there is no
-# release artifact digest to bind an SBOM attestation to (static site).
+# Implemented in pages.yml: the `build` job generates a CycloneDX SBOM of the
+# tree that produced site.tar.gz (anchore/sbom-action, path: site) and the
+# `attest` job binds it to the archive digest with actions/attest (sbom-path);
+# deploy-gate.yml verifies it with `--predicate-type https://cyclonedx.org/bom`.
 [controls.sbom-attestation]
-enabled = false
+enabled = true
 
 # OpenSSF Model Signing: Sign & verify ML model artifacts with Sigstore keyless signing; applies when models are present (off by default)
 [controls.model-signing]
 enabled = false
 
 # Provenance verification gates: slsa-verifier + cosign verification required before promote/deploy/publish
-# Disabled: no promote/deploy/publish pipeline consuming signed artifacts —
-# nothing for slsa-verifier/cosign to verify before deploy (static site; Pages
-# deploys straight from the repo).
+# Implemented as .github/workflows/deploy-gate.yml — a `workflow_call` gate
+# that pages.yml runs between provenance and deploy-pages. It re-checks the
+# archive digest, then `cosign verify-blob --bundle`, `gh attestation verify`
+# (build provenance AND SBOM), and `slsa-verifier verify-artifact --builder-id`
+# must ALL pass before the verified bytes become the Pages artifact. The
+# builder_id below is the same one the gate is handed; `sscsb provenance
+# verify` uses it too, so a downloaded site.tar.gz can be re-verified locally.
 [controls.provenance-verify]
-enabled = false
-builder_id = ""
+enabled = true
+builder_id = "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v2.1.0"
 
 # Immutable releases (draft-then-publish): Draft-then-publish release.yml so assets attach before publish — compatible with GitHub release immutability (Settings -> Releases); opt-in, supersedes the modular release-sign/slsa flow
+# Disabled: this repo publishes NO GitHub releases — the deployable is the
+# Pages deployment (pages.yml), so there is no release to make immutable and
+# a draft-then-publish release.yml would be a workflow that never fires.
 [controls.release-immutability]
 enabled = false
 
 # Octo STS federation: Short-lived repo-scoped GitHub credentials replacing long-lived PATs
-# Disabled: no release pipeline to federate credentials for; the repo's
-# workflows use the default GITHUB_TOKEN with least-privilege permissions and
-# hold no long-lived PATs that Octo STS would replace.
+# Implemented: .github/workflows/directory-publish.yml mints its PR-opening
+# token by OIDC federation (octo-sts/action, identity `directory-publish`,
+# policy .github/chainguard/directory-publish.sts.yaml — contents: write +
+# pull_requests: write, restricted to that workflow's job_workflow_ref) with
+# the long-lived DIRECTORY_BOT_KEY App key as fallback until the Octo STS App
+# is installed on the repo. .github/workflows/octo-sts-example.yml is the
+# read-only federation probe for .github/chainguard/sscsb-automation.sts.yaml.
 [controls.octo-sts]
-enabled = false
+enabled = true
 
 # Harden-Runner: StepSecurity Harden-Runner egress/tamper monitoring in every workflow
 [controls.harden-runner]

@@ -1,11 +1,17 @@
 # Directory publish: a maintainer's `publish` label turns a completed scan
 # into a bot PR adding the record to site/data/repos/.
 #
-# Why a GitHub App token (not GITHUB_TOKEN): events caused by GITHUB_TOKEN do
-# not trigger `pull_request` workflows, and main requires PR checks — a
-# GITHUB_TOKEN-created PR would sit unmergeable. The App is a dedicated,
-# minimal identity (contents: write + pull_requests: write on this repo only);
-# its key lives in the DIRECTORY_BOT_KEY secret.
+# Why not GITHUB_TOKEN: events caused by GITHUB_TOKEN do not trigger
+# `pull_request` workflows, and main requires PR checks — a GITHUB_TOKEN-
+# created PR would sit unmergeable. The PR token is therefore an App token
+# (contents: write + pull_requests: write on this repo only), minted one of
+# two ways, in this order:
+#   1. Octo STS federation — this job's OIDC identity is exchanged for a ~1h
+#      token under .github/chainguard/directory-publish.sts.yaml. Nothing
+#      stored, nothing to rotate. Needs the Octo STS App installed here.
+#   2. Fallback: the dedicated directory-bot App, whose private key lives in
+#      the DIRECTORY_BOT_KEY secret — the long-lived credential (1) retires.
+#      Delete the secret once federated publishes are observed working.
 #
 # Three independent gates against artifact poisoning:
 #   1. the artifact comes only from a successful directory-scan.yml run in
@@ -13,9 +19,16 @@
 #   2. the record revalidates against the schema and the issue's parsed slug
 #      (and, for signed authenticated-lane records, its Sigstore bundle was
 #      verified at ingest against the producing workflow's identity);
-#   3. the result is a human-reviewed PR into a protected branch.
+#   3. the result is a PR into a protected branch whose only remaining gate
+#      is the required `site` check — the human review is the label itself,
+#      so the PR is opened with auto-merge armed (squash; GitHub signs the
+#      resulting commit, which main's required-signatures rule demands).
 # Plus: the labeler's write+ permission is re-checked via the collaborators
 # API — belt and braces over GitHub's own triage-role requirement for labels.
+#
+# Repo prerequisite for the auto-merge: Settings → General → "Allow
+# auto-merge" must be on, or `gh pr merge --auto` is refused — the PR still
+# exists, the step (and run) fails visibly, and a maintainer merges by hand.
 name: Directory publish
 on:
   issues:
@@ -24,8 +37,13 @@ on:
 permissions:
   contents: read
 
+# One publish at a time, repo-wide: main's ruleset has strict required
+# status checks, and GitHub auto-merge does not update an out-of-date PR
+# branch — two publish PRs racing each other would leave the loser stalled
+# behind the winner's merge. Serialising here means each PR is created
+# against the main that exists when it is created.
 concurrency:
-  group: directory-publish-${{ github.event.issue.number }}
+  group: directory-publish
   cancel-in-progress: false
 
 jobs:
@@ -36,6 +54,7 @@ jobs:
     permissions:
       actions: read # locate + download the scan artifact
       issues: write # confirmation / failure comment
+      id-token: write # exchange OIDC identity for the Octo STS publish token
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -94,18 +113,36 @@ jobs:
         run: |
           set -euo pipefail
           bun run site/src/scan/validate-record.ts
-      - name: Mint bot token
+      # Preferred: federate. A failure here (App not installed yet, policy
+      # rejected) is logged and the fallback below carries the publish; it
+      # never lets an unauthenticated push proceed — the push step has no
+      # token at all if BOTH mints fail.
+      - name: Mint publish token (Octo STS federation)
+        id: octo-sts
+        continue-on-error: true
+        uses: octo-sts/action@f603d3be9d8dd9871a265776e625a27b00effe05 # v1.1.1
+        with:
+          scope: p4gs/p4gs.github.io
+          identity: directory-publish
+      - name: Mint publish token (directory-bot App fallback)
         id: app
+        if: steps.octo-sts.outcome != 'success'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.DIRECTORY_BOT_CLIENT_ID }}
           private-key: ${{ secrets.DIRECTORY_BOT_KEY }}
       - name: Branch, commit record, open PR
         env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ steps.octo-sts.outputs.token || steps.app.outputs.token }}
+          TOKEN_SOURCE: ${{ steps.octo-sts.outcome == 'success' && 'octo-sts' || 'directory-bot-app' }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::no publish token — Octo STS federation and the App fallback both failed"
+            exit 1
+          fi
+          echo "publish token source: $TOKEN_SOURCE"
           slug=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(`${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}`)')
           human=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(`${r.repo.owner}/${r.repo.name}`)')
           grade=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(r.score.grade)')
@@ -133,8 +170,32 @@ jobs:
           gh pr create --head "$branch" \
             --title "directory: publish ${human} (${grade})" \
             --body "Adds the reviewed scan record for \`${human}\` from issue #${ISSUE}. The \`site\` CI job validates the record; merging deploys the directory."
+          # Auto-merge on green. The REVIEW already happened before this job
+          # ran: a maintainer with write+ applied the `publish` label (checked
+          # above), or the record arrived through the verified authenticated
+          # lane (directory-ingest.yml verified its Sigstore bundle at ingest).
+          # The only gate left is main's required `site` check, so the PR
+          # merges itself once that check is green. (Strict checks mean a PR
+          # whose base moved before merge is out of date; the repo-wide
+          # concurrency group above keeps publishes serial so that does not
+          # happen in practice.) Squash so the commit that lands on
+          # main is created — and signed — by GitHub, satisfying main's
+          # required-signatures rule. Same token as the PR: the App identity
+          # holds pull_requests: write, the minimum that enables auto-merge.
+          gh pr merge --auto --squash "$branch"
+      # No silent, unmergeable outcome: when BOTH identities failed to mint,
+      # say so on the issue the maintainer is watching, not only in run logs.
+      - name: Report on the issue when no publish token could be minted
+        if: failure() && steps.octo-sts.outcome != 'success' && steps.app.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Publish did not run: no publish token could be minted — Octo STS federation failed (is the Octo STS App installed on this repo?) and the directory-bot App fallback failed too (DIRECTORY_BOT_CLIENT_ID / DIRECTORY_BOT_KEY). Nothing was pushed and no PR was opened. Run: $RUN_URL — re-apply the \`publish\` label after fixing either identity."
       - name: Confirm on the issue
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
-        run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Publish PR opened — the listing goes live when it merges."
+        run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Publish PR opened with auto-merge armed — it merges itself when the required \`site\` check is green, and the listing goes live on the deploy that follows."

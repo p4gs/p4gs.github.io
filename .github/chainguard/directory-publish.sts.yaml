@@ -1,0 +1,30 @@
+# Octo STS trust policy for the directory publish path.
+#
+# directory-publish.yml turns a maintainer's `publish` label into a bot PR.
+# That PR must be opened by a token whose events trigger `pull_request`
+# workflows (GITHUB_TOKEN's do not, and main requires PR checks). Today that
+# token comes from a dedicated GitHub App whose private key sits in the
+# DIRECTORY_BOT_KEY secret — a long-lived credential. This policy lets the
+# publish workflow mint the same capability as a ~1h federated token instead:
+# nothing stored, nothing to rotate, nothing to leak.
+#
+# Docs: https://github.com/octo-sts/app
+issuer: https://token.actions.githubusercontent.com
+
+# Exact subject: `issues` events run on the default branch, so the workflow's
+# OIDC subject is the branch ref, never a PR or environment subject.
+subject: repo:p4gs/p4gs.github.io:ref:refs/heads/main
+
+# And only the publish workflow itself — no other workflow on main can mint a
+# write-capable token through this policy. `claim_pattern` values are REGEXES
+# (Octo STS anchors them), so every `.` is escaped: an unescaped dot would
+# also match `p4gs/p4gsXgithub.io` or `directory-publishXyml`.
+claim_pattern:
+  job_workflow_ref: 'p4gs/p4gs\.github\.io/\.github/workflows/(directory-publish|directory-autopublish)\.yml@refs/heads/main'
+
+permissions:
+  # Exactly what "branch, commit record, open PR, arm auto-merge" needs —
+  # matches the App's grant (auto-merge needs only pull_requests: write).
+  contents: write
+  pull_requests: write
+  issues: write # directory-autopublish.yml applies the `publish` label as this identity
