@@ -27,3 +27,4 @@ permissions:
   # matches the App's grant (auto-merge needs only pull_requests: write).
   contents: write
   pull_requests: write
+  issues: write # directory-autopublish.yml applies the `publish` label as this identity
