@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { BASE_PATH } from "../src/config";
-import { escapeHtml, href } from "../src/render/layout";
-import { renderDirectory, renderRepoDetail } from "../src/render/directory";
-import { renderHome } from "../src/render/home";
-import { renderMethodology } from "../src/render/methodology";
+import { escapeHtml, href } from "../src/designs/ledger/layout";
+import { renderDirectory, renderRepoDetail } from "../src/designs/ledger/directory";
+import { renderHome } from "../src/designs/ledger/home";
+import { renderMethodology } from "../src/designs/ledger/methodology";
 import { recordFilename, validateScanRecord, type ScanRecord } from "../src/schema";
 
 function sampleRecord(overrides: Partial<ScanRecord> = {}): ScanRecord {

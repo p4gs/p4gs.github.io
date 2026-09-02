@@ -1,6 +1,6 @@
 /** The published scoring spec — the site's honesty contract, versioned. */
-import { METHODOLOGY_VERSION } from "../config";
-import { CONTROL_CLASSES } from "../reclassify";
+import { METHODOLOGY_VERSION } from "../../config";
+import { CONTROL_CLASSES } from "../../reclassify";
 import { seal } from "./components";
 import { href, page } from "./layout";
 

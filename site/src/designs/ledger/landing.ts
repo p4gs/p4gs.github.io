@@ -3,7 +3,7 @@
  * instruments hosted under this domain. Deliberately tiny and dependency-free;
  * each tool's real site lives at its own path.
  */
-import { BASE_PATH } from "../config";
+import { BASE_PATH } from "../../config";
 import { escapeHtml, FONTS_HEAD } from "./layout";
 
 export function renderLanding(repoCount: number): string {

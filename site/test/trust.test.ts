@@ -1,11 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { BASE_PATH, SITE_REPO_URL } from "../src/config";
-import { laneBadge, renderDirectory, renderRepoDetail, renderTrustSection } from "../src/render/directory";
+import { laneBadge, renderDirectory, renderRepoDetail, renderTrustSection } from "../src/designs/ledger/directory";
+import { DESIGNS } from "../src/designs/registry";
+import type { DesignCtx } from "../src/designs/types";
 import { renderComment, trustLine } from "../src/scan/render-comment";
 import type { ScanRecord } from "../src/schema";
 import {
   externalTrust,
+  lookupTrust,
+  resolveTrustKind,
+  scanLaneOf,
   trustFilename,
+  trustKeyOf,
   trustKind,
   validateTrustInfo,
   type TrustInfo,
@@ -105,6 +111,64 @@ describe("trustKind", () => {
     expect(trustKind(unsignedAction())).toBe("unsigned-action");
     expect(trustKind(verified())).toBe("verified");
   });
+});
+
+describe("shared lane resolver", () => {
+  test("sidecar is authoritative; without one, the run URL decides and action-lane is an unverified claim", () => {
+    expect(scanLaneOf(record())).toBe("external");
+    expect(scanLaneOf(authRecord())).toBe("action");
+    expect(resolveTrustKind(record(), undefined)).toBe("external");
+    expect(resolveTrustKind(authRecord(), undefined)).toBe("unsigned-action");
+    expect(resolveTrustKind(authRecord(), verified())).toBe("verified");
+    expect(resolveTrustKind(authRecord(), unsignedAction())).toBe("unsigned-action");
+    // A sidecar that says external wins over an auth-shaped run URL.
+    expect(resolveTrustKind(authRecord(), externalTrust())).toBe("external");
+  });
+  test("trust map is keyed by the lowercased owner--name", () => {
+    expect(trustKeyOf(record())).toBe("acme--widget");
+    const m = new Map([["acme--widget", verified()]]);
+    expect(lookupTrust(m, record())?.signature).toBe("verified");
+    expect(lookupTrust(undefined, record())).toBeUndefined();
+  });
+});
+
+describe("every design renders the same three provenance states", () => {
+  const ctx = (trust?: ReadonlyMap<string, TrustInfo>): DesignCtx => ({
+    prefix: BASE_PATH,
+    h: (p: string) => `${BASE_PATH}${p.replace(/^\//, "")}`,
+    switcher: "",
+    active: "directory",
+    trust,
+  });
+  const withVerified = new Map([["acme--widget", verified()]]);
+  const withUnsigned = new Map([["acme--widget", unsignedAction()]]);
+  for (const d of DESIGNS) {
+    test(`${d.id}: verified mark only with a verified sidecar`, () => {
+      const dir = d.renderDirectory([authRecord()], ctx(withVerified));
+      expect(dir).toContain('data-lane="verified"');
+      const detail = d.renderRepoDetail(authRecord(), ctx(withVerified));
+      expect(detail).toContain("signature verified");
+      expect(detail).toContain(IDENTITY);
+      expect(detail).toContain(`${BASE_PATH}directory/acme--widget/scan-record.json.sigstore.json`);
+    });
+    test(`${d.id}: an auth-lane record without a sidecar is an unverified claim, never verified`, () => {
+      const dir = d.renderDirectory([authRecord()], ctx());
+      expect(dir).toContain('data-lane="unsigned-action"');
+      expect(dir).not.toContain('data-lane="verified"');
+      const detail = d.renderRepoDetail(authRecord(), ctx());
+      expect(detail).toContain("unsigned");
+      expect(detail).toContain("unverified claim");
+      expect(detail).not.toContain("signature verified");
+      // Same verdict when the sidecar itself says the signature was absent.
+      expect(d.renderDirectory([authRecord()], ctx(withUnsigned))).toContain('data-lane="unsigned-action"');
+    });
+    test(`${d.id}: external scans keep the install nudge`, () => {
+      expect(d.renderDirectory([record()], ctx())).toContain('data-lane="external"');
+      const detail = d.renderRepoDetail(record(), ctx());
+      expect(detail).toContain("Improve this score");
+      expect(detail).not.toContain("signature verified");
+    });
+  }
 });
 
 describe("detail page provenance section", () => {

@@ -9,6 +9,9 @@
  * construction. Published beside the record so anyone can re-verify.
  */
 
+import { SITE_REPO_URL } from "./config";
+import type { ScanRecord } from "./schema";
+
 export const TRUST_SCHEMA_VERSION = 1;
 
 export type Lane = "external" | "action";
@@ -86,4 +89,39 @@ export type TrustKind = "verified" | "unsigned-action" | "external";
 export function trustKind(t: TrustInfo | undefined): TrustKind {
   if (!t || t.lane === "external") return "external";
   return t.signature === "verified" ? "verified" : "unsigned-action";
+}
+
+/** Sidecar map key for a record: the sidecar filename without `.json`. */
+export function trustKeyOf(r: Pick<ScanRecord, "repo">): string {
+  return trustFilename(r.repo.owner, r.repo.name).replace(/\.json$/, "");
+}
+
+/** A record's sidecar from the map the build loaded (no map = no sidecar). */
+export function lookupTrust(
+  trust: ReadonlyMap<string, TrustInfo> | undefined,
+  r: Pick<ScanRecord, "repo">,
+): TrustInfo | undefined {
+  return trust?.get(trustKeyOf(r));
+}
+
+/**
+ * Which lane a record with NO sidecar came through. Authenticated scans run
+ * in the target repository's own CI, so their workflow_run_url lives outside
+ * this site's repo; external scans run in this repo's directory-scan workflow.
+ */
+export function scanLaneOf(r: Pick<ScanRecord, "scanner">): Lane {
+  return r.scanner.workflow_run_url.startsWith(`${SITE_REPO_URL}/`) ? "external" : "action";
+}
+
+/**
+ * The three-state lane every design renders. The sidecar (written at ingest
+ * after signature verification) is authoritative; a record with no sidecar
+ * falls back to the URL heuristic, and an action-lane record that was never
+ * verified is labeled as the unverified claim it is. No design may show a
+ * verified mark without a verified sidecar — this is the one place that
+ * rule lives, so the four designs cannot drift apart on it.
+ */
+export function resolveTrustKind(r: ScanRecord, t: TrustInfo | undefined): TrustKind {
+  if (t) return trustKind(t);
+  return scanLaneOf(r) === "action" ? "unsigned-action" : "external";
 }

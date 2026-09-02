@@ -1,5 +1,5 @@
 /** Product homepage: the verification receipt, five phases, and the directory hook. */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../config";
+import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
 import { seal } from "./components";
 import { href, page } from "./layout";
 

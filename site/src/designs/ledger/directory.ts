@@ -1,7 +1,14 @@
 /** Directory listing + per-repo detail pages. */
-import { ACTION_REPO_URL, SITE_REPO_URL, SUBMIT_URL } from "../config";
-import { recordFilename, type ScanRecord } from "../schema";
-import { trustKind, type TrustInfo, type TrustKind } from "../trust";
+import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import type { ScanRecord } from "../../schema";
+import {
+  resolveTrustKind,
+  scanLaneOf,
+  trustKeyOf,
+  trustKind,
+  type TrustInfo,
+  type TrustKind,
+} from "../../trust";
 import { gradeBadge, PHASE_NAMES, phaseBars } from "./components";
 import { escapeHtml, href, page } from "./layout";
 
@@ -19,11 +26,7 @@ export function repoSlugPath(r: ScanRecord): string {
  * repo; external scans run in this repo's directory-scan workflow.
  */
 export function scanLane(r: ScanRecord): "auth" | "external" {
-  return r.scanner.workflow_run_url.startsWith(`${SITE_REPO_URL}/`) ? "external" : "auth";
-}
-
-function trustKey(r: ScanRecord): string {
-  return recordFilename(r.repo.owner, r.repo.name).replace(/\.json$/, "");
+  return scanLaneOf(r) === "action" ? "auth" : "external";
 }
 
 const LANE_LABEL: Readonly<Record<TrustKind, { text: string; title: string }>> = {
@@ -48,11 +51,7 @@ const LANE_LABEL: Readonly<Record<TrustKind, { text: string; title: string }>> =
  * that was never verified is labeled as the unverified claim it is.
  */
 export function laneBadge(t: TrustInfo | undefined, r?: ScanRecord): string {
-  const kind: TrustKind = t
-    ? trustKind(t)
-    : r && scanLane(r) === "auth"
-      ? "unsigned-action"
-      : "external";
+  const kind: TrustKind = r ? resolveTrustKind(r, t) : trustKind(t);
   const l = LANE_LABEL[kind];
   return `<span class="lane lane-${kind}" title="${escapeHtml(l.title)}">${escapeHtml(l.text)}</span>`;
 }
@@ -76,8 +75,8 @@ export function renderDirectory(
   const rows = sorted
     .map((r) => {
       const slug = `${r.repo.owner}/${r.repo.name}`;
-      const t = trust.get(trustKey(r));
-      const kind = t ? trustKind(t) : scanLane(r) === "auth" ? "unsigned-action" : "external";
+      const t = trust.get(trustKeyOf(r));
+      const kind = resolveTrustKind(r, t);
       return `<tr data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}" data-lane="${escapeHtml(kind)}">
   <td class="seal-cell">${gradeBadge(r.score, { rotationKey: slug })}</td>
   <td class="repo-cell"><a class="repo-name" href="${href(repoSlugPath(r))}">${escapeHtml(slug)}</a>
@@ -150,11 +149,7 @@ export function nudgeIssueUrl(r: ScanRecord): string {
 
 /** The provenance section of a detail page: what lane, and what was proven. */
 export function renderTrustSection(r: ScanRecord, t: TrustInfo | undefined): string {
-  const kind: TrustKind = t
-    ? trustKind(t)
-    : scanLane(r) === "auth"
-      ? "unsigned-action"
-      : "external";
+  const kind: TrustKind = resolveTrustKind(r, t);
   if (kind === "verified" && t) {
     const bundleHref = href(`${repoSlugPath(r)}scan-record.json.sigstore.json`);
     const recordHref = href(`${repoSlugPath(r)}scan-record.json`);
