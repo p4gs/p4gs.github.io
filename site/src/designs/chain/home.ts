@@ -5,7 +5,7 @@
  * A snapshot, not a live read — labeled as such and linked to the directory
  * where the current record lives.
  */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL } from "../../config";
 import { CHAIN_SCRIPT, heroChain, legendRow, type ChainPhase } from "./components";
 import { href, page } from "./layout";
 
@@ -37,7 +37,7 @@ export function renderHome(repoCount: number): string {
 </section>
 
 <section class="cta-row">
-  <a class="btn-dark" href="${SUBMIT_URL}">Scan your repository</a>
+  <a class="btn-dark" href="${href("directory/?submit=1")}">Scan your repository</a>
   <span class="install-card mono">brew install p4gs/p4gs/sscsb</span>
 </section>
 

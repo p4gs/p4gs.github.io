@@ -246,6 +246,18 @@ main { max-width: 1060px; margin: 0 auto; padding: 0 24px 72px; }
   padding: 11px 16px;
 }
 #dir-filter::placeholder { color: var(--dim); opacity: 0.75; }
+button.btn { font-family: var(--font-body); cursor: pointer; }
+button.btn:disabled { background: var(--none); cursor: default; }
+.scan-card {
+  margin-top: 14px; max-width: 560px;
+  padding: 18px 22px;
+  border-left: 4px solid var(--accent);
+}
+.scan-card[hidden] { display: none; }
+.scan-copy { margin: 0 0 14px; color: var(--dim); font-size: 14.5px; max-width: 52ch; }
+.scan-copy strong { color: var(--ink); }
+.scan-status { margin: 12px 0 0; font-size: 12.5px; color: var(--dim); }
+.scan-status[hidden] { display: none; }
 table.directory { display: block; width: 100%; border-collapse: collapse; }
 table.directory tbody {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;
