@@ -6,16 +6,16 @@
     "name": "sscs-bootstrapper",
     "url": "https://github.com/p4gs/sscs-bootstrapper",
     "default_branch": "main",
-    "commit": "8f3a783eb701d11c4f3ba63bb4b52078915a7327",
+    "commit": "36772562085c05c2bd6f1a6530e41d3ad40c2a15",
     "description": ""
   },
-  "scanned_at": "2026-09-01T21:22:27.716Z",
+  "scanned_at": "2026-09-02T03:19:12.655Z",
   "scanner": {
-    "sscsb_version": "0.2.1",
-    "workflow_run_id": 33560605655,
-    "workflow_run_url": "https://github.com/p4gs/p4gs.github.io/actions/runs/33560605655"
+    "sscsb_version": "0.3.0",
+    "workflow_run_id": 33586560196,
+    "workflow_run_url": "https://github.com/p4gs/sscs-bootstrapper/actions/runs/33586560196"
   },
-  "request_issue": 1,
+  "request_issue": null,
   "controls": [
     {
       "id": "secrets",
@@ -241,37 +241,38 @@
     {
       "id": "bumblebee",
       "phase": 2,
-      "in_scope": false,
-      "raw_outcome": "disabled",
-      "scan_outcome": "info",
+      "in_scope": true,
+      "raw_outcome": "degraded",
+      "scan_outcome": "unverified",
       "reclassified": false,
-      "reason": "optional control not enabled by this repository",
+      "reason": "requires the local development environment; not observable in a repository scan",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        "bumblebee not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 0.1.2. Install: brew install bumblebee (Linuxbrew) or see Read-only endpoint inventory scanner (Go, zero dependencies). Release binaries: https://github.com/perplexityai/bumblebee/releases — exposur…"
       ]
     },
     {
       "id": "grype",
       "phase": 2,
-      "in_scope": false,
-      "raw_outcome": "disabled",
-      "scan_outcome": "info",
+      "in_scope": true,
+      "raw_outcome": "degraded",
+      "scan_outcome": "unverified",
       "reclassified": false,
-      "reason": "optional control not enabled by this repository",
+      "reason": "requires the local development environment; not observable in a repository scan",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        "grype not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 0.115.0. Install: brew install grype (Linuxbrew) or see Release binaries: https://github.com/anchore/grype/releases (https://github.com/anchore/grype)"
       ]
     },
     {
       "id": "socket-firewall",
       "phase": 2,
-      "in_scope": false,
-      "raw_outcome": "disabled",
-      "scan_outcome": "info",
+      "in_scope": true,
+      "raw_outcome": "degraded",
+      "scan_outcome": "unverified",
       "reclassified": false,
-      "reason": "optional control not enabled by this repository",
+      "reason": "requires the local development environment; not observable in a repository scan",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        "Socket Firewall CLI (sfw) not found — install per https://docs.socket.dev/docs/socket-firewall and wrap installs: `sfw npm install`, `sfw pip install`, `sfw cargo add`",
+        "socket-firewall blocks known-malicious packages at install time (optional layer)"
       ]
     },
     {
@@ -415,7 +416,7 @@
       "reclassified": true,
       "reason": "runner-tool availability is the scanner's environment, not the repository's; all registered artifacts pre-exist",
       "messages": [
-        "engine: opengrep (rules: /home/runner/work/_temp/target/.sscsb/rules)",
+        "engine: opengrep (rules: /home/runner/work/sscs-bootstrapper/sscs-bootstrapper/.sscsb/rules)",
         "local ruleset present (1 file(s))",
         "opengrep not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 1.25.0. Install: No Homebrew formula; install a pinned release binary: https://github.com/opengrep/opengrep/releases (https://github.com/opengrep/opengrep)"
       ]
@@ -598,7 +599,7 @@
     "grade": "B",
     "provisional": true,
     "overall_percent": 81.8,
-    "evidence_coverage_percent": 73.3,
+    "evidence_coverage_percent": 66.7,
     "phases": [
       {
         "phase": 1,
@@ -614,7 +615,7 @@
         "pass": 3,
         "fail": 0,
         "gap": 0,
-        "unverified": 2,
+        "unverified": 5,
         "info": 0,
         "percent": 100
       },
