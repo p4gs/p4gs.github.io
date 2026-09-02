@@ -1,4 +1,7 @@
 {
   "schema_version": 1,
-  "repos": []
+  "repos": [
+    "p4gs/p4gs.github.io",
+    "p4gs/sscsb-action"
+  ]
 }
