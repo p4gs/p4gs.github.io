@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BASE_PATH } from "../src/config";
+import { BASE_PATH, SITE_REPO_URL } from "../src/config";
 import { laneBadge, renderDirectory, renderRepoDetail, renderTrustSection } from "../src/render/directory";
 import { renderComment, trustLine } from "../src/scan/render-comment";
 import type { ScanRecord } from "../src/schema";
@@ -11,6 +11,12 @@ import {
   type TrustInfo,
 } from "../src/trust";
 
+/**
+ * An EXTERNAL scan by default: its run lives in the directory's own repo. The
+ * lane heuristic (main's `scanLane`) reads a run URL outside this repo as the
+ * authenticated lane, so tests that want an auth-lane record without a trust
+ * sidecar use `authRecord()`.
+ */
 function record(): ScanRecord {
   return {
     schema_version: 1,
@@ -27,7 +33,7 @@ function record(): ScanRecord {
     scanner: {
       sscsb_version: "0.3.0",
       workflow_run_id: 7,
-      workflow_run_url: "https://github.com/Acme/Widget/actions/runs/7",
+      workflow_run_url: `${SITE_REPO_URL}/actions/runs/7`,
     },
     request_issue: 9,
     controls: [
@@ -44,6 +50,13 @@ function record(): ScanRecord {
       })),
     },
   };
+}
+
+/** An authenticated-lane record: its run URL is in the scanned repo, not this site's. */
+function authRecord(): ScanRecord {
+  const r = record();
+  r.scanner.workflow_run_url = "https://github.com/Acme/Widget/actions/runs/7";
+  return r;
 }
 
 const IDENTITY = "https://github.com/Acme/Widget/.github/workflows/sscsb-scan.yml@refs/heads/main";
@@ -121,6 +134,15 @@ describe("detail page provenance section", () => {
   test("renderRepoDetail carries the lane badge in the heading", () => {
     expect(renderRepoDetail(record(), verified())).toContain("lane-verified");
     expect(renderRepoDetail(record())).toContain("lane-external");
+  });
+  test("an auth-lane record with NO trust sidecar is an unverified claim, never external", () => {
+    // Pre-verification records (published before signatures existed) must not
+    // inherit the ✓; and they must not masquerade as external scans either.
+    const html = renderRepoDetail(authRecord());
+    expect(html).toContain("lane-unsigned-action");
+    expect(html).toContain("unverified claim");
+    expect(html).not.toContain("lane-verified");
+    expect(renderDirectory([authRecord()])).toContain('data-lane="unsigned-action"');
   });
 });
 
