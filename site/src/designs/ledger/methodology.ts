@@ -52,6 +52,7 @@ export function renderMethodology(): string {
       <a class="rail-item rail-item-sub" href="${href("methodology/#evidence-classes")}">evidence classes</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#formula")}">the formula</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#grades")}">grades</a>
+      <a class="rail-item rail-item-sub" href="${href("methodology/#trust")}">trust chain</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#changelog")}">changelog</a>
     </nav>
   </div>
@@ -154,10 +155,51 @@ coverage  = Σ countable / |scope|</code></pre>
     </div>
   </section>
 
+  <section class="method-section prose" id="trust">
+    <h2>Authenticated records: the trust chain</h2>
+    <p>The checks that matter most — branch protection, Actions token permissions,
+    security-feature enablement — are <em>repository settings</em>, readable only
+    with repository credentials. The only place a complete scan can run is the
+    repository's own CI, which raises the obvious question: when a repository hands
+    in its own report card, why believe it? The answer is
+    <a href="https://github.com/ossf/scorecard-action">OpenSSF Scorecard</a>'s, adopted
+    deliberately.</p>
+    <ol>
+    <li><strong>Verified scanner.</strong> The action installs an sscsb release
+    only after checking its Sigstore bundle against the tool repository's own
+    release-workflow identity at that exact tag — the scanner proves its own
+    provenance before assessing anyone else's.</li>
+    <li><strong>Signed record.</strong> With <code>id-token: write</code>, the action
+    keyless-signs <code>scan-record.json</code>. Fulcio issues a short-lived
+    certificate whose identity <em>is</em> the producing workflow — repository,
+    workflow path, and branch ref, burned in by GitHub's OIDC issuer rather than
+    asserted by the record — and the signature is logged to Rekor.</li>
+    <li><strong>Pinned verification.</strong> Ingest runs <code>cosign verify-blob</code>
+    pinned to <code>https://github.com/OWNER/REPO/.github/workflows/sscsb-scan.yml@refs/heads/&lt;default branch&gt;</code>
+    — the default branch fetched <em>live</em> from GitHub, never read from the
+    record — and to the commit the record claims. A third party cannot mint that
+    identity; a feature-branch or renamed-workflow signature does not verify; a
+    record whose bundle fails verification is rejected outright, and the
+    directory publishes the bundle beside every verified record so anyone can
+    re-run the check.</li>
+    <li><strong>Human gate, still.</strong> Verified or not, nothing lists without a
+    maintainer's <code>publish</code> label. An action-lane record that arrives
+    <em>unsigned</em> is listed only as an unverified claim.</li>
+    </ol>
+    <p><strong>What this deliberately does not prove:</strong> that the workflow which
+    signed the record was unmodified. A maintainer who edits their own
+    <code>sscsb-scan.yml</code> can sign whatever it emits. OpenSSF Scorecard closes
+    that gap by fetching the producing workflow at the certificate's commit and
+    rule-checking it (allow-listed steps only, no environment redirection,
+    hosted runners); that is this directory's ingestion-hardening milestone, and
+    the human publish gate is the backstop until then.</p>
+  </section>
+
   <section class="method-section prose" id="changelog">
     <h2>Changelog</h2>
     <ul>
     <li><strong>v1</strong> — initial methodology: diff-based init reclassification, five evidence classes, academic grade scale with A+ reserved for exactly 100%.</li>
+    <li><strong>v1, 2026-09</strong> — authenticated records are signed and verified against the producing workflow's identity (scoring unchanged; provenance is displayed, not scored).</li>
     </ul>
   </section>
 </div>

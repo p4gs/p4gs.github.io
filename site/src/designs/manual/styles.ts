@@ -244,6 +244,8 @@ table.directory td { display: block; padding: 0; }
   text-transform: uppercase; color: var(--dim);
 }
 .entry-lane-auth { color: var(--pass); }
+.entry-lane-unsigned { color: #8A5A00; }
+.plate-lane { margin: 6px 0 0; }
 .entry-desc { font-size: 15.5px; line-height: 1.65; color: var(--ink); max-width: 62ch; margin: 10px 0 0; }
 .entry-meta { font-family: var(--mono); font-size: 12px; color: var(--dim); margin: 10px 0 0; overflow-wrap: anywhere; }
 .entry-meta em { font-family: var(--serif); font-style: italic; font-size: 13px; }

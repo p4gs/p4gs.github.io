@@ -1,6 +1,7 @@
 /** Console directory listing + per-repo telemetry detail pages. */
-import { ACTION_REPO_URL, SCAN_API_URL, SITE_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
+import { lookupTrust, resolveTrustKind, type TrustInfo, type TrustKind } from "../../trust";
 import { compactMeters, gradeBadge, meterStack, PHASE_NAMES } from "./components";
 import { escapeHtml, page } from "./layout";
 import type { DesignCtx } from "../types";
@@ -14,19 +15,18 @@ function repoSlugPath(r: ScanRecord): string {
 }
 
 /**
- * Which lane produced the record (copied from ledger/directory.ts scanLane —
- * designs never import from each other). Authenticated scans run in the
- * target repository's own CI, so their workflow_run_url lives outside this
- * site's repo; external scans run in this repo's directory-scan workflow.
+ * Lane chip, three-state. The state comes from the shared resolver in
+ * trust.ts (sidecar authoritative, URL heuristic as fallback) so no design
+ * can show a verified mark without a verified sidecar.
  */
-function scanLane(r: ScanRecord): "auth" | "external" {
-  return r.scanner.workflow_run_url.startsWith(`${SITE_REPO_URL}/`) ? "external" : "auth";
-}
+const LANE_CHIP: Readonly<Record<TrustKind, string>> = {
+  verified: `<span class="lane lane-auth" title="Authenticated scan from the repository's own CI; signature verified against its workflow identity">auth ✓ verified</span>`,
+  "unsigned-action": `<span class="lane lane-unsigned" title="Authenticated-lane record without a verified signature — an unverified claim">auth · unsigned</span>`,
+  external: `<span class="lane lane-ext" title="Outside-in scan by the directory; GitHub-side checks ran with public-only visibility">external</span>`,
+};
 
-function laneChip(r: ScanRecord): string {
-  return scanLane(r) === "auth"
-    ? `<span class="lane lane-auth">auth ✓</span>`
-    : `<span class="lane lane-ext">external</span>`;
+function laneChip(kind: TrustKind): string {
+  return LANE_CHIP[kind];
 }
 
 function metaLine(r: ScanRecord): string {
@@ -45,13 +45,14 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
   const rows = sorted
     .map((r) => {
       const slug = `${r.repo.owner}/${r.repo.name}`;
-      return `<tr data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}">
+      const kind = resolveTrustKind(r, lookupTrust(ctx.trust, r));
+      return `<tr data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}" data-lane="${kind}">
   <td class="grade-cell">${gradeBadge(r.score, "sm")}</td>
   <td class="repo-cell"><a class="repo-name" href="${ctx.h(repoSlugPath(r))}">${escapeHtml(slug)}</a>
       <span class="desc">${escapeHtml(r.repo.description)}</span>
       <span class="meta-line">${metaLine(r)}</span></td>
   <td class="bars-cell">${compactMeters(r.score)}</td>
-  <td class="lane-cell">${laneChip(r)}</td>
+  <td class="lane-cell">${laneChip(kind)}</td>
   <td class="date-cell">${escapeHtml(r.scanned_at.slice(0, 10))}</td>
 </tr>`;
     })
@@ -125,8 +126,51 @@ function nudgeIssueUrl(r: ScanRecord): string {
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;
 }
 
+/** Provenance panel: which lane, and what was proven. One block per state. */
+function provenance(r: ScanRecord, t: TrustInfo | undefined, kind: TrustKind, ctx: DesignCtx): string {
+  if (kind === "verified" && t) {
+    const recordHref = ctx.h(`${repoSlugPath(r)}scan-record.json`);
+    const bundleHref = ctx.h(`${repoSlugPath(r)}scan-record.json.sigstore.json`);
+    return `<section class="nudge nudge-verified">
+  <h2 class="nudge-title">Authenticated scan — signature verified</h2>
+  <p class="body-copy">Produced in the repository's <strong>own CI</strong> and keyless-signed
+  there. Before listing it, the directory verified the Sigstore bundle against the
+  certificate identity <code>${escapeHtml(t.identity ?? "")}</code>${
+      t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
+    }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
+  repository, workflow path, and default branch are burned into that certificate by
+  GitHub's OIDC issuer, not asserted by the record.</p>
+  <p class="body-copy">Re-verify it yourself: <a href="${recordHref}">scan-record.json</a> ·
+  <a href="${bundleHref}">signature bundle</a></p>
+</section>`;
+  }
+  if (kind === "unsigned-action") {
+    return `<section class="nudge nudge-unsigned">
+  <h2 class="nudge-title">Authenticated scan — unsigned</h2>
+  <p class="body-copy">Submitted from the repository's own CI but carrying <strong>no verified
+  signature</strong>, so the directory can only list it as an unverified claim. Granting
+  the scan job <code>id-token: write</code> lets
+  <a href="${ACTION_REPO_URL}#signed-records">sscsb-action</a> sign the next record under
+  the workflow's own identity; no secret is involved.</p>
+</section>`;
+  }
+  return `<section class="nudge">
+  <h2 class="nudge-title">Improve this score</h2>
+  <p class="body-copy">This is an <strong>external</strong> scan — controls that live in the
+  development environment show as unverified, and GitHub-side checks ran with
+  public-only visibility. Repo maintainers can publish an <strong>authenticated</strong>
+  scan by running the <a href="${ACTION_REPO_URL}">sscsb-action</a> in their own CI.</p>
+  <div class="btn-row">
+    <a class="btn" href="${ACTION_REPO_URL}#quickstart">Install the Action</a>
+    <a class="btn-outline" href="${escapeHtml(nudgeIssueUrl(r))}">Suggest it to the maintainers</a>
+  </div>
+</section>`;
+}
+
 export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   const slug = `${r.repo.owner}/${r.repo.name}`;
+  const t = lookupTrust(ctx.trust, r);
+  const kind = resolveTrustKind(r, t);
   const controlRows = r.controls
     .map((c) => {
       const label = OUTCOME_LABEL[c.scan_outcome] ?? c.scan_outcome;
@@ -153,6 +197,7 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
 <div class="repo-hero">
   ${gradeBadge(r.score, "lg")}
   <h1 class="repo-title">${escapeHtml(slug)}</h1>
+  ${laneChip(kind)}
 </div>
 <p class="repo-meta">
   <a href="${escapeHtml(r.repo.url)}">${escapeHtml(r.repo.url)}</a> ·
@@ -169,17 +214,7 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
     r.score.provisional ? ` · <em class="prov-flag">provisional</em>` : ""
   }</p>
 <div class="detail-meters">${meterStack(r.score.phases)}</div>
-<section class="nudge">
-  <h2 class="nudge-title">Improve this score</h2>
-  <p class="body-copy">This is an <strong>external</strong> scan — controls that live in the
-  development environment show as unverified, and GitHub-side checks ran with
-  public-only visibility. Repo maintainers can publish an <strong>authenticated</strong>
-  scan by running the <a href="${ACTION_REPO_URL}">sscsb-action</a> in their own CI.</p>
-  <div class="btn-row">
-    <a class="btn" href="${ACTION_REPO_URL}#quickstart">Install the Action</a>
-    <a class="btn-outline" href="${escapeHtml(nudgeIssueUrl(r))}">Suggest it to the maintainers</a>
-  </div>
-</section>
+${provenance(r, t, kind, ctx)}
 <h2 class="controls-title">All controls</h2>
 <p class="transparency-note">Raw sscsb verdicts and every reclassification are shown —
 transparency about what was and wasn't verifiable is the product.

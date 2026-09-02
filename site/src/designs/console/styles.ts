@@ -203,6 +203,8 @@ table.directory tbody tr:hover { background: rgba(111, 211, 232, 0.04); }
 .lane { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; border-radius: 6px; padding: 3px 9px; white-space: nowrap; }
 .lane-auth { color: var(--accent); border: 1px solid rgba(111, 211, 232, 0.55); box-shadow: 0 0 10px rgba(111, 211, 232, 0.15); }
 .lane-ext { color: var(--dim); border: 1px solid var(--line); }
+.lane-unsigned { color: var(--warn); border: 1px solid rgba(242, 168, 92, 0.5); }
+.repo-hero .lane { align-self: center; }
 
 .key-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--dim); margin-top: 14px; }
 .key-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--faint); }

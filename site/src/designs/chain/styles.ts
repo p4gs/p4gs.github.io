@@ -293,6 +293,7 @@ table.directory tbody {
 }
 .lane-auth { background: var(--accent-tint); color: var(--accent-ink); border-color: var(--accent); }
 .lane-ext { background: var(--line-soft); color: var(--dim); border-color: var(--line); }
+.lane-unsigned { background: rgba(214, 116, 44, 0.12); color: var(--warn-ink); border-color: var(--warn); }
 
 /* mini chain */
 .mini-chain { display: flex; align-items: flex-start; gap: 6px; }

@@ -470,6 +470,19 @@ details ul { font-size: 13px; color: var(--ink-dim); }
   .hero { padding: 44px 0 40px; }
 }
 
+/* ---------- provenance: lane markers + trust section ---------- */
+.lane-verified { background: color-mix(in srgb, var(--pass) 18%, transparent); color: var(--pass); }
+.lane-unsigned-action { background: color-mix(in srgb, #D9A441 24%, transparent); color: #8A5A00; }
+.lane-external { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
+.repo-hero .lane { align-self: center; }
+.trust { border-left: 3px solid var(--pass); padding: 6px 20px; margin: 32px 0; }
+.trust-unsigned { border-left-color: #D9A441; }
+.trust pre { overflow-x: auto; font-family: var(--font-mono); font-size: 13px; background: var(--surface); padding: 12px 14px; }
+@media (prefers-color-scheme: dark) {
+  .lane-unsigned-action { color: #E3B96A; }
+  .trust-unsigned { border-left-color: #E3B96A; }
+}
+
 /* ── Design switcher (four-up trial) ─────────────────────────────────── */
 .design-switcher {
   position: fixed; right: 18px; bottom: 18px; z-index: 50;

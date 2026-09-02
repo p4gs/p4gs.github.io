@@ -10,8 +10,9 @@
  * restyled into a card grid; a visually-hidden header row keeps the markup
  * honest for assistive tech.
  */
-import { ACTION_REPO_URL, SCAN_API_URL, SITE_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
+import { resolveTrustKind, trustKeyOf, type TrustInfo, type TrustKind } from "../../trust";
 import {
   CHAIN_SCRIPT,
   CHECK_ICON_PATH,
@@ -37,18 +38,19 @@ function repoSlugPath(r: ScanRecord): string {
 }
 
 /**
- * Which lane produced the record. Authenticated scans run in the target
- * repository's own CI, so their workflow_run_url lives outside this site's
- * repo; external scans run in this repo's directory-scan workflow.
+ * Lane chip, three-state. The state comes from the shared resolver in
+ * trust.ts (sidecar authoritative, URL heuristic as fallback) so no design
+ * can show a verified mark without a verified sidecar.
  */
-function scanLane(r: ScanRecord): "auth" | "external" {
-  return r.scanner.workflow_run_url.startsWith(`${SITE_REPO_URL}/`) ? "external" : "auth";
-}
-
-function laneChip(r: ScanRecord): string {
-  return scanLane(r) === "auth"
-    ? `<span class="lane lane-auth">${icon(CHECK_ICON_PATH, 12)}authenticated</span>`
-    : `<span class="lane lane-ext">external</span>`;
+function laneChip(kind: TrustKind): string {
+  switch (kind) {
+    case "verified":
+      return `<span class="lane lane-auth" title="Authenticated scan from the repository's own CI; signature verified against its workflow identity">${icon(CHECK_ICON_PATH, 12)}verified</span>`;
+    case "unsigned-action":
+      return `<span class="lane lane-unsigned" title="Authenticated-lane record without a verified signature — an unverified claim">authenticated · unsigned</span>`;
+    default:
+      return `<span class="lane lane-ext" title="Outside-in scan by the directory; GitHub-side checks ran with public-only visibility">external</span>`;
+  }
 }
 
 function metaLine(r: ScanRecord): string {
@@ -58,7 +60,10 @@ function metaLine(r: ScanRecord): string {
   return `${overall} overall · ${r.score.evidence_coverage_percent}% coverage${prov}`;
 }
 
-export function renderDirectory(records: ScanRecord[]): string {
+export function renderDirectory(
+  records: ScanRecord[],
+  trust: ReadonlyMap<string, TrustInfo> = new Map(),
+): string {
   const sorted = [...records].sort((a, b) => {
     const g = (GRADE_ORDER[a.score.grade] ?? 9) - (GRADE_ORDER[b.score.grade] ?? 9);
     if (g !== 0) return g;
@@ -67,10 +72,11 @@ export function renderDirectory(records: ScanRecord[]): string {
   const cards = sorted
     .map((r) => {
       const slug = `${r.repo.owner}/${r.repo.name}`;
+      const kind = resolveTrustKind(r, trust.get(trustKeyOf(r)));
       const desc = r.repo.description
         ? `<p class="rc-desc">${escapeHtml(r.repo.description)}</p>`
         : `<p class="rc-desc rc-desc-empty">No description published.</p>`;
-      return `<tr class="repo-card" data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}">
+      return `<tr class="repo-card" data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}" data-lane="${kind}">
 <td class="repo-card-in">
   <div class="rc-head">
     <a class="repo-link" href="${href(repoSlugPath(r))}">${escapeHtml(slug)}</a>
@@ -79,7 +85,7 @@ export function renderDirectory(records: ScanRecord[]): string {
   ${desc}
   ${miniChain(r.score)}
   <div class="rc-meta">${metaLine(r)}</div>
-  <div class="rc-foot">${laneChip(r)}<span class="rc-date mono">${escapeHtml(r.scanned_at.slice(0, 10))}</span></div>
+  <div class="rc-foot">${laneChip(kind)}<span class="rc-date mono">${escapeHtml(r.scanned_at.slice(0, 10))}</span></div>
 </td>
 </tr>`;
     })
@@ -188,8 +194,8 @@ ${controls.map(controlRow).join("\n")}
 </section>`;
 }
 
-function improveCard(r: ScanRecord): string {
-  if (scanLane(r) === "external") {
+function improveCard(r: ScanRecord, t: TrustInfo | undefined, kind: TrustKind): string {
+  if (kind === "external") {
     return `<section class="card improve-card">
   <h2 class="improve-title">Improve this score</h2>
   <p class="body-copy">This is an <strong>external</strong> scan — controls that live in the
@@ -202,21 +208,44 @@ function improveCard(r: ScanRecord): string {
   </div>
 </section>`;
   }
+  if (kind === "unsigned-action" || !t) {
+    return `<section class="card improve-card">
+  <h2 class="improve-title">Authenticated scan — unsigned</h2>
+  <p class="body-copy">This record was submitted from the repository's own CI but carried
+  <strong>no verified signature</strong>, so the directory can only list it as an
+  unverified claim. Granting the scan job <code>id-token: write</code> lets the
+  <a href="${ACTION_REPO_URL}#signed-records">sscsb-action</a> sign the next record under
+  the workflow's own identity; no secret is involved. Amber and hatched links above are
+  the work list.</p>
+  <div class="btn-row">
+    <a class="btn" href="${ACTION_REPO_URL}#signed-records">Signed records</a>
+  </div>
+</section>`;
+  }
+  const recordHref = href(`${repoSlugPath(r)}scan-record.json`);
+  const bundleHref = href(`${repoSlugPath(r)}scan-record.json.sigstore.json`);
   return `<section class="card improve-card">
-  <h2 class="improve-title">Improve this score</h2>
-  <p class="body-copy">This record came through the <strong>authenticated</strong> lane —
-  published by the repository's own CI via the
-  <a href="${ACTION_REPO_URL}">sscsb-action</a>. Amber and hatched links above are the
-  work list: adopt the flagged controls, re-run the action, and the next record
+  <h2 class="improve-title">Authenticated scan — signature verified</h2>
+  <p class="body-copy">This record was produced in the repository's <strong>own CI</strong> and
+  keyless-signed there. Before listing it, the directory verified the Sigstore bundle
+  against the certificate identity <code>${escapeHtml(t.identity ?? "")}</code>${
+    t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
+  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
+  repository, workflow path, and default branch are burned into that certificate by
+  GitHub's OIDC issuer, not asserted by the record. Amber and hatched links above are
+  the work list: adopt the flagged controls, re-run the action, and the next record
   replaces this one.</p>
   <div class="btn-row">
-    <a class="btn" href="${ACTION_REPO_URL}">Action docs</a>
+    <a class="btn" href="${recordHref}">scan-record.json</a>
+    <a class="btn-outline" href="${bundleHref}">Signature bundle</a>
+    <a class="btn-outline" href="${ACTION_REPO_URL}">Action docs</a>
   </div>
 </section>`;
 }
 
-export function renderRepoDetail(r: ScanRecord): string {
+export function renderRepoDetail(r: ScanRecord, t?: TrustInfo): string {
   const slug = `${r.repo.owner}/${r.repo.name}`;
+  const kind = resolveTrustKind(r, t);
   const chainPhases = r.score.phases.map((p) => ({ phase: p.phase, percent: p.percent }));
   const body = `
 <nav class="crumbs" aria-label="Breadcrumb"><a href="${href("directory/")}">← Directory</a></nav>
@@ -232,7 +261,7 @@ export function renderRepoDetail(r: ScanRecord): string {
   sscsb ${escapeHtml(r.scanner.sscsb_version)} ·
   methodology v${r.methodology_version} ·
   <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a> ·
-  ${laneChip(r)}
+  ${laneChip(kind)}
 </p>
 <p class="score-line">Overall: <strong>${
     r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`
@@ -246,7 +275,7 @@ export function renderRepoDetail(r: ScanRecord): string {
 <p class="transparency-note">Raw sscsb verdicts and every reclassification are shown —
 transparency about what was and wasn't verifiable is the product.</p>
 ${[1, 2, 3, 4, 5].map((phase) => phaseGroup(r, phase)).join("\n")}
-${improveCard(r)}
+${improveCard(r, t, kind)}
 ${CHAIN_SCRIPT}`;
   return page({ title: `${slug} — Scan`, body, active: "directory" });
 }

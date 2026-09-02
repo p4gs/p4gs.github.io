@@ -8,8 +8,9 @@
  * CSS-reset to block/grid layout so each row reads as a ruled entry, not a
  * data grid.
  */
-import { ACTION_REPO_URL, SCAN_API_URL, SITE_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import type { ScanRecord } from "../../schema";
+import { lookupTrust, resolveTrustKind, type TrustInfo, type TrustKind } from "../../trust";
 import type { DesignCtx } from "../types";
 import { gradeSeal, PHASE_NAMES, phaseBars } from "./components";
 import { escapeHtml, page } from "./layout";
@@ -23,12 +24,18 @@ function repoSlugPath(r: ScanRecord): string {
 }
 
 /**
- * Which lane produced the record. Authenticated scans run in the target
- * repository's own CI, so their workflow_run_url lives outside this site's
- * repo; external scans run in this repo's directory-scan workflow.
+ * Lane label, three-state. The state comes from the shared resolver in
+ * trust.ts (sidecar authoritative, URL heuristic as fallback) so no design
+ * can show a verified mark without a verified sidecar.
  */
-function scanLane(r: ScanRecord): "auth" | "external" {
-  return r.scanner.workflow_run_url.startsWith(`${SITE_REPO_URL}/`) ? "external" : "auth";
+const LANE_LABEL: Readonly<Record<TrustKind, string>> = {
+  verified: `<span class="entry-lane entry-lane-auth" title="Authenticated scan from the repository's own CI; signature verified against its workflow identity">authenticated · verified</span>`,
+  "unsigned-action": `<span class="entry-lane entry-lane-unsigned" title="Authenticated-lane record without a verified signature — an unverified claim">authenticated · unsigned</span>`,
+  external: `<span class="entry-lane" title="Outside-in scan by the directory; GitHub-side checks ran with public-only visibility">external scan</span>`,
+};
+
+function laneLabel(kind: TrustKind): string {
+  return LANE_LABEL[kind];
 }
 
 function metaLine(r: ScanRecord): string {
@@ -49,18 +56,15 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
   const rows = sorted
     .map((r) => {
       const slug = `${r.repo.owner}/${r.repo.name}`;
-      const lane =
-        scanLane(r) === "auth"
-          ? `<span class="entry-lane entry-lane-auth">authenticated</span>`
-          : `<span class="entry-lane">external scan</span>`;
+      const kind = resolveTrustKind(r, lookupTrust(ctx.trust, r));
       const desc = r.repo.description
         ? `<p class="entry-desc">${escapeHtml(r.repo.description)}</p>`
         : "";
-      return `<tr data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}">
+      return `<tr data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}" data-lane="${kind}">
   <td class="entry-main">
     <div class="entry-head">
       <a class="entry-name" href="${ctx.h(repoSlugPath(r))}">${escapeHtml(slug)}</a>
-      ${lane}
+      ${laneLabel(kind)}
     </div>
     ${desc}
     <p class="entry-meta">${metaLine(r)}</p>
@@ -131,9 +135,9 @@ function nudgeIssueUrl(r: ScanRecord): string {
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;
 }
 
-/** The closing editorial note: honest about the lane the record came from. */
-function closingNote(r: ScanRecord): string {
-  if (scanLane(r) === "external") {
+/** The closing editorial note: honest about the lane the record came from and what was proven. */
+function closingNote(r: ScanRecord, t: TrustInfo | undefined, kind: TrustKind, ctx: DesignCtx): string {
+  if (kind === "external") {
     return `<section class="note">
   <h2 class="note-title">Improve this score</h2>
   <p class="note-copy">This is an <strong>external</strong> scan — controls that live in the
@@ -147,22 +151,45 @@ function closingNote(r: ScanRecord): string {
   </div>
 </section>`;
   }
-  return `<section class="note">
-  <h2 class="note-title">About this record</h2>
-  <p class="note-copy">This is an <strong>authenticated</strong> scan — published from the
-  repository's own CI by the <a href="${ACTION_REPO_URL}">sscsb-action</a>, through the
-  same reviewed gate as every listing. Controls still marked unverified live in the
-  development environment, which no CI scan can observe; that is a limit of the
-  method, stated rather than hidden.</p>
+  if (kind === "unsigned-action" || !t) {
+    return `<section class="note">
+  <h2 class="note-title">Authenticated scan — unsigned</h2>
+  <p class="note-copy">This record was submitted from the repository's own CI but carried
+  <strong>no verified signature</strong>, so the directory can only list it as an
+  unverified claim. Granting the scan job <code>id-token: write</code> lets the
+  <a href="${ACTION_REPO_URL}#signed-records">sscsb-action</a> sign the next record under
+  the workflow's own identity; no secret is involved.</p>
   <div class="btn-row">
     <a class="btn-fill" href="${escapeHtml(r.scanner.workflow_run_url)}">View the scan run</a>
-    <a class="btn-line" href="${ACTION_REPO_URL}">About the action</a>
+    <a class="btn-line" href="${ACTION_REPO_URL}#signed-records">Signed records</a>
+  </div>
+</section>`;
+  }
+  const recordHref = ctx.h(`${repoSlugPath(r)}scan-record.json`);
+  const bundleHref = ctx.h(`${repoSlugPath(r)}scan-record.json.sigstore.json`);
+  return `<section class="note">
+  <h2 class="note-title">Authenticated scan — signature verified</h2>
+  <p class="note-copy">This record was produced in the repository's <strong>own CI</strong> and
+  keyless-signed there. Before listing it, the directory verified the Sigstore bundle
+  against the certificate identity <code>${escapeHtml(t.identity ?? "")}</code>${
+    t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
+  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
+  repository, workflow path, and default branch are burned into that certificate by
+  GitHub's OIDC issuer, not asserted by the record. Controls still marked unverified
+  live in the development environment, which no CI scan can observe; that is a limit
+  of the method, stated rather than hidden.</p>
+  <div class="btn-row">
+    <a class="btn-fill" href="${recordHref}">scan-record.json</a>
+    <a class="btn-line" href="${bundleHref}">Signature bundle</a>
+    <a class="btn-line" href="${escapeHtml(r.scanner.workflow_run_url)}">View the scan run</a>
   </div>
 </section>`;
 }
 
 export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   const slug = `${r.repo.owner}/${r.repo.name}`;
+  const t = lookupTrust(ctx.trust, r);
+  const kind = resolveTrustKind(r, t);
   const controlRows = r.controls
     .map((c) => {
       const label = OUTCOME_LABEL[c.scan_outcome] ?? c.scan_outcome;
@@ -194,6 +221,7 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
     label: `grade ${r.score.grade}${r.score.provisional ? ", provisional" : ""}`,
   })}
   <h1 class="plate-title">${escapeHtml(slug)}</h1>
+  <p class="plate-lane">${laneLabel(kind)}</p>
   <p class="colophon">Scanned ${escapeHtml(r.scanned_at.slice(0, 10))} at
   <code>${escapeHtml(r.repo.commit.slice(0, 12))}</code> on
   <code>${escapeHtml(r.repo.default_branch)}</code> ·
@@ -222,6 +250,6 @@ ${controlRows}
   </table>
   </div>
 </section>
-${closingNote(r)}`;
+${closingNote(r, t, kind, ctx)}`;
   return page(ctx, { title: `${slug} — Scan`, body });
 }

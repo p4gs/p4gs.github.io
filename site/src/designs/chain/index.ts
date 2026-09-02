@@ -1,4 +1,5 @@
 /** Chain — the Chain of Custody design, adapted to the four-up interface. */
+import { lookupTrust } from "../../trust";
 import type { Design, DesignCtx } from "../types";
 import { renderDirectory, renderRepoDetail } from "./directory";
 import { renderHome } from "./home";
@@ -23,7 +24,7 @@ export const chain: Design = {
   head: FONTS_HEAD,
   css: CSS,
   renderHome: (n, ctx) => home(ctx, n),
-  renderDirectory: (rs, ctx) => dir(ctx, rs),
-  renderRepoDetail: (r, ctx) => detail(ctx, r),
+  renderDirectory: (rs, ctx) => dir(ctx, rs, ctx.trust ?? new Map()),
+  renderRepoDetail: (r, ctx) => detail(ctx, r, lookupTrust(ctx.trust, r)),
   renderMethodology: (ctx) => method(ctx),
 };

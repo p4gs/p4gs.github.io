@@ -1,5 +1,6 @@
 /**
- * Static site build: site/data/repos/*.json + the design registry → site/dist/.
+ * Static site build: site/data/repos/*.json (+ site/data/trust/*.json
+ * sidecars) + the design registry → site/dist/.
  *
  * Four-up design trial: the DEFAULT design serves at BASE_PATH; every other
  * registered design serves the same complete page tree under
@@ -8,6 +9,11 @@
  * localStorage; the default tree honors a stored choice with one client-side
  * redirect (escape hatch: `?stay`). Fails loudly on an invalid record — a bad
  * record must break the build, never publish a page it can't stand behind.
+ *
+ * Trust sidecars ride along in the DesignCtx so every design renders the same
+ * three provenance states, and each detail page gets the record itself (and
+ * its Sigstore bundle, when signed) published beside it, byte-identical, so
+ * anyone can re-run `cosign verify-blob` against what the site shows.
  */
 import { cp, mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -17,29 +23,57 @@ import { repoSlugPath } from "./designs/ledger/directory";
 import { renderLanding } from "./designs/ledger/landing";
 import type { Design, DesignCtx } from "./designs/types";
 import { validateScanRecord, type ScanRecord } from "./schema";
+import { trustFilename, trustKeyOf, validateTrustInfo, type TrustInfo } from "./trust";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const DATA = join(ROOT, "data", "repos");
+const TRUST = join(ROOT, "data", "trust");
 const DIST = join(ROOT, "dist");
 const PUBLIC = join(ROOT, "public");
 
-async function loadRecords(): Promise<ScanRecord[]> {
+interface Loaded {
+  /** Source filename under data/repos — the exact bytes we republish. */
+  file: string;
+  record: ScanRecord;
+}
+
+async function loadRecords(): Promise<Loaded[]> {
   let files: string[] = [];
   try {
     files = (await readdir(DATA)).filter((f) => f.endsWith(".json"));
   } catch {
     return []; // no data dir yet — an empty directory is a valid launch state
   }
-  const records: ScanRecord[] = [];
+  const out: Loaded[] = [];
   for (const f of files.sort()) {
     const raw = await Bun.file(join(DATA, f)).json();
     try {
-      records.push(validateScanRecord(raw));
+      out.push({ file: f, record: validateScanRecord(raw) });
     } catch (e) {
       throw new Error(`${f}: ${(e as Error).message}`);
     }
   }
-  return records;
+  return out;
+}
+
+/**
+ * Trust sidecars, keyed like records (`owner--name`). A sidecar that fails
+ * validation breaks the build for the same reason a bad record does: the
+ * site must never render a provenance claim it cannot stand behind.
+ */
+async function loadTrust(records: ScanRecord[]): Promise<Map<string, TrustInfo>> {
+  const out = new Map<string, TrustInfo>();
+  for (const r of records) {
+    const f = trustFilename(r.repo.owner, r.repo.name);
+    const file = Bun.file(join(TRUST, f));
+    if (!(await file.exists())) continue;
+    try {
+      out.set(trustKeyOf(r), validateTrustInfo(await file.json()));
+    } catch (e) {
+      throw new Error(`trust/${f}: ${(e as Error).message}`);
+    }
+  }
+  return out;
 }
 
 function prefixFor(d: Design): string {
@@ -87,7 +121,9 @@ async function write(path: string, html: string): Promise<void> {
 }
 
 export async function build(): Promise<{ pages: number; repos: number; designs: number }> {
-  const records = await loadRecords();
+  const loaded = await loadRecords();
+  const records = loaded.map((l) => l.record);
+  const trust = await loadTrust(records);
   await mkdir(DIST, { recursive: true });
   const defaultCss = await Bun.file(join(PUBLIC, "style.css")).text();
   const filterJs = await Bun.file(join(PUBLIC, "filter.js")).text();
@@ -101,6 +137,7 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       h: (p: string) => `${prefix}${p.replace(/^\//, "")}`,
       switcher: switcherFor(design, subpath),
       active,
+      trust,
     });
 
     await write(join("sscsb", tree, "style.css"), design.css ?? defaultCss);
@@ -118,13 +155,22 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       design.renderMethodology(ctxFor("methodology", "methodology/")),
     );
     pages += 3;
-    for (const r of records) {
+    for (const { file, record: r } of loaded) {
       const sub = repoSlugPath(r);
       await write(
         join("sscsb", tree, sub, "index.html"),
         design.renderRepoDetail(r, ctxFor("directory", sub)),
       );
       pages += 1;
+      // Publish the record itself (byte-identical — a re-serialized copy would
+      // no longer match its signature) and, when signed, the bundle beside it,
+      // so anyone can re-run `cosign verify-blob` against what the site shows.
+      const dir = join(DIST, "sscsb", tree, sub);
+      await cp(join(DATA, file), join(dir, "scan-record.json"));
+      const t = trust.get(trustKeyOf(r));
+      if (t?.bundle) {
+        await cp(join(TRUST, t.bundle), join(dir, "scan-record.json.sigstore.json"));
+      }
     }
   }
 

@@ -1,0 +1,238 @@
+import { describe, expect, test } from "bun:test";
+import { BASE_PATH, SITE_REPO_URL } from "../src/config";
+import { laneBadge, renderDirectory, renderRepoDetail, renderTrustSection } from "../src/designs/ledger/directory";
+import { DESIGNS } from "../src/designs/registry";
+import type { DesignCtx } from "../src/designs/types";
+import { renderComment, trustLine } from "../src/scan/render-comment";
+import type { ScanRecord } from "../src/schema";
+import {
+  externalTrust,
+  lookupTrust,
+  resolveTrustKind,
+  scanLaneOf,
+  trustFilename,
+  trustKeyOf,
+  trustKind,
+  validateTrustInfo,
+  type TrustInfo,
+} from "../src/trust";
+
+/**
+ * An EXTERNAL scan by default: its run lives in the directory's own repo. The
+ * lane heuristic (main's `scanLane`) reads a run URL outside this repo as the
+ * authenticated lane, so tests that want an auth-lane record without a trust
+ * sidecar use `authRecord()`.
+ */
+function record(): ScanRecord {
+  return {
+    schema_version: 1,
+    methodology_version: 1,
+    repo: {
+      owner: "Acme",
+      name: "Widget",
+      url: "https://github.com/Acme/Widget",
+      default_branch: "main",
+      commit: "b".repeat(40),
+      description: "sample",
+    },
+    scanned_at: "2026-09-01T12:00:00Z",
+    scanner: {
+      sscsb_version: "0.3.0",
+      workflow_run_id: 7,
+      workflow_run_url: `${SITE_REPO_URL}/actions/runs/7`,
+    },
+    request_issue: 9,
+    controls: [
+      {
+        id: "codeql", phase: 4, in_scope: true, raw_outcome: "pass",
+        scan_outcome: "pass", reclassified: false, reason: null, messages: [],
+      },
+    ],
+    score: {
+      grade: "A", provisional: false, overall_percent: 95,
+      evidence_coverage_percent: 90,
+      phases: [1, 2, 3, 4, 5].map((phase) => ({
+        phase, pass: 1, fail: 0, gap: 0, unverified: 0, info: 0, percent: 100,
+      })),
+    },
+  };
+}
+
+/** An authenticated-lane record: its run URL is in the scanned repo, not this site's. */
+function authRecord(): ScanRecord {
+  const r = record();
+  r.scanner.workflow_run_url = "https://github.com/Acme/Widget/actions/runs/7";
+  return r;
+}
+
+const IDENTITY = "https://github.com/Acme/Widget/.github/workflows/sscsb-scan.yml@refs/heads/main";
+
+function verified(): TrustInfo {
+  return {
+    schema_version: 1,
+    lane: "action",
+    signature: "verified",
+    identity: IDENTITY,
+    commit: "b".repeat(40),
+    verified_at: "2026-09-01T13:00:00Z",
+    bundle: "acme--widget.sigstore.json",
+  };
+}
+
+function unsignedAction(): TrustInfo {
+  return { ...verified(), signature: "absent", identity: null, commit: null, verified_at: null, bundle: null };
+}
+
+describe("validateTrustInfo", () => {
+  test("accepts a verified sidecar and normalizes optionals", () => {
+    const t = validateTrustInfo(verified());
+    expect(t.lane).toBe("action");
+    expect(t.signature).toBe("verified");
+    expect(t.bundle).toBe("acme--widget.sigstore.json");
+  });
+  test("a verified sidecar must name its identity and bundle", () => {
+    expect(() => validateTrustInfo({ ...verified(), identity: null })).toThrow(/identity/);
+    expect(() => validateTrustInfo({ ...verified(), bundle: "" })).toThrow(/bundle/);
+  });
+  test("rejects unknown schema, lane, and signature state", () => {
+    expect(() => validateTrustInfo({ ...verified(), schema_version: 2 })).toThrow(/schema_version/);
+    expect(() => validateTrustInfo({ ...verified(), lane: "magic" })).toThrow(/lane/);
+    expect(() => validateTrustInfo({ ...verified(), signature: "probably" })).toThrow(/signature/);
+  });
+  test("filename matches the record's lowercased owner--name", () => {
+    expect(trustFilename("Acme", "Widget")).toBe("acme--widget.json");
+  });
+});
+
+describe("trustKind", () => {
+  test("three states the UI distinguishes", () => {
+    expect(trustKind(undefined)).toBe("external");
+    expect(trustKind(externalTrust())).toBe("external");
+    expect(trustKind(unsignedAction())).toBe("unsigned-action");
+    expect(trustKind(verified())).toBe("verified");
+  });
+});
+
+describe("shared lane resolver", () => {
+  test("sidecar is authoritative; without one, the run URL decides and action-lane is an unverified claim", () => {
+    expect(scanLaneOf(record())).toBe("external");
+    expect(scanLaneOf(authRecord())).toBe("action");
+    expect(resolveTrustKind(record(), undefined)).toBe("external");
+    expect(resolveTrustKind(authRecord(), undefined)).toBe("unsigned-action");
+    expect(resolveTrustKind(authRecord(), verified())).toBe("verified");
+    expect(resolveTrustKind(authRecord(), unsignedAction())).toBe("unsigned-action");
+    // A sidecar that says external wins over an auth-shaped run URL.
+    expect(resolveTrustKind(authRecord(), externalTrust())).toBe("external");
+  });
+  test("trust map is keyed by the lowercased owner--name", () => {
+    expect(trustKeyOf(record())).toBe("acme--widget");
+    const m = new Map([["acme--widget", verified()]]);
+    expect(lookupTrust(m, record())?.signature).toBe("verified");
+    expect(lookupTrust(undefined, record())).toBeUndefined();
+  });
+});
+
+describe("every design renders the same three provenance states", () => {
+  const ctx = (trust?: ReadonlyMap<string, TrustInfo>): DesignCtx => ({
+    prefix: BASE_PATH,
+    h: (p: string) => `${BASE_PATH}${p.replace(/^\//, "")}`,
+    switcher: "",
+    active: "directory",
+    trust,
+  });
+  const withVerified = new Map([["acme--widget", verified()]]);
+  const withUnsigned = new Map([["acme--widget", unsignedAction()]]);
+  for (const d of DESIGNS) {
+    test(`${d.id}: verified mark only with a verified sidecar`, () => {
+      const dir = d.renderDirectory([authRecord()], ctx(withVerified));
+      expect(dir).toContain('data-lane="verified"');
+      const detail = d.renderRepoDetail(authRecord(), ctx(withVerified));
+      expect(detail).toContain("signature verified");
+      expect(detail).toContain(IDENTITY);
+      expect(detail).toContain(`${BASE_PATH}directory/acme--widget/scan-record.json.sigstore.json`);
+    });
+    test(`${d.id}: an auth-lane record without a sidecar is an unverified claim, never verified`, () => {
+      const dir = d.renderDirectory([authRecord()], ctx());
+      expect(dir).toContain('data-lane="unsigned-action"');
+      expect(dir).not.toContain('data-lane="verified"');
+      const detail = d.renderRepoDetail(authRecord(), ctx());
+      expect(detail).toContain("unsigned");
+      expect(detail).toContain("unverified claim");
+      expect(detail).not.toContain("signature verified");
+      // Same verdict when the sidecar itself says the signature was absent.
+      expect(d.renderDirectory([authRecord()], ctx(withUnsigned))).toContain('data-lane="unsigned-action"');
+    });
+    test(`${d.id}: external scans keep the install nudge`, () => {
+      expect(d.renderDirectory([record()], ctx())).toContain('data-lane="external"');
+      const detail = d.renderRepoDetail(record(), ctx());
+      expect(detail).toContain("Improve this score");
+      expect(detail).not.toContain("signature verified");
+    });
+  }
+});
+
+describe("detail page provenance section", () => {
+  test("verified: shows the pinned identity, bundle link, and re-verify command", () => {
+    const html = renderTrustSection(record(), verified());
+    expect(html).toContain("signature verified");
+    expect(html).toContain(IDENTITY);
+    expect(html).toContain(`${BASE_PATH}directory/acme--widget/scan-record.json.sigstore.json`);
+    expect(html).toContain("cosign verify-blob");
+  });
+  test("unsigned action record is called an unverified claim, never verified", () => {
+    const html = renderTrustSection(record(), unsignedAction());
+    expect(html).toContain("unverified claim");
+    expect(html).not.toContain("signature verified");
+  });
+  test("external scans keep the install nudge", () => {
+    const html = renderTrustSection(record(), undefined);
+    expect(html).toContain("Improve this score");
+    expect(html).toContain("external");
+  });
+  test("identity is HTML-escaped", () => {
+    const evil = { ...verified(), identity: `https://x/<script>alert(1)</script>` };
+    const html = renderTrustSection(record(), evil);
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+  test("renderRepoDetail carries the lane badge in the heading", () => {
+    expect(renderRepoDetail(record(), verified())).toContain("lane-verified");
+    expect(renderRepoDetail(record())).toContain("lane-external");
+  });
+  test("an auth-lane record with NO trust sidecar is an unverified claim, never external", () => {
+    // Pre-verification records (published before signatures existed) must not
+    // inherit the ✓; and they must not masquerade as external scans either.
+    const html = renderRepoDetail(authRecord());
+    expect(html).toContain("lane-unsigned-action");
+    expect(html).toContain("unverified claim");
+    expect(html).not.toContain("lane-verified");
+    expect(renderDirectory([authRecord()])).toContain('data-lane="unsigned-action"');
+  });
+});
+
+describe("directory listing lane column", () => {
+  test("marks verified, unsigned-action, and external rows", () => {
+    const rows = renderDirectory([record()], new Map([["acme--widget", verified()]]));
+    expect(rows).toContain('data-lane="verified"');
+    expect(rows).toContain("✓ verified");
+    const unsigned = renderDirectory([record()], new Map([["acme--widget", unsignedAction()]]));
+    expect(unsigned).toContain('data-lane="unsigned-action"');
+    expect(renderDirectory([record()])).toContain('data-lane="external"');
+  });
+  test("lane badge titles are escaped attributes", () => {
+    expect(laneBadge(verified())).toMatch(/^<span class="lane lane-verified" title="[^"]*">/);
+  });
+});
+
+describe("issue comment provenance line", () => {
+  test("verified line names the identity; external adds nothing", () => {
+    expect(trustLine(verified())).toContain("**verified**");
+    expect(trustLine(verified())).toContain("sscsb-scan.yml");
+    expect(trustLine(undefined)).toBe("");
+    expect(trustLine(unsignedAction())).toContain("unverified claim");
+  });
+  test("renderComment includes the line only when there is something to say", () => {
+    expect(renderComment(record(), verified())).toContain("Signature: **verified**");
+    expect(renderComment(record())).not.toContain("Signature:");
+  });
+});

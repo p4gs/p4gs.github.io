@@ -15,8 +15,12 @@
  *   (paint explicit backgrounds) or ship both via prefers-color-scheme.
  * - Copy honesty: unverified is a visible third state, never counted; A+ is
  *   exactly 100%; provisional tags stay.
+ * - Provenance honesty: lane markers come from ctx.trust through
+ *   trust.ts resolveTrustKind — verified / unsigned action / external. A
+ *   design never shows a verified mark without a verified sidecar.
  */
 import type { ScanRecord } from "../schema";
+import type { TrustInfo } from "../trust";
 
 export type DesignId = "ledger" | "console" | "manual" | "chain";
 
@@ -29,6 +33,8 @@ export interface DesignCtx {
   switcher: string;
   /** Which nav item is active: "home" | "directory" | "methodology". */
   active: string;
+  /** Trust sidecars keyed by `owner--name` (trust.ts trustKeyOf); absent = none loaded. */
+  trust?: ReadonlyMap<string, TrustInfo>;
 }
 
 export interface Design {
