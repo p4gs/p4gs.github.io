@@ -70,9 +70,12 @@ jobs:
             title="[action-scan] $slug"
             # Match the exact title client-side — GitHub search treats
             # brackets loosely, so the search hit alone is never trusted.
+            # `gh --jq` takes a bare expression and has no `--arg`; bind the
+            # title through real jq so a title with spaces is never re-split
+            # into positional arguments.
             existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --label action-scan-result --state open \
               --limit 500 --json number,title,body \
-              --jq --arg t "$title" '[.[] | select(.title == $t)][0] // empty')
+              | jq --arg t "$title" '[.[] | select(.title == $t)][0] // empty')
             existing_num=$(printf '%s' "$existing" | jq -r '.number // empty')
             if [ -n "$existing_num" ] && printf '%s' "$existing" | jq -r .body | grep -qE "Workflow run ID[^0-9]*${run_id}\b"; then
               echo "   issue #$existing_num already carries run $run_id — nothing new"; skipped=$((skipped+1)); continue
