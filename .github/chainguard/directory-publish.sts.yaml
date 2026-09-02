@@ -20,7 +20,7 @@ subject: repo:p4gs/p4gs.github.io:ref:refs/heads/main
 # (Octo STS anchors them), so every `.` is escaped: an unescaped dot would
 # also match `p4gs/p4gsXgithub.io` or `directory-publishXyml`.
 claim_pattern:
-  job_workflow_ref: 'p4gs/p4gs\.github\.io/\.github/workflows/directory-publish\.yml@refs/heads/main'
+  job_workflow_ref: 'p4gs/p4gs\.github\.io/\.github/workflows/(directory-publish|directory-autopublish)\.yml@refs/heads/main'
 
 permissions:
   # Exactly what "branch, commit record, open PR, arm auto-merge" needs —
