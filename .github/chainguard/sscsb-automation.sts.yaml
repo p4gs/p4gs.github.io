@@ -13,8 +13,8 @@
 # Docs: https://github.com/octo-sts/app
 issuer: https://token.actions.githubusercontent.com
 
-# Exact subject (not a pattern): only workflows on this repo's default branch.
-subject: repo:p4gs/p4gs.github.io:ref:refs/heads/main
+# ID-pinned subject pattern: only workflows on this repo's default branch (rename-proof).
+subject_pattern: 'repo:p4gs(@10093271)?/p4gs\.github\.io(@1354031532)?:ref:refs/heads/main' # IDs pinned: GitHub's OIDC sub is repo:OWNER@ID/REPO@ID:ref:…
 
 # And only THIS workflow on that branch — not every workflow that runs on
 # main. `claim_pattern` values are REGEXES (Octo STS anchors them), so every
