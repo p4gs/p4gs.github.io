@@ -161,4 +161,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ steps.req.outputs.issue }}
         run: |
-          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Auto-publish could not federate a token (is the Octo STS GitHub App installed on this repository, and does .github/chainguard/sscsb-automation.sts.yaml grant issues:write to refs/heads/main?). The record is verified and eligible — a maintainer can apply \`publish\` by hand meanwhile."
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Auto-publish could not federate a token (is the Octo STS GitHub App installed for this account — https://github.com/apps/octo-sts — and does .github/chainguard/directory-publish.sts.yaml list directory-autopublish.yml with issues:write?). The record is verified and eligible — a maintainer can apply \`publish\` by hand meanwhile."
