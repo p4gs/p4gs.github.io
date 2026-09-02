@@ -5,6 +5,7 @@
  */
 import type { Design } from "./types";
 import { ledger } from "./ledger/index";
+import { manual } from "./manual/index";
 
-export const DESIGNS: Design[] = [ledger];
+export const DESIGNS: Design[] = [ledger, manual];
 export const DEFAULT_DESIGN = DESIGNS[0]!;
