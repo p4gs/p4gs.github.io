@@ -3,7 +3,6 @@
  * tenets (a real i./ii./iii. sequence), and one featured directory entry
  * wearing its real seal.
  */
-import { SUBMIT_URL } from "../../config";
 import type { DesignCtx } from "../types";
 import { seal } from "./components";
 import { escapeHtml, page } from "./layout";
@@ -61,7 +60,7 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
       <p class="feature-meta">81.8% overall · coverage 73.3% · <em>provisional</em> · methodology v1</p>
       <p class="feature-links"><a href="${ctx.h("directory/")}">Browse all ${escapeHtml(
         String(repoCount),
-      )} ${repoCount === 1 ? "repository" : "repositories"}</a> · <a href="${SUBMIT_URL}">submit yours</a></p>
+      )} ${repoCount === 1 ? "repository" : "repositories"}</a> · <a href="${ctx.h("directory/?submit=1")}">submit yours</a></p>
     </div>
     <a class="feature-seal" href="${ctx.h(featuredPath)}" aria-label="p4gs/sscs-bootstrapper scan report — grade B, provisional">${seal(
       "B",

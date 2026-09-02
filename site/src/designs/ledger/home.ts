@@ -1,5 +1,5 @@
 /** Product homepage: the verification receipt, five phases, and the directory hook. */
-import { ACTION_REPO_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL } from "../../config";
 import { seal } from "./components";
 import { href, page } from "./layout";
 
@@ -77,7 +77,7 @@ export function renderHome(_repoCount: number): string {
     that sees what an outside scan cannot — through the same reviewed gate.</p>
     <div class="btn-row">
       <a class="btn" href="${ACTION_REPO_URL}">Install the Action</a>
-      <a class="btn-outline" href="${SUBMIT_URL}">Submit a repo</a>
+      <a class="btn-outline" href="${href("directory/")}?submit=1">Submit a repo to the directory</a>
     </div>
   </div>
 </section>`;

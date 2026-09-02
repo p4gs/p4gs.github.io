@@ -10,6 +10,9 @@ export const REPO_URL = "https://github.com/p4gs/sscs-bootstrapper";
 export const SITE_REPO_URL = "https://github.com/p4gs/p4gs.github.io";
 export const ACTION_REPO_URL = "https://github.com/p4gs/sscsb-action";
 export const SUBMIT_URL = `${SITE_REPO_URL}/issues/new?template=scan-request.yml`;
+/** Scan-intake relay (Vercel). Empty string disables the single-click path;
+ * filter.js then falls back to the pre-filled issue form in a popup. */
+export const SCAN_API_URL = "https://sscsb-scan-intake.vercel.app/api/scan-request";
 
 /** Bumped when the scoring rules change; displayed on every repo page. */
 export const METHODOLOGY_VERSION = 1;
