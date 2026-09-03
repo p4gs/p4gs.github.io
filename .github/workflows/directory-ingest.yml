@@ -22,16 +22,46 @@
 # issues event (GitHub's own anti-recursion rule; workflow_dispatch is the
 # documented exception). Both paths read the issue through the API so the
 # request text never arrives by `${{ }}` interpolation.
-name: Directory ingest (action results)
+#
+# LOCAL LANE (`local-scan-result` label, `ingest_local` job below). A maintainer
+# ran `sscsb scan --local` on a workstation and signed the record with their git
+# signing key. Every string this job needs — the SSHSIG namespace, the committed
+# record/signature paths, the anchor path — comes from THE CONTRACT
+# (`site/src/local-contract.ts`, a verbatim mirror of the tool's
+# `docs/local-scan.md`), loaded into the environment by the
+# `local-contract-env.ts` step. Nothing below restates them: an earlier cut of
+# this workflow hard-coded a namespace and a path the tool did not use, and
+# every submission failed in a way neither side's tests could see. There is no OIDC identity to pin, so the anchor is a file the
+# repository ALREADY COMMITS: `.sscsb/policy/allowed_signers`, the same anchor
+# the commit-signing control uses. Ingest fetches the record, its detached SSH
+# signature, AND that allowed_signers file from the PUBLIC REPOSITORY through the
+# contents API — the record and signature at the default branch's head, and
+# allowed_signers at the commit the record names — then runs `ssh-keygen -Y
+# verify`. Nothing in the submission is trusted beyond the owner/repo slug. A
+# signature that does not verify is refused exactly as a tampered Sigstore bundle
+# is. Only a `class = "human"` approved signer can produce one at all: `sscsb`
+# grants the `sscsb-scan-record` namespace to human signers alone, so a ci- or
+# ai-class key fails the very `ssh-keygen -Y verify` below. The proof is
+# deliberately narrow, and the site enforces the rest: a local record votes on
+# every control, its class-C verdicts count on their own, and its verdicts on
+# anything a repository scan could observe are held back until an independent
+# record agrees or disagrees (site/src/reclassify.ts mergeEvidence).
+name: Directory ingest (action + local results)
 on:
   issues:
     types: [opened, edited, labeled]
   workflow_dispatch:
     inputs:
       issue:
-        description: "Number of an open action-scan-result issue to (re)ingest"
+        description: "Number of an open scan-result issue to (re)ingest"
         required: true
         type: string
+      lane:
+        description: "Which lane's ingest to run for that issue"
+        required: false
+        default: action
+        type: choice
+        options: [action, local]
 
 permissions:
   contents: read
@@ -43,7 +73,7 @@ concurrency:
 jobs:
   ingest:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && inputs.lane != 'local') ||
       contains(github.event.issue.labels.*.name, 'action-scan-result')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -175,8 +205,173 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # ---------------------------------------------------------------- local lane
+  # Same shape as `ingest`, different proof. Everything this job reads comes
+  # from the target's PUBLIC REPOSITORY through the contents API; the issue
+  # supplies only the owner/repo slug, and only after parse-request.ts has vetted
+  # it. Nothing here is trusted because a maintainer said it.
+  ingest_local:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.lane == 'local') ||
+      contains(github.event.issue.labels.*.name, 'local-scan-result')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      issue: ${{ steps.req.outputs.issue }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install site deps
+        working-directory: site
+        run: bun install --frozen-lockfile
+      - name: Resolve the request (event or dispatch)
+        id: req
+        env:
+          EVENT_ISSUE: ${{ github.event.issue.number }}
+          DISPATCH_ISSUE: ${{ inputs.issue }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          issue="${EVENT_ISSUE:-$DISPATCH_ISSUE}"
+          [[ "$issue" =~ ^[0-9]+$ ]] || { echo "::error::no issue number to ingest"; exit 1; }
+          gh issue view "$issue" --repo "$GITHUB_REPOSITORY" --json body,labels,state > "$RUNNER_TEMP/issue.json"
+          state=$(jq -r .state "$RUNNER_TEMP/issue.json")
+          labeled=$(jq -r '[.labels[].name] | index("local-scan-result") != null' "$RUNNER_TEMP/issue.json")
+          [ "$state" = "OPEN" ] && [ "$labeled" = "true" ] \
+            || { echo "::error::issue #$issue is not an open local-scan-result submission"; exit 1; }
+          jq -r .body "$RUNNER_TEMP/issue.json" > "$RUNNER_TEMP/issue-body.md"
+          echo "issue=$issue" >> "$GITHUB_OUTPUT"
+      - name: Parse request
+        id: slug
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ISSUE_BODY="$(cat "$RUNNER_TEMP/issue-body.md")"
+          export ISSUE_BODY
+          bun run site/src/scan/parse-request.ts
+      # THE CONTRACT, loaded once. Every path and the namespace below come from
+      # site/src/local-contract.ts, which mirrors the tool's docs/local-scan.md
+      # verbatim and is digest-pinned in both trees.
+      - name: Load the local-lane contract
+        run: bun run site/src/scan/local-contract-env.ts
+      # The record and its signature are COMMITTED artifacts, read from the
+      # repository's live default branch. `sscsb scan --local` writes both into
+      # .sscsb/ precisely so the submission is a pointer rather than a payload:
+      # nothing the submitter types reaches the bytes we verify.
+      - name: Fetch the committed local record and signature
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ steps.slug.outputs.slug }}
+        run: |
+          set -euo pipefail
+          default_branch=$(gh api "repos/$SLUG" --jq .default_branch)
+          [ -n "$default_branch" ] || { echo "::error::could not resolve the default branch of $SLUG"; exit 1; }
+          fetch() { # <repo path> <local file> <max bytes>
+            local path="$1" out="$2" cap="$3" size
+            size=$(gh api "repos/$SLUG/contents/$path?ref=$default_branch" --jq '.size' 2>/dev/null || true)
+            [ -n "$size" ] || { echo "::error::$SLUG does not commit $path on $default_branch — run 'sscsb scan --local', then commit and push both files"; exit 1; }
+            [ "$size" -le "$cap" ] || { echo "::error::$path is ${size}B — cap is ${cap}B"; exit 1; }
+            gh api "repos/$SLUG/contents/$path?ref=$default_branch" \
+              -H "Accept: application/vnd.github.raw" > "$out"
+          }
+          fetch "$SSCSB_LOCAL_RECORD_PATH" scan-record.json 1048576
+          fetch "$SSCSB_LOCAL_SIGNATURE_PATH" scan-record.local.sig 8192
+      - name: Verify the detached SSH signature against the repo's committed allowed_signers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ steps.slug.outputs.slug }}
+        run: |
+          set -euo pipefail
+          record=scan-record.json
+          sig=scan-record.local.sig
+          commit=$(jq -r '.repo.commit // ""' "$record")
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::record commit is not a 40-hex sha"; exit 1; }
+          # The commit must EXIST in that repository, and must be MERGED INTO
+          # ITS DEFAULT BRANCH. Existence alone is not enough: the trust anchor
+          # below is fetched at this commit, so whoever chooses the commit
+          # chooses the allowed_signers the signature is verified against — and
+          # a sha on an unreviewed branch or a fork's pull-request ref "exists"
+          # in this repository as far as the API is concerned. The rule lives in
+          # site/src/scan/require-reachable.ts so it is testable against every
+          # status GitHub can return, instead of in YAML where it is not.
+          COMMIT="$commit" bun run site/src/scan/require-reachable.ts
+          # THE TRUST ANCHOR. allowed_signers is fetched from the public
+          # repository AT THE SCANNED COMMIT: committed content, never anything
+          # the submitter supplied, and pinned to the same commit the record
+          # claims so a later push cannot retroactively bless a key.
+          size=$(gh api "repos/$SLUG/contents/$SSCSB_LOCAL_ANCHOR_PATH?ref=$commit" --jq '.size' 2>/dev/null || true)
+          [ -n "$size" ] || { echo "::error::$SLUG does not commit $SSCSB_LOCAL_ANCHOR_PATH at $commit — a local record has no trust anchor without it; refusing"; exit 1; }
+          [ "$size" -le 65536 ] || { echo "::error::allowed_signers is ${size}B — cap is 64 KB"; exit 1; }
+          gh api "repos/$SLUG/contents/$SSCSB_LOCAL_ANCHOR_PATH?ref=$commit" \
+            -H "Accept: application/vnd.github.raw" > allowed_signers
+          # Try every principal the repository lists, and record which one
+          # verified. `ssh-keygen -Y verify` requires -I, so there is no
+          # "any signer" mode; principals are the first field of each entry.
+          principals=$(grep -v '^[[:space:]]*\(#\|$\)' allowed_signers | awk '{print $1}' | tr ',' '\n' | sort -u)
+          [ -n "$principals" ] || { echo "::error::allowed_signers at $commit lists no principals"; exit 1; }
+          signer=""
+          while read -r p; do
+            [ -n "$p" ] || continue
+            if ssh-keygen -Y verify -f allowed_signers -I "$p" \
+                 -n "$SSCSB_LOCAL_NAMESPACE" -s "$sig" < "$record" >/dev/null 2>&1; then
+              signer="$p"; break
+            fi
+          done <<< "$principals"
+          if [ -z "$signer" ]; then
+            echo "::error::signature verification FAILED for $SLUG — scan-record.local.json.sig does not verify under namespace '${SSCSB_LOCAL_NAMESPACE}' against any principal in ${SSCSB_LOCAL_ANCHOR_PATH} at commit ${commit}. A signature that does not verify is a tamper signal (or the signing key is not committed as an approved signer); refusing to ingest."
+            exit 1
+          fi
+          # Re-run verbosely for the log, and capture the key fingerprint the
+          # listing publishes so a reader can identify the signer's key.
+          ssh-keygen -Y verify -f allowed_signers -I "$signer" \
+            -n "$SSCSB_LOCAL_NAMESPACE" -s "$sig" < "$record"
+          fingerprint=$(ssh-keygen -l -f <(grep -F "$signer" allowed_signers | head -1 | cut -d' ' -f2-) | awk '{print $2}')
+          published_sig="$(printf '%s' "$SLUG" | tr '[:upper:]' '[:lower:]' | sed 's#/#--#').local.sig"
+          jq -n --arg signer "$signer" --arg fp "$fingerprint" --arg commit "$commit" \
+            --arg sig "$published_sig" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{schema_version: 1, lane: "local", signature: "verified", identity: null,
+              commit: $commit, verified_at: $now, bundle: null,
+              signer: $signer, key_fingerprint: $fp, signature_file: $sig, resolved: []}' \
+            > scan-record.trust.json
+          echo "signature VERIFIED: $signer ($fingerprint) @ $commit"
+      - name: Revalidate against the request
+        env:
+          RECORD_PATH: scan-record.json
+        run: |
+          set -euo pipefail
+          ISSUE_BODY="$(cat "$RUNNER_TEMP/issue-body.md")"
+          export ISSUE_BODY
+          bun run site/src/scan/validate-record.ts
+      - name: Re-upload under this issue (for directory-publish.yml)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scan-record-${{ steps.req.outputs.issue }}
+          path: |
+            scan-record.json
+            scan-record.local.sig
+            scan-record.trust.json
+          if-no-files-found: error
+          retention-days: 30
+
   comment:
-    needs: [ingest]
+    needs: [ingest, ingest_local]
+    # Exactly one lane job runs per submission; the other is skipped. Comment on
+    # whichever succeeded, and stay silent when neither did (a refused signature
+    # already failed the run loudly).
+    if: >-
+      always() &&
+      (needs.ingest.result == 'success' || needs.ingest_local.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -198,7 +393,7 @@ jobs:
       - name: Download record
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: scan-record-${{ needs.ingest.outputs.issue }}
+          name: scan-record-${{ needs.ingest.outputs.issue || needs.ingest_local.outputs.issue }}
       - name: Render summary
         env:
           RECORD_PATH: scan-record.json
@@ -208,7 +403,7 @@ jobs:
       - name: Post comment
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE: ${{ needs.ingest.outputs.issue }}
+          ISSUE: ${{ needs.ingest.outputs.issue || needs.ingest_local.outputs.issue }}
         run: gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file scan-comment.md
       # Hand the ingested record to the authenticated-lane auto-publish gate.
       # directory-autopublish.yml also declares `workflow_run` on this
@@ -217,7 +412,12 @@ jobs:
       # anti-recursion rule. workflow_dispatch is the documented exception,
       # so dispatch explicitly; the gate re-reads the trust sidecar and still
       # declines anything unsigned, unregistered, or off-lane.
+      # Action lane only. The auto-publish gate authorizes strictly on an
+      # action-lane verified sidecar and would refuse a local record anyway;
+      # dispatching for it would only turn a correct refusal into a red run.
+      # A local submission waits for a maintainer's `publish` label, as designed.
       - name: Hand off to auto-publish
+        if: needs.ingest.result == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ needs.ingest.outputs.issue }}

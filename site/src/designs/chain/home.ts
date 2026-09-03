@@ -6,6 +6,7 @@
  * where the current record lives.
  */
 import { ACTION_REPO_URL } from "../../config";
+import { LOCAL_SCAN_COMMAND } from "../../coverage";
 import { CHAIN_SCRIPT, heroChain, legendRow, type ChainPhase } from "./components";
 import { href, page } from "./layout";
 
@@ -62,6 +63,16 @@ export function renderHome(repoCount: number): string {
     <span class="code-chip">sscsb-action</span> in your own CI to publish a record
     that sees what an outside scan cannot — through the same reviewed gate.</p>
     <a class="arrow-link" href="${ACTION_REPO_URL}">Install the Action →</a>
+  </div>
+  <div class="card feature-card">
+    <h2 class="feature-title">Local lane</h2>
+    <p class="feature-copy">Ten or eleven controls describe the development machine,
+    where no scan can reach — which is why a well-run repo can still read
+    <em>provisional</em>. <span class="code-chip">${LOCAL_SCAN_COMMAND}</span> signs a
+    record with the git key your repository already commits in
+    <span class="code-chip">allowed_signers</span>. A shorter chain than CI, so it
+    forges those links and no others.</p>
+    <a class="arrow-link" href="${href("methodology/#local")}">How it is verified →</a>
   </div>
 </section>
 ${CHAIN_SCRIPT}`;

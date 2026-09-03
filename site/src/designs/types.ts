@@ -15,10 +15,18 @@
  *   (paint explicit backgrounds) or ship both via prefers-color-scheme.
  * - Copy honesty: unverified is a visible third state, never counted; A+ is
  *   exactly 100%; provisional tags stay.
- * - Provenance honesty: lane markers come from ctx.trust through
- *   trust.ts resolveTrustKind — verified / unsigned action / external. A
- *   design never shows a verified mark without a verified sidecar.
+ * - Provenance honesty: lane markers come from ctx.trust (+ ctx.localTrust)
+ *   through trust.ts resolveTrustKind — verified / unsigned action / local /
+ *   external. A design never shows a verified mark without a verified sidecar,
+ *   and the local badge must always read as WEAKER than the action lane.
+ * - Coverage honesty: a listing below the coverage floor says WHY (which
+ *   controls are unverified) and what the one-line fix is. The facts come from
+ *   coverage.ts; the sentence is the design's own. The "fixable by a local
+ *   scan" claim is only made when a local scan could actually clear the floor.
+ * - Contradiction honesty: where sources disagree the row is a gap AND the
+ *   disagreement is named (ctx.facts), on the listing and on the detail page.
  */
+import type { ListingFacts } from "../listing";
 import type { ScanRecord } from "../schema";
 import type { TrustInfo } from "../trust";
 
@@ -35,6 +43,24 @@ export interface DesignCtx {
   active: string;
   /** Trust sidecars keyed by `owner--name` (trust.ts trustKeyOf); absent = none loaded. */
   trust?: ReadonlyMap<string, TrustInfo>;
+  /**
+   * LOCAL-lane sidecars, same keying. Present only for listings that carry a
+   * verified maintainer-signed workstation record; its `resolved` list is the
+   * class-C control ids that record actually contributed.
+   */
+  localTrust?: ReadonlyMap<string, TrustInfo>;
+  /**
+   * What the evidence merge actually did for each listing, keyed the same way:
+   * which rows the local lane resolved on its own, which rows CONTRADICTED
+   * across sources (each scored a gap), which local assertions are held back
+   * awaiting independent observation, and whether a local record describes a
+   * different commit than its base.
+   *
+   * A design MUST surface a contradiction — on the listing row and on the
+   * detail page. Scoring a disagreement as a gap and saying nothing would hide
+   * the most interesting fact the directory holds about that repository.
+   */
+  facts?: ReadonlyMap<string, ListingFacts>;
 }
 
 export interface Design {

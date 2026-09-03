@@ -8,10 +8,25 @@
  * description) is escaped at render time regardless.
  */
 
+import type { LocalLaneReadiness } from "./anchor";
+
 export const SCHEMA_VERSION = 1;
 
 export type ScanOutcome = "pass" | "fail" | "gap" | "unverified" | "info";
 export type RawOutcome = "pass" | "fail" | "degraded" | "disabled" | "info";
+
+/**
+ * One source's verdict on one control, recorded when sources DISAGREE.
+ *
+ * `source` is the evidence lane (`action`, `external`, `local`); `verdict` is
+ * the countable outcome that lane gave. A contradiction is scored as a gap, so
+ * the flag is the only place the disagreement itself survives — dropping it
+ * would turn "two verified sources conflict" into a silent downgrade.
+ */
+export interface ContradictionNote {
+  source: "action" | "external" | "local";
+  verdict: "pass" | "fail" | "gap";
+}
 
 export interface ControlRecord {
   id: string;
@@ -22,6 +37,12 @@ export interface ControlRecord {
   reclassified: boolean;
   reason: string | null;
   messages: string[];
+  /**
+   * Set only on a merged listing where sources disagreed. Absent on a
+   * single-lane record and on every record the tool signs — the tool has one
+   * source by construction, so it can never observe a contradiction.
+   */
+  contradiction?: readonly ContradictionNote[] | null;
 }
 
 export interface PhaseScore {
@@ -65,6 +86,21 @@ export interface ScanRecord {
   request_issue: number | null;
   controls: ControlRecord[];
   score: Score;
+  /**
+   * OPTIONAL, and only ever set by the EXTERNAL lane: what the target's
+   * committed `.sscsb/policy/allowed_signers` said about the local lane at the
+   * scanned commit. Absent means "nobody looked", never "not ready".
+   *
+   * It exists so the coverage nudge can stop promising a one-line fix to
+   * repositories where that command refuses — an anchor predating the lane, or
+   * one listing no `class = "human"` signer, grants no `sscsb-scan-record`
+   * namespace and `sscsb scan --local` will not produce a record at all. See
+   * `anchor.ts`.
+   *
+   * It authorizes nothing. The signature is verified at ingest by `ssh-keygen`
+   * against the anchor fetched from the repository at the record's own commit.
+   */
+  local_lane?: LocalLaneReadiness | null;
 }
 
 const SCAN_OUTCOMES: ReadonlySet<string> = new Set([
@@ -119,6 +155,22 @@ export function validateScanRecord(value: unknown): ScanRecord {
       fail(`control ${String(c.id)}: scan_outcome ${JSON.stringify(c.scan_outcome)}`);
     }
     if (!Array.isArray(c.messages)) fail(`control ${String(c.id)}: messages not a list`);
+    // Optional and additive: a signed single-lane record never carries it, and
+    // a record that DOES must not be able to smuggle arbitrary shapes into a
+    // rendered page.
+    if (c.contradiction !== undefined && c.contradiction !== null) {
+      if (!Array.isArray(c.contradiction)) {
+        fail(`control ${String(c.id)}: contradiction not a list`);
+      }
+      for (const n of c.contradiction as Array<Record<string, unknown>>) {
+        if (!["action", "external", "local"].includes(String(n?.source))) {
+          fail(`control ${String(c.id)}: contradiction source ${JSON.stringify(n?.source)}`);
+        }
+        if (!["pass", "fail", "gap"].includes(String(n?.verdict))) {
+          fail(`control ${String(c.id)}: contradiction verdict ${JSON.stringify(n?.verdict)}`);
+        }
+      }
+    }
   }
   const score = r.score as Record<string, unknown> | undefined;
   if (!score || typeof score !== "object") fail("score missing");
@@ -127,6 +179,16 @@ export function validateScanRecord(value: unknown): ScanRecord {
   }
   const phases = score!.phases;
   if (!Array.isArray(phases) || phases.length !== 5) fail("score.phases must have 5 entries");
+  // Optional and additive, like `contradiction`: a record that omits it is
+  // valid, and one that carries it must carry exactly two booleans — the field
+  // steers a rendered sentence, so it may not smuggle a shape into a page.
+  if (r.local_lane !== undefined && r.local_lane !== null) {
+    const ll = r.local_lane as Record<string, unknown>;
+    if (typeof ll !== "object") fail("local_lane not an object");
+    for (const k of ["anchor_committed", "scan_namespace_granted"]) {
+      if (typeof ll[k] !== "boolean") fail(`local_lane.${k} must be a boolean`);
+    }
+  }
   return value as ScanRecord;
 }
 

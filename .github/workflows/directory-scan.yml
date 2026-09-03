@@ -115,6 +115,14 @@ jobs:
           BIN="$RUNNER_TEMP/sscsb-src/target/release/sscsb"
           git -C "$RUNNER_TEMP/target" ls-files -z > "$RUNNER_TEMP/pre-files.z"
           git -C "$RUNNER_TEMP/target" rev-parse HEAD > "$RUNNER_TEMP/commit.sha"
+          # The target's COMMITTED approved-signer anchor, read out of HEAD
+          # before init regenerates it. It decides whether the coverage nudge
+          # may promise `sscsb scan --local --submit` as a one-line fix: that
+          # command refuses when the anchor grants no scan-record namespace.
+          # Absent is normal — most repositories do not commit one.
+          git -C "$RUNNER_TEMP/target" show HEAD:.sscsb/policy/allowed_signers \
+            > "$RUNNER_TEMP/anchor.txt" 2>/dev/null \
+            || rm -f "$RUNNER_TEMP/anchor.txt"
           (cd "$RUNNER_TEMP/target" && "$BIN" init) | tee "$RUNNER_TEMP/init.log"
           # exit 1 (controls failed) is DATA for the directory, not a job failure;
           # exit 2 (operational error) must still fail the job.
@@ -133,6 +141,7 @@ jobs:
       - name: Reclassify and score
         env:
           PRE_FILES_PATH: ${{ runner.temp }}/pre-files.z
+          ANCHOR_PATH: ${{ runner.temp }}/anchor.txt
           VERIFY_JSON_PATH: ${{ runner.temp }}/verify.json
           REPORT_JSON_PATH: ${{ runner.temp }}/report.json
           DEFAULTS_JSON_PATH: ${{ runner.temp }}/defaults.json

@@ -1,0 +1,59 @@
+name: Local scan result (sscsb scan --local)
+description: Submit a signed local scan record committed in your own repository
+title: "[local-scan] "
+labels: ["local-scan-result"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For maintainers who ran `sscsb scan --local` on their own machine.
+        (`sscsb scan --local --submit` opens this form for you.)
+
+        Ten or eleven controls per repository describe the **development
+        environment** — commit signing, AI trailers, dependency gates,
+        package-trust hooks. No repository scan can observe them, so they score
+        *unverified* and sit outside every denominator. A signed local record is
+        the only evidence that can exist for them.
+
+        **What you supply is a pointer, not a payload.** `sscsb scan --local`
+        writes `.sscsb/scan-record.local.json` and
+        `.sscsb/scan-record.local.json.sig` into your repository — commit and
+        push both. The directory reads them from your public repository, and
+        verifies the detached SSH signature with `ssh-keygen -Y verify` against
+        your own committed `.sscsb/policy/allowed_signers`, fetched at the
+        commit the record names. Nothing in this issue is trusted.
+
+        **What a local record proves:** a holder of a key your repository
+        commits as an approved signer asserts this result at that commit. That
+        is attributable and auditable, and it is *weaker* than an authenticated
+        scan, which proves your own CI produced the record.
+
+        **How it is scored.** Your record is merged with every other evidence
+        source the directory holds for your repository. Where they agree, that
+        verdict stands, whichever lane produced it. Where they *disagree*, the
+        control is scored as a **gap** and the disagreement is published — the
+        directory errs on the side of caution rather than picking the
+        flattering answer. And where a repository scan could have observed a
+        control (a committed artifact, a committed workflow, a live GitHub
+        setting), your self-report alone is not counted: an independent record
+        has to agree with it first. Where someone else could have checked, we
+        require that someone else. The local-environment controls are the ones
+        nobody else can check, and there your signed word counts on its own.
+
+        Full rules: https://tools.sensiblesecurity.xyz/sscsb/methodology/#local
+  - type: input
+    id: repo_url
+    attributes:
+      label: Repository URL
+      placeholder: https://github.com/owner/repo
+    validations:
+      required: true
+  - type: checkboxes
+    id: committed
+    attributes:
+      label: Before submitting
+      options:
+        - label: "`.sscsb/scan-record.local.json` and `.sscsb/scan-record.local.json.sig` are committed and pushed to the default branch"
+          required: true
+        - label: "`.sscsb/policy/allowed_signers` is committed and contains the key that signed the record"
+          required: true

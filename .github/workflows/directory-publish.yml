@@ -97,8 +97,9 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          # Both lanes upload scan-record-<issue>: external scans from
-          # directory-scan.yml, authenticated submissions via directory-ingest.yml.
+          # All three lanes upload scan-record-<issue>: external scans from
+          # directory-scan.yml, authenticated and local submissions via
+          # directory-ingest.yml (its `ingest` and `ingest_local` jobs).
           run_id=$( (gh api "repos/$GITHUB_REPOSITORY/actions/workflows/directory-scan.yml/runs?status=success&per_page=50" \
             --jq ".workflow_runs[].id"; \
             gh api "repos/$GITHUB_REPOSITORY/actions/workflows/directory-ingest.yml/runs?status=success&per_page=50" \
@@ -197,15 +198,31 @@ jobs:
               '{message:$m, branch:$b, content:$c} + (if $s != "" then {sha:$s} else {} end)' \
               | gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$path" --input - >/dev/null
           }
-          put_file "site/data/repos/${slug}.json" scan-record.json "directory: publish ${human} (grade ${grade}, issue #${ISSUE})"
-          # Authenticated-lane submissions carry a trust sidecar (and, when
-          # signed, the Sigstore bundle) from directory-ingest.yml. Publish
-          # them beside the record so the listing can show provenance and
-          # anyone can re-verify. External scans have neither — by construction.
-          if [ -s scan-record.trust.json ]; then
-            put_file "site/data/trust/${slug}.json" scan-record.trust.json "directory: trust sidecar for ${human} (issue #${ISSUE})"
-            if [ -s scan-record.json.sigstore.json ]; then
-              put_file "site/data/trust/${slug}.sigstore.json" scan-record.json.sigstore.json "directory: Sigstore bundle for ${human} (issue #${ISSUE})"
+          lane=$([ -s scan-record.trust.json ] && jq -r '.lane // ""' scan-record.trust.json || echo "")
+          if [ "$lane" = "local" ]; then
+            # LOCAL LANE. A workstation record never replaces the repo-observable
+            # record: it lands in its own directory, and the site build MERGES it
+            # with whatever base record exists (site/src/reclassify.ts
+            # mergeEvidence) — every source votes, a disagreement scores a gap
+            # with a named contradiction, and a local claim about anything a
+            # repository scan could observe is held back until an independent
+            # record agrees. Writing it to site/data/repos/ instead would let a
+            # maintainer's machine overwrite their CI's verdicts, which is the
+            # one thing this lane must never be able to do.
+            put_file "site/data/local/${slug}.json" scan-record.json "directory: local scan record for ${human} (issue #${ISSUE})"
+            put_file "site/data/trust/${slug}.local.json" scan-record.trust.json "directory: local trust sidecar for ${human} (issue #${ISSUE})"
+            put_file "site/data/trust/${slug}.local.sig" scan-record.local.sig "directory: local scan signature for ${human} (issue #${ISSUE})"
+          else
+            put_file "site/data/repos/${slug}.json" scan-record.json "directory: publish ${human} (grade ${grade}, issue #${ISSUE})"
+            # Authenticated-lane submissions carry a trust sidecar (and, when
+            # signed, the Sigstore bundle) from directory-ingest.yml. Publish
+            # them beside the record so the listing can show provenance and
+            # anyone can re-verify. External scans have neither — by construction.
+            if [ -s scan-record.trust.json ]; then
+              put_file "site/data/trust/${slug}.json" scan-record.trust.json "directory: trust sidecar for ${human} (issue #${ISSUE})"
+              if [ -s scan-record.json.sigstore.json ]; then
+                put_file "site/data/trust/${slug}.sigstore.json" scan-record.json.sigstore.json "directory: Sigstore bundle for ${human} (issue #${ISSUE})"
+              fi
             fi
           fi
           existing=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')

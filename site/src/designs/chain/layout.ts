@@ -5,6 +5,7 @@
  * switcherless behavior. No cross-imports from other designs.
  */
 import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import { lookupFacts, type ListingFacts } from "../../listing";
 import type { DesignCtx } from "../types";
 
 let ctx: DesignCtx = {
@@ -24,6 +25,15 @@ export function escapeHtml(s: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+/**
+ * What the evidence merge did for one listing — contradictions, a stale local
+ * record, assertions held back awaiting independent observation. Read through
+ * the render context so a design never has to be handed it explicitly.
+ */
+export function factsFor(r: Parameters<typeof lookupFacts>[1]): ListingFacts {
+  return lookupFacts(ctx.facts, r);
 }
 
 /** Internal link helper — the only sanctioned way to build an internal href. */

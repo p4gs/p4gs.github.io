@@ -1,5 +1,6 @@
 /** Product homepage: the verification receipt, five phases, and the directory hook. */
 import { ACTION_REPO_URL } from "../../config";
+import { LOCAL_SCAN_COMMAND } from "../../coverage";
 import { seal } from "./components";
 import { href, page } from "./layout";
 
@@ -78,6 +79,18 @@ export function renderHome(_repoCount: number): string {
     <div class="btn-row">
       <a class="btn" href="${ACTION_REPO_URL}">Install the Action</a>
       <a class="btn-outline" href="${href("directory/")}?submit=1">Submit a repo to the directory</a>
+    </div>
+  </div>
+  <div class="col-block">
+    <h2 class="h2-display">Local scans</h2>
+    <p class="body-copy">Ten or eleven controls describe the development machine,
+    which no repository scan can observe — the reason a well-run repository can still
+    read <em>provisional</em>. <span class="code-chip">${LOCAL_SCAN_COMMAND}</span>
+    signs a record with the git key your repository already commits in
+    <span class="code-chip">allowed_signers</span>. Weaker evidence than CI, so it
+    resolves exactly those controls and nothing else.</p>
+    <div class="btn-row">
+      <a class="btn-outline" href="${href("methodology/#local")}">How it is verified</a>
     </div>
   </div>
 </section>`;

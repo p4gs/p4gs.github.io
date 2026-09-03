@@ -21,6 +21,10 @@ export function trustLine(t: TrustInfo | undefined): string {
       }`;
     case "unsigned-action":
       return "Signature: **none** — submitted from the repository's CI without a signature, so this can only be listed as an unverified claim (grant the scan job `id-token: write` to sign the next record)";
+    case "local":
+      return `Signature: **verified (local lane)** — detached SSH signature checked with \`ssh-keygen -Y verify\` against this repository's committed \`.sscsb/policy/allowed_signers\` at commit \`${mdEscape(
+        (t?.commit ?? "").slice(0, 12),
+      )}\`, signer \`${mdEscape(t?.signer ?? "")}\`. This is a workstation record. Its verdicts are merged with every other evidence source for this repository: sources that disagree score a gap, and an assertion about a control a repository scan could observe is not counted until an independent record agrees with it.`;
     default:
       return "";
   }

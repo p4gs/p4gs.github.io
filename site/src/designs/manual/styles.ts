@@ -245,6 +245,24 @@ table.directory td { display: block; padding: 0; }
 }
 .entry-lane-auth { color: var(--pass); }
 .entry-lane-unsigned { color: #8A5A00; }
+/* Local lane reads quieter than the authenticated mark, on purpose. */
+.entry-lane-local { color: var(--muted); font-style: italic; }
+.entry-lane-overlay { color: var(--muted); font-style: italic; }
+.entry-cov {
+  margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; color: #8A5A00;
+  max-width: 64ch;
+}
+.entry-cov code, .cov-cmd {
+  font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px;
+  white-space: nowrap;
+}
+.dir-sortbar {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px;
+  margin: 14px 0 0; font-size: 13.5px; color: var(--muted);
+}
+.dir-sortbar select { font: inherit; padding: 3px 6px; }
+.dir-check { display: inline-flex; align-items: baseline; gap: 6px; cursor: pointer; }
+.dir-count { margin-left: auto; font-style: italic; }
 .plate-lane { margin: 6px 0 0; }
 .entry-desc { font-size: 15.5px; line-height: 1.65; color: var(--ink); max-width: 62ch; margin: 10px 0 0; }
 .entry-meta { font-family: var(--mono); font-size: 12px; color: var(--dim); margin: 10px 0 0; overflow-wrap: anywhere; }
