@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "lane": "action",
+  "signature": "verified",
+  "identity": "https://github.com/p4gs/sscsb-action/.github/workflows/sscsb-scan.yml@refs/heads/main",
+  "commit": "15e33e920684f3652539fe2eee56d35003e64676",
+  "verified_at": "2026-09-02T23:59:44Z",
+  "bundle": "p4gs--sscsb-action.sigstore.json"
+}
