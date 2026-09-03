@@ -6,14 +6,14 @@
     "name": "sscsb-action",
     "url": "https://github.com/p4gs/sscsb-action",
     "default_branch": "main",
-    "commit": "3f78b87de7b8d573f390dd744f269c7263acbbe7",
+    "commit": "15e33e920684f3652539fe2eee56d35003e64676",
     "description": "Run sscsb supply-chain-security scans in your own CI — authenticated scan records for tools.sensiblesecurity.xyz/sscsb/"
   },
-  "scanned_at": "2026-09-02T03:30:59.639Z",
+  "scanned_at": "2026-09-02T23:02:27.327Z",
   "scanner": {
     "sscsb_version": "0.3.0",
-    "workflow_run_id": 33587306912,
-    "workflow_run_url": "https://github.com/p4gs/sscsb-action/actions/runs/33587306912"
+    "workflow_run_id": 33693175269,
+    "workflow_run_url": "https://github.com/p4gs/sscsb-action/actions/runs/33693175269"
   },
   "request_issue": null,
   "controls": [
@@ -105,7 +105,8 @@
       "reclassified": false,
       "reason": null,
       "messages": [
-        "all workflows pass (SHA-pinned, least-privilege)"
+        "[info] .github/workflows/release-slsa.yml: `slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0` is tag-pinned by design: slsa-github-generator must be referenced by @vX.Y.Z for slsa-verifier to verify the trusted builder",
+        "[info] .github/workflows/release.yml: `slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0` is tag-pinned by design: slsa-github-generator must be referenced by @vX.Y.Z for slsa-verifier to verify the trusted builder"
       ]
     },
     {
@@ -162,13 +163,13 @@
       "id": "ai-receipts",
       "phase": 1,
       "in_scope": true,
-      "raw_outcome": "degraded",
+      "raw_outcome": "pass",
       "scan_outcome": "unverified",
-      "reclassified": false,
+      "reclassified": true,
       "reason": "requires the local development environment; not observable in a repository scan",
       "messages": [
         "receipts: `sscsb receipt create [commit]` → .sscsb/out/receipts/, `sscsb receipt verify <file>` recomputes the patch digest, re-reads the commit's AI trailers, and verifies any cosign bundle beside the receipt",
-        "cosign not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 3.1.1. Install: brew install cosign (Linuxbrew) or see Release binaries: https://github.com/sigstore/cosign/releases (https://github.com/sigstore/cosign)"
+        "cosign signing of receipts: enabled and cosign available"
       ]
     },
     {
@@ -277,48 +278,48 @@
       "id": "sigstore-signing",
       "phase": 3,
       "in_scope": true,
-      "raw_outcome": "disabled",
+      "raw_outcome": "pass",
       "scan_outcome": "gap",
       "reclassified": true,
       "reason": "evidence installed by the scanner's own init (.github/workflows/release-sign.yml) — absent from the repository",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        ".github/workflows/release-sign.yml installed (1 job(s))"
       ]
     },
     {
       "id": "slsa-provenance",
       "phase": 3,
       "in_scope": true,
-      "raw_outcome": "disabled",
+      "raw_outcome": "pass",
       "scan_outcome": "gap",
       "reclassified": true,
       "reason": "evidence installed by the scanner's own init (.github/workflows/release-slsa.yml) — absent from the repository",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        ".github/workflows/release-slsa.yml installed (3 job(s))"
       ]
     },
     {
       "id": "github-attestations",
       "phase": 3,
       "in_scope": true,
-      "raw_outcome": "disabled",
+      "raw_outcome": "pass",
       "scan_outcome": "gap",
       "reclassified": true,
       "reason": "evidence installed by the scanner's own init (.github/workflows/release-attest.yml) — absent from the repository",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        ".github/workflows/release-attest.yml installed (2 job(s))"
       ]
     },
     {
       "id": "sbom-attestation",
       "phase": 3,
       "in_scope": true,
-      "raw_outcome": "disabled",
+      "raw_outcome": "pass",
       "scan_outcome": "gap",
       "reclassified": true,
       "reason": "evidence installed by the scanner's own init (.github/workflows/release-attest-sbom.yml) — absent from the repository",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        ".github/workflows/release-attest-sbom.yml installed (2 job(s))"
       ]
     },
     {
@@ -337,36 +338,41 @@
       "id": "provenance-verify",
       "phase": 3,
       "in_scope": true,
-      "raw_outcome": "disabled",
-      "scan_outcome": "gap",
+      "raw_outcome": "degraded",
+      "scan_outcome": "pass",
       "reclassified": true,
-      "reason": "evidence installed by the scanner's own init (.github/workflows/deploy-gate.yml) — absent from the repository",
+      "reason": "runner-tool availability is the scanner's environment, not the repository's; all registered artifacts pre-exist",
       "messages": [
-        "disabled in .sscsb/config.toml"
+        "slsa-verifier not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 2.7.1. Install: brew install slsa-verifier (Linuxbrew) or see Release binaries: https://github.com/slsa-framework/slsa-verifier/releases (https://github.com/slsa-framework/slsa-verifier)",
+        "cosign: 3.0.6",
+        "gate: `sscsb provenance verify --artifact <f> --provenance <f>.intoto.jsonl --source-uri github.com/<owner>/<repo> --builder-id <trusted builder> [--source-tag vX.Y.Z]`",
+        "trusted builder pinned in config: https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v2.1.0",
+        "deploy-gate workflow present (verification before publish)"
       ]
     },
     {
       "id": "release-immutability",
       "phase": 3,
-      "in_scope": false,
-      "raw_outcome": "disabled",
-      "scan_outcome": "info",
+      "in_scope": true,
+      "raw_outcome": "pass",
+      "scan_outcome": "pass",
       "reclassified": false,
-      "reason": "optional control not enabled by this repository",
+      "reason": null,
       "messages": [
-        "disabled in .sscsb/config.toml"
+        ".github/workflows/release.yml installed (4 job(s))"
       ]
     },
     {
       "id": "octo-sts",
       "phase": 3,
       "in_scope": true,
-      "raw_outcome": "disabled",
-      "scan_outcome": "gap",
-      "reclassified": true,
-      "reason": "evidence installed by the scanner's own init (.github/workflows/octo-sts-example.yml, .github/chainguard/sscsb-automation.sts.yaml) — absent from the repository",
+      "raw_outcome": "pass",
+      "scan_outcome": "pass",
+      "reclassified": false,
+      "reason": null,
       "messages": [
-        "disabled in .sscsb/config.toml"
+        ".github/workflows/octo-sts-example.yml installed (1 job(s))",
+        ".github/chainguard/sscsb-automation.sts.yaml installed (3 key(s))"
       ]
     },
     {
@@ -380,12 +386,12 @@
       "messages": [
         "ci.yml: harden-runner present in job `self-test`",
         "codeql.yml: harden-runner present in job `analyze`",
-        "sast-opengrep.yml: harden-runner present in job `opengrep`",
-        "sbom.yml: harden-runner present in job `sbom`",
-        "scorecard.yml: harden-runner present in job `analysis`",
-        "secrets-scan.yml: harden-runner present in job `trufflehog`",
-        "secrets-scan.yml: harden-runner present in job `gitleaks`",
-        "sscsb-scan.yml: harden-runner present in job `scan`"
+        "deploy-gate.yml: harden-runner present in job `verify`",
+        "octo-sts-example.yml: harden-runner present in job `federated-call`",
+        "release-attest-sbom.yml: harden-runner present in job `attest-sbom`",
+        "release-attest-sbom.yml: harden-runner present in job `verify`",
+        "release-attest.yml: harden-runner present in job `attest`",
+        "release-attest.yml: harden-runner present in job `verify`"
       ]
     },
     {
@@ -459,7 +465,8 @@
       "reclassified": false,
       "reason": null,
       "messages": [
-        "all workflows pass (SHA-pinned, least-privilege)"
+        "[info] .github/workflows/release-slsa.yml: `slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0` is tag-pinned by design: slsa-github-generator must be referenced by @vX.Y.Z for slsa-verifier to verify the trusted builder",
+        "[info] .github/workflows/release.yml: `slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0` is tag-pinned by design: slsa-github-generator must be referenced by @vX.Y.Z for slsa-verifier to verify the trusted builder"
       ]
     },
     {
@@ -586,10 +593,10 @@
     }
   ],
   "score": {
-    "grade": "C",
+    "grade": "B",
     "provisional": true,
-    "overall_percent": 70,
-    "evidence_coverage_percent": 66.7,
+    "overall_percent": 81,
+    "evidence_coverage_percent": 67.7,
     "phases": [
       {
         "phase": 1,
@@ -611,12 +618,12 @@
       },
       {
         "phase": 3,
-        "pass": 1,
+        "pass": 4,
         "fail": 0,
-        "gap": 6,
+        "gap": 4,
         "unverified": 0,
         "info": 0,
-        "percent": 14.3
+        "percent": 50
       },
       {
         "phase": 4,
