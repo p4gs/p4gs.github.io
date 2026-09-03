@@ -6,14 +6,14 @@
     "name": "sscs-bootstrapper",
     "url": "https://github.com/p4gs/sscs-bootstrapper",
     "default_branch": "main",
-    "commit": "36772562085c05c2bd6f1a6530e41d3ad40c2a15",
+    "commit": "1d15862315d7200d3f26ef43d75e92a8300147b2",
     "description": ""
   },
-  "scanned_at": "2026-09-02T03:19:12.655Z",
+  "scanned_at": "2026-09-02T23:10:21.732Z",
   "scanner": {
     "sscsb_version": "0.3.0",
-    "workflow_run_id": 33586560196,
-    "workflow_run_url": "https://github.com/p4gs/sscs-bootstrapper/actions/runs/33586560196"
+    "workflow_run_id": 33693811272,
+    "workflow_run_url": "https://github.com/p4gs/sscs-bootstrapper/actions/runs/33693811272"
   },
   "request_issue": null,
   "controls": [
@@ -162,13 +162,13 @@
       "id": "ai-receipts",
       "phase": 1,
       "in_scope": true,
-      "raw_outcome": "degraded",
+      "raw_outcome": "pass",
       "scan_outcome": "unverified",
-      "reclassified": false,
+      "reclassified": true,
       "reason": "requires the local development environment; not observable in a repository scan",
       "messages": [
         "receipts: `sscsb receipt create [commit]` → .sscsb/out/receipts/, `sscsb receipt verify <file>` recomputes the patch digest, re-reads the commit's AI trailers, and verifies any cosign bundle beside the receipt",
-        "cosign not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 3.1.1. Install: brew install cosign (Linuxbrew) or see Release binaries: https://github.com/sigstore/cosign/releases (https://github.com/sigstore/cosign)"
+        "cosign signing of receipts: enabled and cosign available"
       ]
     },
     {
@@ -345,7 +345,7 @@
       "reason": "runner-tool availability is the scanner's environment, not the repository's; all registered artifacts pre-exist",
       "messages": [
         "slsa-verifier not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 2.7.1. Install: brew install slsa-verifier (Linuxbrew) or see Release binaries: https://github.com/slsa-framework/slsa-verifier/releases (https://github.com/slsa-framework/slsa-verifier)",
-        "cosign not found on PATH — this control cannot run its underlying tool. Pinned known-good version: 3.1.1. Install: brew install cosign (Linuxbrew) or see Release binaries: https://github.com/sigstore/cosign/releases (https://github.com/sigstore/cosign)",
+        "cosign: 3.0.6",
         "gate: `sscsb provenance verify --artifact <f> --provenance <f>.intoto.jsonl --source-uri github.com/<owner>/<repo> --builder-id <trusted builder> [--source-tag vX.Y.Z]`",
         "no builder_id pinned under [controls.provenance-verify] — `provenance verify` will require --builder-id on the command line rather than trusting any builder",
         "deploy-gate workflow present (verification before publish)"
