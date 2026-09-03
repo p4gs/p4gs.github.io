@@ -76,6 +76,10 @@ function verified(): TrustInfo {
     commit: "b".repeat(40),
     verified_at: "2026-09-01T13:00:00Z",
     bundle: "acme--widget.sigstore.json",
+    signer: null,
+    key_fingerprint: null,
+    signature_file: null,
+    resolved: [],
   };
 }
 

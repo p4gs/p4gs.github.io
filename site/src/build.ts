@@ -11,22 +11,48 @@
  * record must break the build, never publish a page it can't stand behind.
  *
  * Trust sidecars ride along in the DesignCtx so every design renders the same
- * three provenance states, and each detail page gets the record itself (and
- * its Sigstore bundle, when signed) published beside it, byte-identical, so
+ * provenance states, and each detail page gets the record itself (and its
+ * Sigstore bundle, when signed) published beside it, byte-identical, so
  * anyone can re-run `cosign verify-blob` against what the site shows.
+ *
+ * The LOCAL lane adds a second, smaller input: site/data/local/*.json holds a
+ * maintainer-signed workstation record, site/data/trust/*.local.json its
+ * verified sidecar, and site/data/trust/*.local.sig the detached SSH
+ * signature. The build folds it in through `mergeEvidence` — every source votes
+ * on every control, disagreement scores a gap with a named contradiction, and a
+ * local assertion about a control a repository scan could observe is held back
+ * until something independent agrees with it — and republishes the local record
+ * and its signature byte-identically beside the listing so anyone can re-run
+ * `ssh-keygen -Y verify` against what the site shows.
+ *
+ * `DIST` is cleared first. It is a build OUTPUT, not an accumulator: leaving it
+ * in place kept the artifacts of a listing that had since been removed, so a
+ * delisted repository stayed reachable by URL after the rebuild that dropped it.
  */
-import { cp, mkdir, readdir } from "node:fs/promises";
+import { cp, mkdir, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { BASE_PATH } from "./config";
 import { DEFAULT_DESIGN, DESIGNS } from "./designs/registry";
 import { repoSlugPath } from "./designs/ledger/directory";
 import { renderLanding } from "./designs/ledger/landing";
 import type { Design, DesignCtx } from "./designs/types";
+import type { ListingFacts } from "./listing";
+import { mergeEvidence, type EvidenceSource } from "./reclassify";
 import { validateScanRecord, type ScanRecord } from "./schema";
-import { trustFilename, trustKeyOf, validateTrustInfo, type TrustInfo } from "./trust";
+import {
+  LOCAL_RECORD_PUBLISHED,
+  LOCAL_SIGNATURE_PUBLISHED,
+  localTrustFilename,
+  scanLaneOf,
+  trustFilename,
+  trustKeyOf,
+  validateTrustInfo,
+  type TrustInfo,
+} from "./trust";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const DATA = join(ROOT, "data", "repos");
+const LOCAL = join(ROOT, "data", "local");
 const TRUST = join(ROOT, "data", "trust");
 const DIST = join(ROOT, "dist");
 const PUBLIC = join(ROOT, "public");
@@ -37,20 +63,20 @@ interface Loaded {
   record: ScanRecord;
 }
 
-async function loadRecords(): Promise<Loaded[]> {
+async function loadDir(dir: string, label: string): Promise<Loaded[]> {
   let files: string[] = [];
   try {
-    files = (await readdir(DATA)).filter((f) => f.endsWith(".json"));
+    files = (await readdir(dir)).filter((f) => f.endsWith(".json"));
   } catch {
     return []; // no data dir yet — an empty directory is a valid launch state
   }
   const out: Loaded[] = [];
   for (const f of files.sort()) {
-    const raw = await Bun.file(join(DATA, f)).json();
+    const raw = await Bun.file(join(dir, f)).json();
     try {
       out.push({ file: f, record: validateScanRecord(raw) });
     } catch (e) {
-      throw new Error(`${f}: ${(e as Error).message}`);
+      throw new Error(`${label}/${f}: ${(e as Error).message}`);
     }
   }
   return out;
@@ -61,10 +87,13 @@ async function loadRecords(): Promise<Loaded[]> {
  * validation breaks the build for the same reason a bad record does: the
  * site must never render a provenance claim it cannot stand behind.
  */
-async function loadTrust(records: ScanRecord[]): Promise<Map<string, TrustInfo>> {
+async function loadTrust(
+  records: ScanRecord[],
+  filenameOf: (owner: string, name: string) => string,
+): Promise<Map<string, TrustInfo>> {
   const out = new Map<string, TrustInfo>();
   for (const r of records) {
-    const f = trustFilename(r.repo.owner, r.repo.name);
+    const f = filenameOf(r.repo.owner, r.repo.name);
     const file = Bun.file(join(TRUST, f));
     if (!(await file.exists())) continue;
     try {
@@ -74,6 +103,142 @@ async function loadTrust(records: ScanRecord[]): Promise<Map<string, TrustInfo>>
     }
   }
   return out;
+}
+
+/** One published listing: the effective record plus the raw files behind it. */
+interface Listing {
+  /** The record every design renders (the merge of every evidence source). */
+  record: ScanRecord;
+  /** Path of the base record's source file, republished byte-identically. */
+  baseFile: string | null;
+  /** Path of the local record's source file, republished byte-identically. */
+  localFile: string | null;
+}
+
+/**
+ * Fold every evidence source into one listing per repository.
+ *
+ * A local record with no verified sidecar is REFUSED — the same fail-closed
+ * rule the action lane has: an unverifiable provenance claim never reaches a
+ * page.
+ *
+ * The merge itself is `mergeEvidence` (reclassify.ts): every source votes on
+ * every control, disagreement scores a gap with a named contradiction, and a
+ * local assertion about an independently-observable control is held back until
+ * something independent agrees with it.
+ */
+async function loadListings(): Promise<{
+  listings: Listing[];
+  trust: Map<string, TrustInfo>;
+  localTrust: Map<string, TrustInfo>;
+  facts: Map<string, ListingFacts>;
+}> {
+  const base = await loadDir(DATA, "repos");
+  const local = await loadDir(LOCAL, "local");
+  const trust = await loadTrust(base.map((l) => l.record), trustFilename);
+  const localTrust = await loadTrust(local.map((l) => l.record), localTrustFilename);
+
+  const keyOf = (r: ScanRecord) => trustKeyOf(r);
+  const localByKey = new Map(local.map((l) => [keyOf(l.record), l]));
+
+  for (const l of local) {
+    const key = keyOf(l.record);
+    const t = localTrust.get(key);
+    if (!t) {
+      throw new Error(
+        `local/${l.file}: no verified trust sidecar at data/trust/${localTrustFilename(
+          l.record.repo.owner,
+          l.record.repo.name,
+        )} — a local record is evidence ONLY through its verified SSH signature; refusing to publish it`,
+      );
+    }
+    if (t.lane !== "local") {
+      throw new Error(`local/${l.file}: sidecar lane is "${t.lane}", expected "local"`);
+    }
+    if (t.commit !== l.record.repo.commit) {
+      throw new Error(
+        `local/${l.file}: sidecar verified commit ${t.commit} but the record claims ` +
+          `${l.record.repo.commit} — refusing to publish a signature bound to different bytes`,
+      );
+    }
+  }
+
+  const listings: Listing[] = [];
+  const facts = new Map<string, ListingFacts>();
+  const seen = new Set<string>();
+
+  const publish = (
+    key: string,
+    sources: EvidenceSource[],
+    baseFile: string | null,
+    localFile: string | null,
+    baseCommit: string | null,
+    localCommit: string | null,
+  ) => {
+    const merged = mergeEvidence(sources);
+    listings.push({ record: merged.record, baseFile, localFile });
+    // The local record's OWN score block, captured before the merge replaced
+    // it. The signed bytes are republished verbatim beside the listing, so a
+    // reader can fetch a grade the directory never awarded; every design says
+    // which number is whose. Taken from the source record, never from the
+    // merged one — the merged score IS the directory's answer.
+    const localSource = sources.find((s) => s.lane === "local")?.record;
+    facts.set(key, {
+      resolvedByLocal: merged.resolvedByLocal,
+      contradictions: merged.contradictions,
+      awaitingIndependent: merged.awaitingIndependent,
+      localOnly: merged.localOnly,
+      selfReported: localSource
+        ? {
+            grade: localSource.score.grade,
+            provisional: localSource.score.provisional,
+            overall_percent: localSource.score.overall_percent,
+            evidence_coverage_percent: localSource.score.evidence_coverage_percent,
+          }
+        : null,
+      // Compare the local record against the BASE's commit, not against its
+      // own sidecar: the sidecar is bound to the same commit by construction,
+      // so that comparison can never disagree and proves nothing. A stale
+      // local record silently filling holes in a much newer base is exactly
+      // what this catches.
+      staleAgainstBase:
+        baseCommit && localCommit && baseCommit !== localCommit
+          ? { local: localCommit, base: baseCommit }
+          : null,
+    });
+    const lt = localTrust.get(key);
+    if (lt) localTrust.set(key, { ...lt, resolved: merged.resolvedByLocal });
+  };
+
+  for (const b of base) {
+    const key = keyOf(b.record);
+    seen.add(key);
+    const l = localByKey.get(key);
+    const sources: EvidenceSource[] = [
+      { lane: scanLaneOf(b.record), record: b.record },
+    ];
+    if (l) sources.push({ lane: "local", record: l.record });
+    publish(
+      key,
+      sources,
+      b.file,
+      l?.file ?? null,
+      b.record.repo.commit,
+      l?.record.repo.commit ?? null,
+    );
+  }
+  for (const [key, l] of localByKey) {
+    if (seen.has(key)) continue;
+    publish(key, [{ lane: "local", record: l.record }], null, l.file, null, null);
+  }
+
+  listings.sort((a, b) =>
+    `${a.record.repo.owner}/${a.record.repo.name}`.toLowerCase() <
+    `${b.record.repo.owner}/${b.record.repo.name}`.toLowerCase()
+      ? -1
+      : 1,
+  );
+  return { listings, trust, localTrust, facts };
 }
 
 function prefixFor(d: Design): string {
@@ -121,9 +286,20 @@ async function write(path: string, html: string): Promise<void> {
 }
 
 export async function build(): Promise<{ pages: number; repos: number; designs: number }> {
-  const loaded = await loadRecords();
-  const records = loaded.map((l) => l.record);
-  const trust = await loadTrust(records);
+  const { listings, trust, localTrust, facts } = await loadListings();
+  const records = listings.map((l) => l.record);
+  // Clear the output tree first. `dist/` is a build OUTPUT, and mkdir-without-
+  // clearing quietly made it an ACCUMULATOR: a listing removed from
+  // site/data/repos/ kept its rendered page, its republished scan-record.json
+  // and its signature bundle, all still served at their old URLs by a build
+  // that no longer knows they exist. Delisting a repository has to actually
+  // delist it — and the same rule catches a design that is retired, a page
+  // that is renamed, and a stale artifact from a half-finished run.
+  //
+  // Every byte under here is regenerated below from site/data and site/public,
+  // so there is nothing to preserve; the only input that lives in dist/ between
+  // runs is nothing.
+  await rm(DIST, { recursive: true, force: true });
   await mkdir(DIST, { recursive: true });
   const defaultCss = await Bun.file(join(PUBLIC, "style.css")).text();
   const filterJs = await Bun.file(join(PUBLIC, "filter.js")).text();
@@ -138,6 +314,8 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       switcher: switcherFor(design, subpath),
       active,
       trust,
+      localTrust,
+      facts,
     });
 
     await write(join("sscsb", tree, "style.css"), design.css ?? defaultCss);
@@ -155,21 +333,29 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       design.renderMethodology(ctxFor("methodology", "methodology/")),
     );
     pages += 3;
-    for (const { file, record: r } of loaded) {
+    for (const { baseFile, localFile, record: r } of listings) {
       const sub = repoSlugPath(r);
       await write(
         join("sscsb", tree, sub, "index.html"),
         design.renderRepoDetail(r, ctxFor("directory", sub)),
       );
       pages += 1;
-      // Publish the record itself (byte-identical — a re-serialized copy would
-      // no longer match its signature) and, when signed, the bundle beside it,
-      // so anyone can re-run `cosign verify-blob` against what the site shows.
+      // Publish the records themselves (byte-identical — a re-serialized copy
+      // would no longer match its signature) and, when signed, the signature
+      // beside each, so anyone can re-run `cosign verify-blob` (action lane) or
+      // `ssh-keygen -Y verify` (local lane) against what the site shows.
       const dir = join(DIST, "sscsb", tree, sub);
-      await cp(join(DATA, file), join(dir, "scan-record.json"));
+      if (baseFile) await cp(join(DATA, baseFile), join(dir, "scan-record.json"));
       const t = trust.get(trustKeyOf(r));
       if (t?.bundle) {
         await cp(join(TRUST, t.bundle), join(dir, "scan-record.json.sigstore.json"));
+      }
+      if (localFile) {
+        await cp(join(LOCAL, localFile), join(dir, LOCAL_RECORD_PUBLISHED));
+        const lt = localTrust.get(trustKeyOf(r));
+        if (lt?.signature_file) {
+          await cp(join(TRUST, lt.signature_file), join(dir, LOCAL_SIGNATURE_PUBLISHED));
+        }
       }
     }
   }

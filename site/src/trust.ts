@@ -7,14 +7,36 @@
  * Written by directory-ingest.yml (authenticated lane) after `cosign
  * verify-blob`; external scans have no sidecar and are `external` by
  * construction. Published beside the record so anyone can re-verify.
+ *
+ * Three lanes:
+ *   external — the directory cloned a public repo and scanned it. No sidecar
+ *              exists; this is the state by construction.
+ *   action   — the repository's OWN CI produced the record and keyless-signed
+ *              it; ingest verified the Sigstore bundle against the canonical
+ *              workflow identity on the live default branch.
+ *   local    — a maintainer ran the contract's command on a workstation and
+ *              signed the record with their git signing key; ingest verified
+ *              the detached SSH signature with `ssh-keygen -Y verify` against
+ *              `.sscsb/policy/allowed_signers` FETCHED FROM THE PUBLIC REPO at
+ *              the scanned commit. That proves exactly one thing: a holder of
+ *              a key the repository commits as an approved signer asserts this
+ *              result at that commit. It is attributable and auditable, and
+ *              strictly WEAKER than the action lane, which proves the
+ *              repository's own CI ran the scan.
+ *
+ * Every lane's verdicts are MERGED per control (reclassify.ts mergeEvidence):
+ * sources that agree give that verdict, sources that disagree score a gap with
+ * a named contradiction, and a local assertion about a control a repository
+ * scan could observe is held back until something independent agrees with it.
  */
 
 import { SITE_REPO_URL } from "./config";
+import { LOCAL_NAMESPACE } from "./local-contract";
 import type { ScanRecord } from "./schema";
 
 export const TRUST_SCHEMA_VERSION = 1;
 
-export type Lane = "external" | "action";
+export type Lane = "external" | "action" | "local";
 export type SignatureState = "verified" | "absent";
 
 export interface TrustInfo {
@@ -28,9 +50,25 @@ export interface TrustInfo {
   verified_at: string | null;
   /** Filename of the Sigstore bundle published beside the record, when signed. */
   bundle: string | null;
+  /**
+   * LOCAL LANE ONLY — the `allowed_signers` principal whose entry verified the
+   * detached SSH signature (`ssh-keygen -Y verify -I <signer>`). Null on every
+   * other lane.
+   */
+  signer: string | null;
+  /** LOCAL LANE ONLY — fingerprint of the key that signed (`SHA256:…`). */
+  key_fingerprint: string | null;
+  /** LOCAL LANE ONLY — filename of the detached SSH signature published beside the record. */
+  signature_file: string | null;
+  /**
+   * LOCAL LANE ONLY — control ids whose countable verdict came SOLELY from
+   * this local record, filled in by the build's merge so the listing can say
+   * what the workstation actually contributed.
+   */
+  resolved: readonly string[];
 }
 
-const LANES: ReadonlySet<string> = new Set(["external", "action"]);
+const LANES: ReadonlySet<string> = new Set(["external", "action", "local"]);
 const STATES: ReadonlySet<string> = new Set(["verified", "absent"]);
 
 /** Throws with a precise message on the first violation (build-time guard). */
@@ -49,8 +87,40 @@ export function validateTrustInfo(value: unknown): TrustInfo {
     const v = t[k];
     if (v !== null && v !== undefined && typeof v !== "string") fail(`${k} must be a string or null`);
   };
-  for (const k of ["identity", "commit", "verified_at", "bundle"]) optStr(k);
-  if (t.signature === "verified") {
+  for (const k of [
+    "identity",
+    "commit",
+    "verified_at",
+    "bundle",
+    "signer",
+    "key_fingerprint",
+    "signature_file",
+  ]) {
+    optStr(k);
+  }
+  if (t.resolved !== undefined && t.resolved !== null) {
+    if (!Array.isArray(t.resolved) || t.resolved.some((x) => typeof x !== "string")) {
+      fail("resolved must be a list of control ids");
+    }
+  }
+  if (t.lane === "local") {
+    // A local record is EVIDENCE only through its detached SSH signature. An
+    // unverifiable one is refused here for exactly the reason a tampered
+    // action-lane bundle is refused at ingest: the directory must never render
+    // a provenance claim it cannot stand behind.
+    if (t.signature !== "verified") {
+      fail(
+        "local-lane sidecar without a verified signature — a local record is EVIDENCE only " +
+          "through its detached SSH signature; an unverified one is a tamper signal and is refused",
+      );
+    }
+    for (const k of ["signer", "key_fingerprint", "signature_file", "commit"]) {
+      if (typeof t[k] !== "string" || (t[k] as string).length === 0) {
+        fail(`local-lane sidecar verified without a ${k}`);
+      }
+    }
+    if (!/^[0-9a-f]{40}$/.test(String(t.commit))) fail("local-lane commit is not a 40-hex sha");
+  } else if (t.signature === "verified") {
     if (typeof t.identity !== "string" || t.identity.length === 0) fail("verified without an identity");
     if (typeof t.bundle !== "string" || t.bundle.length === 0) fail("verified without a bundle filename");
   }
@@ -62,6 +132,10 @@ export function validateTrustInfo(value: unknown): TrustInfo {
     commit: (t.commit as string | null | undefined) ?? null,
     verified_at: (t.verified_at as string | null | undefined) ?? null,
     bundle: (t.bundle as string | null | undefined) ?? null,
+    signer: (t.signer as string | null | undefined) ?? null,
+    key_fingerprint: (t.key_fingerprint as string | null | undefined) ?? null,
+    signature_file: (t.signature_file as string | null | undefined) ?? null,
+    resolved: Object.freeze([...((t.resolved as string[] | undefined) ?? [])]),
   };
 }
 
@@ -75,6 +149,10 @@ export function externalTrust(): TrustInfo {
     commit: null,
     verified_at: null,
     bundle: null,
+    signer: null,
+    key_fingerprint: null,
+    signature_file: null,
+    resolved: [],
   };
 }
 
@@ -83,11 +161,37 @@ export function trustFilename(owner: string, name: string): string {
   return `${owner.toLowerCase()}--${name.toLowerCase()}.json`;
 }
 
-export type TrustKind = "verified" | "unsigned-action" | "external";
+/** Local-lane sidecar filename: `{owner}--{name}.local.json`, beside the base sidecar. */
+export function localTrustFilename(owner: string, name: string): string {
+  return `${owner.toLowerCase()}--${name.toLowerCase()}.local.json`;
+}
 
-/** Collapse a sidecar into the three states the UI distinguishes. */
+/** The local scan record's filename under `site/data/local/`. */
+export function localRecordFilename(owner: string, name: string): string {
+  return `${owner.toLowerCase()}--${name.toLowerCase()}.json`;
+}
+
+/** Filenames the build publishes beside a listing carrying a local record. */
+export const LOCAL_RECORD_PUBLISHED = "scan-record.local.json";
+export const LOCAL_SIGNATURE_PUBLISHED = "scan-record.local.json.sig";
+
+/**
+ * The `ssh-keygen -Y` namespace a local scan record is signed under. Distinct
+ * from git's own `git` namespace on purpose: a commit signature must never be
+ * replayable as a scan-record signature, or the reverse.
+ *
+ * Taken from the contract block, never restated: the previous cut of this file
+ * hard-coded `sscsb-scan-record` while the tool signed `sscsb-local-scan`, so
+ * every submission failed verification and neither tree's tests could see it.
+ */
+export const LOCAL_SIGNATURE_NAMESPACE = LOCAL_NAMESPACE;
+
+export type TrustKind = "verified" | "unsigned-action" | "local" | "external";
+
+/** Collapse a sidecar into the four states the UI distinguishes. */
 export function trustKind(t: TrustInfo | undefined): TrustKind {
   if (!t || t.lane === "external") return "external";
+  if (t.lane === "local") return "local";
   return t.signature === "verified" ? "verified" : "unsigned-action";
 }
 
@@ -114,14 +218,39 @@ export function scanLaneOf(r: Pick<ScanRecord, "scanner">): Lane {
 }
 
 /**
- * The three-state lane every design renders. The sidecar (written at ingest
- * after signature verification) is authoritative; a record with no sidecar
- * falls back to the URL heuristic, and an action-lane record that was never
- * verified is labeled as the unverified claim it is. No design may show a
- * verified mark without a verified sidecar — this is the one place that
- * rule lives, so the four designs cannot drift apart on it.
+ * The lane every design renders. The base sidecar (written at ingest after
+ * signature verification) is authoritative; a listing with no base sidecar but
+ * a verified LOCAL sidecar is a local-only listing; otherwise a record falls
+ * back to the URL heuristic, and an action-lane record that was never verified
+ * is labeled as the unverified claim it is. No design may show a verified mark
+ * without a verified sidecar — this is the one place that rule lives, so the
+ * four designs cannot drift apart on it.
+ *
+ * `local` is passed only for a listing whose BASE is the local record. When a
+ * listing has both an action/external base and a local record, the lane stays
+ * the base's and the local contribution is shown separately
+ * (`localOverlayCount`): the badge must always name the strongest evidence for
+ * the score.
  */
-export function resolveTrustKind(r: ScanRecord, t: TrustInfo | undefined): TrustKind {
+export function resolveTrustKind(
+  r: ScanRecord,
+  t: TrustInfo | undefined,
+  local?: TrustInfo | undefined,
+): TrustKind {
   if (t) return trustKind(t);
+  if (local?.lane === "local") return "local";
   return scanLaneOf(r) === "action" ? "unsigned-action" : "external";
+}
+
+/** How many controls the local lane settled on its own here (0 = none). */
+export function localOverlayCount(local: TrustInfo | undefined): number {
+  return local?.lane === "local" ? local.resolved.length : 0;
+}
+
+/** A record's LOCAL sidecar from the map the build loaded. */
+export function lookupLocalTrust(
+  local: ReadonlyMap<string, TrustInfo> | undefined,
+  r: Pick<ScanRecord, "repo">,
+): TrustInfo | undefined {
+  return local?.get(trustKeyOf(r));
 }

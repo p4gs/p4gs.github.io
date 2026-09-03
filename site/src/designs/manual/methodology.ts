@@ -5,6 +5,7 @@
  * scope, formula, grades (with the seal row), changelog — nothing dropped.
  */
 import { METHODOLOGY_VERSION } from "../../config";
+import { LOCAL_SECTION_ID, LOCAL_TITLE, localLaneBody } from "../../methodology-local";
 import { CONTROL_CLASSES } from "../../reclassify";
 import type { DesignCtx } from "../types";
 import { seal } from "./components";
@@ -25,7 +26,7 @@ const CLASS_DESCRIPTIONS: Readonly<Record<string, { name: string; rule: string }
   },
   C: {
     name: "C — local environment",
-    rule: "Commit signing, signing-model posture, AI trailers, package-trust hooks and similar controls describe the <em>development machine</em>, which a repository scan cannot observe. They always score <strong>unverified</strong> — an unperformed check is a third state, never a pass or fail.",
+    rule: "Commit signing, signing-model posture, AI trailers, package-trust hooks and similar controls describe the <em>development machine</em>, which no repository scan can observe — from inside CI or out. A repository scan therefore records them as <strong>unverified</strong>: an unperformed check is a third state, never a pass or fail. Class C is the one class a signed local record can settle <strong>by itself</strong>, because there the maintainer's signed word is the best evidence that can exist. It is <em>not</em> the only class a local record may resolve: a local record votes on every control it holds, and its verdict on a class A, A′ or B row becomes countable as soon as an independent record agrees with it — and scores a gap if one disagrees. See “the local lane” below.",
   },
   M: {
     name: "M — meta / informational",
@@ -139,10 +140,16 @@ coverage  = Σ countable / |scope|</code></pre>
     unperformed check is never converted into a verdict.</p>
   </section>
 
+  <section class="doc-sec" id="${LOCAL_SECTION_ID}">
+    <h2>${LOCAL_TITLE}</h2>
+    ${localLaneBody(ctx.h, "inkblock")}
+  </section>
+
   <section class="doc-sec" id="changelog">
     <h2>Changelog</h2>
     <ul>
     <li><strong>v1</strong> — initial methodology: diff-based init reclassification, five evidence classes, academic grade scale with A+ reserved for exactly 100%.</li>
+    <li><strong>v1, 2026-09</strong> — the <a href="${ctx.h(`methodology/#${LOCAL_SECTION_ID}`)}">local lane</a>: a maintainer-signed workstation record, verified against the repository's own committed <code>allowed_signers</code>, joins the action and external records as an evidence source. Verdicts are merged per control: sources that disagree score a <strong>gap</strong> with a named contradiction, and a local assertion about a control a repository scan could observe is not counted until an independent record agrees with it. Class rules, the formula and the grade scale are unchanged.</li>
     </ul>
   </section>
 </article>`;

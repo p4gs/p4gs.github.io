@@ -13,11 +13,16 @@
  *                     empty temp repo — the same binary's registry defaults,
  *                     so the default-on scope can never drift from the
  *                     scanner version and can never be shrunk by the target
+ *   ANCHOR_PATH       (optional) the target's COMMITTED
+ *                     .sscsb/policy/allowed_signers, captured from the clone
+ *                     BEFORE init regenerated it. Absent or unreadable means
+ *                     the repository does not commit one.
  *   SLUG, DEFAULT_BRANCH, COMMIT_SHA, DESCRIPTION, SSCSB_VERSION,
  *   RUN_ID, RUN_URL, ISSUE_NUMBER (optional)
  *   OUT_PATH         where to write the record
  */
 
+import { readinessFrom } from "../anchor";
 import { METHODOLOGY_VERSION } from "../config";
 import { reclassify, type VerifyRow } from "../reclassify";
 import { computeScore } from "../scoring";
@@ -69,6 +74,14 @@ export async function buildRecord(): Promise<ScanRecord> {
   };
   const defaultEnabled = enabledSetOf(defaultsDoc);
 
+  // The committed anchor, captured before init. Optional and fail-soft: a
+  // repository that does not commit one is the common case, not an error.
+  const anchorPath = process.env.ANCHOR_PATH;
+  const anchorText =
+    anchorPath && (await Bun.file(anchorPath).exists())
+      ? await Bun.file(anchorPath).text()
+      : null;
+
   const [owner, name] = env("SLUG").split("/") as [string, string];
   const controls = reclassify({
     rows: verifyDoc.results,
@@ -98,6 +111,13 @@ export async function buildRecord(): Promise<ScanRecord> {
     request_issue: process.env.ISSUE_NUMBER ? Number(process.env.ISSUE_NUMBER) : null,
     controls,
     score: computeScore(controls),
+    // What the COMMITTED anchor says about the local lane, read from the clone
+    // before init touched it. This is the difference between the coverage nudge
+    // promising a one-line fix and promising one that works: `sscsb scan
+    // --local` refuses outright when the anchor grants no scan-record
+    // namespace. Recorded here because this is the only lane that holds the
+    // repository's own pre-init file.
+    local_lane: readinessFrom(anchorText),
   };
   return validateScanRecord(record);
 }

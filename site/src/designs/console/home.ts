@@ -1,10 +1,11 @@
 /**
  * Console home — live-verification hero with a glass telemetry card, the four
- * stat tiles, and the two scan lanes. One orchestrated motion moment: the
+ * stat tiles, and the three scan lanes. One orchestrated motion moment: the
  * meters fill on load (staggered CSS transitions armed by a tiny inline
  * script; prefers-reduced-motion and no-JS both show the final state).
  */
 import { ACTION_REPO_URL } from "../../config";
+import { LOCAL_SCAN_COMMAND } from "../../coverage";
 import type { PhaseScore } from "../../schema";
 import { gradeChip, meterStack } from "./components";
 import { page } from "./layout";
@@ -25,7 +26,7 @@ const FLAGSHIP_PHASES: readonly PhaseScore[] = [
 
 const STAT_TILES = [
   ["44", "verifiable controls", ""],
-  ["2", "scan lanes — external &amp; authenticated", ""],
+  ["3", "scan lanes — external, authenticated &amp; local", ""],
   ["A+", "reserved for exactly 100%", " accent"],
   ["0", "unverified checks counted — ever", ""],
 ]
@@ -95,6 +96,18 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
     an outside scan cannot — through the same reviewed gate.</p>
     <div class="btn-row">
       <a class="btn" href="${ACTION_REPO_URL}">Install the Action</a>
+    </div>
+  </div>
+  <div class="lane-cellblock">
+    <p class="lane-eyebrow">LANE · LOCAL</p>
+    <h2>Local scans</h2>
+    <p class="body-copy">Ten or eleven controls describe the development machine,
+    where no repository scan can look — which is why a well-run repo can still read
+    <em>provisional</em>. <code>${LOCAL_SCAN_COMMAND}</code> signs a record with the
+    git key your repo already commits in <code>allowed_signers</code>. Weaker
+    evidence than CI, so it resolves those controls and nothing else.</p>
+    <div class="btn-row">
+      <a class="btn-outline" href="${ctx.h("methodology/#local")}">How it is verified</a>
     </div>
   </div>
 </section>`;

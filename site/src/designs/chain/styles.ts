@@ -294,6 +294,27 @@ table.directory tbody {
 .lane-auth { background: var(--accent-tint); color: var(--accent-ink); border-color: var(--accent); }
 .lane-ext { background: var(--line-soft); color: var(--dim); border-color: var(--line); }
 .lane-unsigned { background: rgba(214, 116, 44, 0.12); color: var(--warn-ink); border-color: var(--warn); }
+/* Local lane: a real link, drawn as a shorter one than the authenticated mark. */
+.lane-local { background: transparent; color: var(--dim); border-style: dashed; border-color: var(--line); }
+.lane-local-overlay {
+  background: transparent; color: var(--dim);
+  border-style: dashed; border-color: var(--line); font-size: 10px;
+}
+.rc-cov {
+  margin-top: 8px; font-size: 12.5px; line-height: 1.55;
+  color: var(--warn-ink); border-left: 2px solid var(--warn); padding-left: 10px;
+}
+.rc-cov code { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.dir-sortbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px;
+  font-size: 11px; letter-spacing: 0.08em; color: var(--dim);
+}
+.dir-sortbar select {
+  font: inherit; letter-spacing: 0; padding: 4px 8px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+}
+.dir-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.dir-count { margin-left: auto; }
 
 /* mini chain */
 .mini-chain { display: flex; align-items: flex-start; gap: 6px; }

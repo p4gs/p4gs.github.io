@@ -8,14 +8,56 @@
 //                      data-fallback pre-filled GitHub issue-form URL
 //   #dir-scan-cta    the "Scan now" button inside #dir-scan
 //   #dir-scan-status aria-live status line inside #dir-scan
-//   table.directory tbody tr[data-name="owner/repo"] — the rows
+//   table.directory tbody tr[data-name="owner/repo"] — the rows, each also
+//                    carrying data-grade, data-lane, data-coverage (number),
+//                    data-scanned (YYYY-MM-DD) and data-complete ("1"/"0")
+//
+// Optional (a design that omits them keeps the original behaviour exactly):
+//   #dir-sort        <select> with values: grade | coverage | name | scanned
+//   #dir-incomplete  checkbox — show only listings below the coverage floor
+//   #dir-count       element whose textContent is set to "N of M shown"
 (function () {
   var input = document.getElementById("dir-filter");
   if (!input) return;
+  var tbody = document.querySelector("table.directory tbody");
   var rows = Array.prototype.slice.call(document.querySelectorAll("table.directory tbody tr"));
   var scan = document.getElementById("dir-scan");
   var cta = document.getElementById("dir-scan-cta");
   var status = document.getElementById("dir-scan-status");
+  var sortSel = document.getElementById("dir-sort");
+  var onlyIncomplete = document.getElementById("dir-incomplete");
+  var count = document.getElementById("dir-count");
+
+  var GRADE_ORDER = { "A+": 0, A: 1, B: 2, C: 3, D: 4, F: 5, NA: 6 };
+
+  function num(tr, attr) {
+    var v = parseFloat(tr.getAttribute(attr));
+    return isNaN(v) ? -1 : v;
+  }
+
+  // Sorting reorders the tbody itself so the DOM order matches what is read
+  // out; "grade" restores the server-rendered order (grade, then coverage).
+  function applySort() {
+    if (!sortSel || !tbody) return;
+    var mode = sortSel.value;
+    var sorted = rows.slice().sort(function (a, b) {
+      if (mode === "coverage") return num(b, "data-coverage") - num(a, "data-coverage");
+      if (mode === "name") {
+        return (a.getAttribute("data-name") || "") < (b.getAttribute("data-name") || "") ? -1 : 1;
+      }
+      if (mode === "scanned") {
+        return (b.getAttribute("data-scanned") || "") < (a.getAttribute("data-scanned") || "") ? -1 : 1;
+      }
+      var g =
+        (GRADE_ORDER[a.getAttribute("data-grade")] === undefined ? 9 : GRADE_ORDER[a.getAttribute("data-grade")]) -
+        (GRADE_ORDER[b.getAttribute("data-grade")] === undefined ? 9 : GRADE_ORDER[b.getAttribute("data-grade")]);
+      if (g !== 0) return g;
+      return num(b, "data-coverage") - num(a, "data-coverage");
+    });
+    sorted.forEach(function (tr) {
+      tbody.appendChild(tr);
+    });
+  }
 
   // Mirrors extractSlug() in src/scan/parse-request.ts (owner/repo or GitHub URL).
   function parseSlug(text) {
@@ -44,12 +86,20 @@
     var q = input.value.trim().toLowerCase();
     var visible = 0;
     var exact = false;
+    var incompleteOnly = !!(onlyIncomplete && onlyIncomplete.checked);
     rows.forEach(function (tr) {
       var name = (tr.getAttribute("data-name") || "").toLowerCase();
       var hit = !q || name.indexOf(q) !== -1;
+      if (hit && incompleteOnly && tr.getAttribute("data-complete") !== "0") hit = false;
       tr.style.display = hit ? "" : "none";
       if (hit) visible++;
     });
+    if (count) {
+      count.textContent =
+        visible === rows.length
+          ? rows.length + (rows.length === 1 ? " listing" : " listings")
+          : visible + " of " + rows.length + " shown";
+    }
     var slug = parseSlug(input.value);
     if (slug) {
       rows.forEach(function (tr) {
@@ -132,6 +182,13 @@
 
   input.addEventListener("input", update);
   if (cta) cta.addEventListener("click", requestScan);
+  if (sortSel) {
+    sortSel.addEventListener("change", function () {
+      applySort();
+      update();
+    });
+  }
+  if (onlyIncomplete) onlyIncomplete.addEventListener("change", update);
   if (/[?&]submit=1/.test(location.search)) input.focus();
   update();
 })();

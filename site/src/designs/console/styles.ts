@@ -165,7 +165,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 32px 72px; }
 .stat-copy { font-size: 13px; color: var(--dim); margin-top: 4px; }
 
 /* ---------- lanes strip (home) ---------- */
-.lane-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lane-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .lane-cellblock { background: var(--panel-soft); border: 1px solid var(--line-soft); border-radius: 10px; padding: 22px 24px; }
 .lane-cellblock h2 { font-size: 18px; font-weight: 600; color: var(--bright); margin: 8px 0 8px; }
 .lane-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--faint); }
@@ -204,6 +204,38 @@ table.directory tbody tr:hover { background: rgba(111, 211, 232, 0.04); }
 .lane-auth { color: var(--accent); border: 1px solid rgba(111, 211, 232, 0.55); box-shadow: 0 0 10px rgba(111, 211, 232, 0.15); }
 .lane-ext { color: var(--dim); border: 1px solid var(--line); }
 .lane-unsigned { color: var(--warn); border: 1px solid rgba(242, 168, 92, 0.5); }
+/* Local lane reads quieter than auth on purpose: attributable, weaker evidence. */
+.lane-local { color: var(--dim); border: 1px dashed var(--line); }
+.lane-local-overlay {
+  margin-left: 6px; font-size: 10px; padding: 2px 7px;
+  color: var(--dim); border: 1px dashed var(--line);
+}
+.cov-note {
+  display: block; margin-top: 6px; font-family: var(--mono); font-size: 11.5px;
+  line-height: 1.6; color: var(--warn); max-width: 66ch;
+}
+.cov-tag {
+  display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 4px;
+  font-size: 10px; letter-spacing: 0.1em; color: var(--warn);
+  border: 1px solid rgba(242, 168, 92, 0.45);
+}
+.cov-note code { color: var(--bright); }
+.cov-cmd {
+  overflow-x: auto; background: var(--panel-soft); border: 1px solid var(--line-soft);
+  border-radius: 8px; padding: 12px 14px; font-family: var(--mono); font-size: 12.5px;
+}
+.nudge-local { border-left: 2px dashed var(--line); padding-left: 16px; }
+.nudge-coverage { border-left: 2px solid var(--warn); padding-left: 16px; }
+.dir-sortbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--faint);
+}
+.dir-sortbar select {
+  font: inherit; letter-spacing: 0; padding: 4px 8px; border-radius: 6px;
+  background: var(--panel-soft); color: var(--bright); border: 1px solid var(--line);
+}
+.dir-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.dir-count { margin-left: auto; color: var(--dim); }
 .repo-hero .lane { align-self: center; }
 
 .key-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--dim); margin-top: 14px; }
