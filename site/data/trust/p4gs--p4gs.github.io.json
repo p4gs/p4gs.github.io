@@ -3,7 +3,7 @@
   "lane": "action",
   "signature": "verified",
   "identity": "https://github.com/p4gs/p4gs.github.io/.github/workflows/sscsb-scan.yml@refs/heads/main",
-  "commit": "69acfbc02f8b6f60f7c84de87febea840821ea53",
-  "verified_at": "2026-09-02T23:59:30Z",
+  "commit": "3ab6bf98504bd7fd20591fe3274150405cc3f8a9",
+  "verified_at": "2026-09-03T16:50:50Z",
   "bundle": "p4gs--p4gs.github.io.sigstore.json"
 }
