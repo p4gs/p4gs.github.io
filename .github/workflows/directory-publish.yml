@@ -179,29 +179,43 @@ jobs:
           human=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(`${r.repo.owner}/${r.repo.name}`)')
           grade=$(bun -e 'const r = await Bun.file("scan-record.json").json(); console.log(r.score.grade)')
           branch="directory/${slug}"
-          git config user.name "sscsb-directory[bot]"
-          git config user.email "sscsb-directory[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          mkdir -p site/data/repos
-          cp scan-record.json "site/data/repos/${slug}.json"
-          git add "site/data/repos/${slug}.json"
+          # Commits are created through the GitHub API, never `git commit` on
+          # the runner: main requires verified signatures and the bot holds no
+          # signing key (humans, CI and bots never share identities). GitHub
+          # signs API-created commits itself and attributes them to the App
+          # identity that made them, which is exactly the provenance we want.
+          base=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" -f sha="$base" -F force=true >/dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$base" >/dev/null
+          fi
+          put_file() { # <repo path> <local file> <commit message>
+            local path="$1" src="$2" msg="$3" sha
+            sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$branch" --jq .sha 2>/dev/null || true)
+            jq -n --arg m "$msg" --arg b "$branch" --arg c "$(base64 < "$src" | tr -d '\n')" --arg s "$sha" \
+              '{message:$m, branch:$b, content:$c} + (if $s != "" then {sha:$s} else {} end)' \
+              | gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$path" --input - >/dev/null
+          }
+          put_file "site/data/repos/${slug}.json" scan-record.json "directory: publish ${human} (grade ${grade}, issue #${ISSUE})"
           # Authenticated-lane submissions carry a trust sidecar (and, when
           # signed, the Sigstore bundle) from directory-ingest.yml. Publish
           # them beside the record so the listing can show provenance and
           # anyone can re-verify. External scans have neither — by construction.
           if [ -s scan-record.trust.json ]; then
-            mkdir -p site/data/trust
-            cp scan-record.trust.json "site/data/trust/${slug}.json"
+            put_file "site/data/trust/${slug}.json" scan-record.trust.json "directory: trust sidecar for ${human} (issue #${ISSUE})"
             if [ -s scan-record.json.sigstore.json ]; then
-              cp scan-record.json.sigstore.json "site/data/trust/${slug}.sigstore.json"
+              put_file "site/data/trust/${slug}.sigstore.json" scan-record.json.sigstore.json "directory: Sigstore bundle for ${human} (issue #${ISSUE})"
             fi
-            git add site/data/trust
           fi
-          git commit -m "directory: publish ${human} (grade ${grade}, issue #${ISSUE})"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${branch}" --force-with-lease
-          gh pr create --head "$branch" \
-            --title "directory: publish ${human} (${grade})" \
-            --body "Adds the reviewed scan record for \`${human}\` from issue #${ISSUE}. The \`site\` CI job validates the record; merging deploys the directory."
+          existing=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "reusing open PR #$existing for $branch"
+          else
+            gh pr create --head "$branch" \
+              --title "directory: publish ${human} (${grade})" \
+              --body "Adds the reviewed scan record for \`${human}\` from issue #${ISSUE}. The \`site\` CI job validates the record; merging deploys the directory."
+          fi
           # Auto-merge on green. The REVIEW already happened before this job
           # ran: a maintainer with write+ applied the `publish` label (checked
           # above), or the record arrived through the verified authenticated
