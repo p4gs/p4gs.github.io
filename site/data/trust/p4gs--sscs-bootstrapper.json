@@ -3,7 +3,7 @@
   "lane": "action",
   "signature": "verified",
   "identity": "https://github.com/p4gs/sscs-bootstrapper/.github/workflows/sscsb-scan.yml@refs/heads/main",
-  "commit": "1d15862315d7200d3f26ef43d75e92a8300147b2",
-  "verified_at": "2026-09-02T23:59:46Z",
+  "commit": "c8a23493ec0cfc05856a0f2142344a02d0bf29ef",
+  "verified_at": "2026-09-03T16:50:29Z",
   "bundle": "p4gs--sscs-bootstrapper.sigstore.json"
 }
