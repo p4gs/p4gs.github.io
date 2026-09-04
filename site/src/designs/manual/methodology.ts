@@ -9,6 +9,7 @@ import { LOCAL_SECTION_ID, LOCAL_TITLE, localLaneBody } from "../../methodology-
 import { define, defineTerm } from "../../glossary";
 import { CONTROL_CLASSES } from "../../reclassify";
 import { threatsSection } from "../threats-shared";
+import { compareSection, COMPARE_SECTION_ID, COMPARE_TITLE } from "../compare-shared";
 import {
   changelogItems,
   EVIDENCE_CLASS_RULES,
@@ -72,6 +73,7 @@ export function renderMethodology(ctx: DesignCtx): string {
   </section>
 
 ${threatsSection(ctx.h)}
+${compareSection(ctx.h)}
 
   <section class="doc-sec" id="evidence-classes">
     <h2>Evidence classes</h2>

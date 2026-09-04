@@ -1011,3 +1011,17 @@ details ul { font-size: var(--step--2); color: var(--ink-dim); }
   background: var(--ink); color: var(--paper);
 }
 @media (max-width: 640px) { .design-switcher { right: 10px; bottom: 10px; } }
+
+/* --- Scorecard comparison -------------------------------------------------
+   Coverage is carried by a WORD ("Also checked" / "Partly" / "Not checked"),
+   with colour only reinforcing it — the same rule the rest of the site
+   follows, so the table survives being read aloud or printed in mono. */
+.cmp-table { min-inline-size: 720px; }
+.cmp-risk { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.cmp-mark { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.cmp-mark.cmp-covered { color: var(--pass); }
+.cmp-mark.cmp-partial { color: var(--warn); }
+.cmp-mark.cmp-none    { color: var(--muted); }
+.cmp-note { margin-block-start: 0.35rem; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.cmp-footnote { color: var(--muted); font-size: 12px; }
+.cmp-section td .cmp-none { font-variant-numeric: tabular-nums; }

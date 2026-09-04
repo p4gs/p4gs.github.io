@@ -9,6 +9,7 @@ import { LOCAL_SECTION_ID, LOCAL_TITLE, localLaneBody } from "../../methodology-
 import { define, defineTerm } from "../../glossary";
 import { CONTROL_CLASSES } from "../../reclassify";
 import { threatsSection, THREATS_SECTION_ID } from "../threats-shared";
+import { compareSection, COMPARE_SECTION_ID, COMPARE_TITLE } from "../compare-shared";
 import {
   changelogItems,
   EVIDENCE_CLASS_RULES,
@@ -36,6 +37,7 @@ export function renderMethodology(ctx: DesignCtx): string {
   const sectionNav = `<nav class="method-nav" aria-label="Methodology sections">
   <a href="${ctx.h("methodology/#protocol")}">protocol</a>
   <a href="${ctx.h(`methodology/#${THREATS_SECTION_ID}`)}">what the checks are for</a>
+      <a href="${ctx.h(`methodology/#${COMPARE_SECTION_ID}`)}">next to scorecard</a>
   <a href="${ctx.h("methodology/#evidence-classes")}">evidence classes</a>
   <a href="${ctx.h("methodology/#formula")}">formula</a>
   <a href="${ctx.h("methodology/#grades")}">grades</a>
@@ -82,6 +84,7 @@ export function renderMethodology(ctx: DesignCtx): string {
   </section>
 
 ${threatsSection(ctx.h)}
+${compareSection(ctx.h)}
 
   <section class="method-section prose" id="evidence-classes">
     <h2>Evidence classes</h2>
