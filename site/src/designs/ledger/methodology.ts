@@ -4,6 +4,7 @@ import { LOCAL_SECTION_ID, LOCAL_TITLE, localLaneBody } from "../../methodology-
 import { define, defineTerm } from "../../glossary";
 import { CONTROL_CLASSES } from "../../reclassify";
 import { threatsSection, THREATS_SECTION_ID } from "../threats-shared";
+import { compareSection, COMPARE_SECTION_ID, COMPARE_TITLE } from "../compare-shared";
 import {
   changelogItems,
   EVIDENCE_CLASS_RULES,
@@ -35,6 +36,7 @@ export function renderMethodology(): string {
     <nav aria-label="Methodology sections">
       <a class="rail-item rail-item-first" href="${href("methodology/#protocol")}"><span class="rail-dot" aria-hidden="true"></span>the protocol</a>
       <a class="rail-item rail-item-sub" href="${href(`methodology/#${THREATS_SECTION_ID}`)}">what the checks are for</a>
+      <a class="rail-item rail-item-sub" href="${href(`methodology/#${COMPARE_SECTION_ID}`)}">next to scorecard</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#evidence-classes")}">evidence classes</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#formula")}">the formula</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#grades")}">grades</a>
@@ -80,6 +82,7 @@ ${rail}
   </section>
 
 ${threatsSection(href)}
+${compareSection(href)}
 
   <section class="method-section prose" id="evidence-classes">
     <h2>Evidence classes</h2>
