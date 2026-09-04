@@ -46,6 +46,9 @@ import {
   phasePctText,
   phaseState,
 } from "./components";
+import { define, defineTerm } from "../../glossary";
+import { directoryTermsNote } from "../home-shared";
+import { exposurePanel } from "../threats-shared";
 import { escapeHtml, factsFor, href, page } from "./layout";
 
 const GRADE_ORDER: Readonly<Record<string, number>> = {
@@ -211,7 +214,7 @@ export function renderDirectory(
   </div>
 </div>
 <div class="dir-controls">
-  <input type="search" id="dir-filter" placeholder="⌕ search — or submit any owner/repo…"
+  <input type="search" id="dir-filter" placeholder="owner/repo"
     aria-label="Search the directory, or submit a repository to scan (owner/repo or GitHub URL)">
   <div class="card scan-card" id="dir-scan" hidden
     data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
@@ -241,6 +244,7 @@ ${cards}
   </tbody>
 </table>
 ${legendRow()}
+${directoryTermsNote(href)}
 <script src="${href("filter.js")}" defer></script>`;
   return page({ title: "Scan Directory", body, active: "directory" });
 }
@@ -488,8 +492,8 @@ function improveCard(
   keyless-signed there. Before listing it, the directory verified the Sigstore bundle
   against the certificate identity <code>${escapeHtml(t.identity ?? "")}</code>${
     t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
-  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
-  repository, workflow path, and default branch are burned into that certificate by
+  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""}.
+  The repository, workflow path, and default branch are burned into that certificate by
   GitHub's OIDC issuer, not asserted by the record. Amber and hatched links above are
   the work list: adopt the flagged controls, re-run the action, and the next record
   replaces this one.</p>
@@ -522,15 +526,18 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
   <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a> ·
   ${laneChip(kind)}${localOverlayChip(lt)}
 </p>
-<p class="score-line">Overall: <strong>${
+<p class="score-line"><strong>${
     r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`
-  }</strong> · evidence coverage: ${r.score.evidence_coverage_percent}%${
-    r.score.provisional ? ` · <em class="prov">provisional</em>` : ""
+  }</strong> of the answered checks passed · <strong>${
+    r.score.evidence_coverage_percent
+  }%</strong> of the checks were answered at all${
+    r.score.provisional ? ` · <em class="prov">provisional</em> ${define("provisional")}` : ""
   }</p>
 <section class="card chain-card chain-card-detail">
   ${heroChain(chainPhases, { animate: true })}
   ${legendRow()}
 </section>
+${exposurePanel(href, r)}
 <p class="transparency-note">Raw sscsb verdicts and every reclassification are shown —
 transparency about what was and wasn't verifiable is the product.</p>
 ${[1, 2, 3, 4, 5].map((phase) => phaseGroup(r, phase)).join("\n")}

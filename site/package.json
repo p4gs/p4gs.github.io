@@ -5,7 +5,8 @@
   "scripts": {
     "build": "bun run src/build.ts",
     "test": "bun test",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "refresh:controls": "bun run tools/control-ids.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",

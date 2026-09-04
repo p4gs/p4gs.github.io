@@ -13,18 +13,18 @@ import { escapeHtml } from "./layout";
 
 export const PHASE_NAMES: Readonly<Record<number, string>> = {
   1: "Commit integrity",
-  2: "Dependencies & SBOM",
-  3: "Provenance",
-  4: "SAST & CI hardening",
-  5: "Continuous posture",
+  2: "Dependencies",
+  3: "Build receipts",
+  4: "Code & build hardening",
+  5: "Ongoing posture",
 };
 
 /** Short node captions for the chain itself. */
 export const PHASE_SHORT: Readonly<Record<number, string>> = {
   1: "Commit",
   2: "Dependencies",
-  3: "Provenance",
-  4: "SAST & CI",
+  3: "Receipts",
+  4: "Hardening",
   5: "Posture",
 };
 

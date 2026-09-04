@@ -18,6 +18,20 @@ export function escapeHtml(s: string): string {
 }
 
 /**
+ * `<link rel="canonical">` for this page: always the DEFAULT design's URL.
+ *
+ * The alternate design trees publish the same pages under `_d/<id>/`. Without
+ * this, a crawler sees four copies of every page and picks one; with it, the
+ * default design is the copy that counts, which is the same answer a
+ * first-time visitor gets.
+ */
+export function canonicalLink(ctx: DesignCtx): string {
+  return ctx.canonical
+    ? `\n<link rel="canonical" href="${escapeHtml(ctx.canonical)}">`
+    : "";
+}
+
+/**
  * Google Fonts: Newsreader (display serif, optical sizing + italics),
  * Mona Sans (body), Commit Mono (data). Real fallback stacks live in the CSS.
  */
@@ -36,7 +50,7 @@ export function page(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(opts.title)}</title>
+<title>${escapeHtml(opts.title)}</title>${canonicalLink(ctx)}
 ${FONTS_HEAD}
 <link rel="stylesheet" href="${ctx.h("style.css")}">
 </head>

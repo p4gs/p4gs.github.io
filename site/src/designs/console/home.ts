@@ -5,8 +5,8 @@
  * script; prefers-reduced-motion and no-JS both show the final state).
  */
 import { ACTION_REPO_URL } from "../../config";
-import { LOCAL_SCAN_COMMAND } from "../../coverage";
-import type { PhaseScore } from "../../schema";
+import type { PhaseScore, ScanRecord } from "../../schema";
+import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
 import { gradeChip, meterStack } from "./components";
 import { page } from "./layout";
 import type { DesignCtx } from "../types";
@@ -25,10 +25,10 @@ const FLAGSHIP_PHASES: readonly PhaseScore[] = [
 ];
 
 const STAT_TILES = [
-  ["44", "verifiable controls", ""],
-  ["3", "scan lanes — external, authenticated &amp; local", ""],
-  ["A+", "reserved for exactly 100%", " accent"],
-  ["0", "unverified checks counted — ever", ""],
+  ["44", "checks, across five phases", ""],
+  ["3", "ways to get scanned — from outside, from your build, from your machine", ""],
+  ["A+", "means every answered check passed", " accent"],
+  ["0", "checks nobody could answer are ever counted against you", ""],
 ]
   .map(
     ([val, copy, cls]) => `<div class="stat-tile">
@@ -38,14 +38,15 @@ const STAT_TILES = [
   )
   .join("\n  ");
 
-export function renderHome(repoCount: number, ctx: DesignCtx): string {
+export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
+  const repoCount = records.length;
   const telemetry = `<div class="telemetry">
     <div class="tm-head">
       <a class="tm-repo" href="${ctx.h("directory/p4gs--sscs-bootstrapper/")}">p4gs/sscs-bootstrapper</a>
       ${gradeChip("B", "md")}
     </div>
     ${meterStack(FLAGSHIP_PHASES, { short: true, animate: true })}
-    <div class="tm-foot">overall 81.8% · coverage 73.3% · <span class="prov-flag">provisional</span> · scanned 2026-09-01</div>
+    <div class="tm-foot">81.8% of answered checks passed · 73.3% answered · scanned 2026-09-01</div>
   </div>`;
 
   const body = `
@@ -53,14 +54,15 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
   <div class="hero-copy">
     <p class="eyebrow"><span class="live-dot" aria-hidden="true">●</span> Live verification</p>
     <h1 class="hero-hl">Your supply chain,<br>on instruments.</h1>
-    <p class="lede">44 controls across five phases, verified with evidence and
-    reported without spin. A check that couldn't run reads as unverified —
-    never as a pass.</p>
-    <div class="hero-cta">
-      <pre class="install-pill"><code><span class="prompt">$</span> brew install p4gs/p4gs/sscsb</code></pre>
-      <a class="btn" href="${ctx.h("directory/")}">Open the directory</a>
-    </div>
-    <p class="hero-count">${repoCount} ${repoCount === 1 ? "repository" : "repositories"} on the public record</p>
+    <p class="lede">A check that could not run is never a pass.</p>
+    ${searchControl(ctx.h, records, {
+      label: "Find a repository — or ask for one to be scanned",
+      placeholder: "owner/repo",
+      scanCopy:
+        "Not on the board yet. Ask for a scan — every result is reviewed by a person before it appears.",
+    })}
+    <p class="hero-count">${repoCount} ${repoCount === 1 ? "repository" : "repositories"} on the public record ·
+    <a href="${ctx.h("directory/")}">open the directory</a></p>
   </div>
   ${telemetry}
 </section>
@@ -75,39 +77,38 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
   ${STAT_TILES}
 </section>
 
-<section class="lane-strip" aria-label="Scan lanes">
+<div class="hp-panels">
+${exemplarPanels(ctx.h, records, ctx.trust, ctx.localTrust)}
+</div>
+
+${threatStrip(ctx.h)}
+
+<section class="lane-strip" aria-label="How a scan gets run">
   <div class="lane-cellblock">
-    <p class="lane-eyebrow">LANE · EXTERNAL</p>
+    <p class="lane-eyebrow">FROM OUTSIDE</p>
     <h2>The public directory</h2>
-    <p class="body-copy">Every listed repository was scanned with sscsb itself and
-    scored by a published, versioned methodology. Evidence the scanner created
-    never counts, and checks that couldn't run stay hatched on the meter —
-    shown, not spun.</p>
+    <p class="body-copy">Anyone can ask for any public repository to be scanned. The scan
+    sees only what anyone can see, and the meter says which checks it could not answer.</p>
     <div class="btn-row">
-      <a class="btn-outline" href="${ctx.h("directory/")}?submit=1">Submit a repo</a>
-      <a class="btn-outline" href="${ctx.h("methodology/")}">Read the methodology</a>
+      <a class="btn-outline" href="${ctx.h("methodology/")}">How scoring works</a>
     </div>
   </div>
   <div class="lane-cellblock">
-    <p class="lane-eyebrow">LANE · AUTHENTICATED</p>
-    <h2>Authenticated scans</h2>
-    <p class="body-copy">External scans are honest about their limits. Run
-    <code>sscsb-action</code> in your own CI to publish a record that sees what
-    an outside scan cannot — through the same reviewed gate.</p>
+    <p class="lane-eyebrow">FROM YOUR BUILD</p>
+    <h2>Run it yourself</h2>
+    <p class="body-copy">Run sscsb in your own build and it sees settings an outside scan
+    cannot, then signs the result so the signature proves where it came from.</p>
     <div class="btn-row">
       <a class="btn" href="${ACTION_REPO_URL}">Install the Action</a>
     </div>
   </div>
   <div class="lane-cellblock">
-    <p class="lane-eyebrow">LANE · LOCAL</p>
-    <h2>Local scans</h2>
-    <p class="body-copy">Ten or eleven controls describe the development machine,
-    where no repository scan can look — which is why a well-run repo can still read
-    <em>provisional</em>. <code>${LOCAL_SCAN_COMMAND}</code> signs a record with the
-    git key your repo already commits in <code>allowed_signers</code>. Weaker
-    evidence than CI, so it resolves those controls and nothing else.</p>
+    <p class="lane-eyebrow">FROM YOUR MACHINE</p>
+    <h2>The rest of the checks</h2>
+    <p class="body-copy">About a dozen checks describe a developer's own laptop, where no
+    scan can reach. A maintainer answers those by running the scan there and signing it.</p>
     <div class="btn-row">
-      <a class="btn-outline" href="${ctx.h("methodology/#local")}">How it is verified</a>
+      <a class="btn-outline" href="${ctx.h("methodology/#local")}">How that is checked</a>
     </div>
   </div>
 </section>`;

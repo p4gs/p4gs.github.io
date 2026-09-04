@@ -1,32 +1,16 @@
 /** The published scoring spec — the site's honesty contract, versioned. */
 import { METHODOLOGY_VERSION } from "../../config";
 import { LOCAL_SECTION_ID, LOCAL_TITLE, localLaneBody } from "../../methodology-local";
+import { define, defineTerm } from "../../glossary";
 import { CONTROL_CLASSES } from "../../reclassify";
+import { threatsSection, THREATS_SECTION_ID } from "../threats-shared";
+import {
+  changelogItems,
+  EVIDENCE_CLASS_RULES,
+  scanProtocolIntro,
+} from "../methodology-shared";
 import { seal } from "./components";
 import { href, page } from "./layout";
-
-const CLASS_DESCRIPTIONS: Readonly<Record<string, { name: string; rule: string }>> = {
-  A: {
-    name: "A — committed artifacts",
-    rule: "The control's evidence is files committed to the repository. If any registered artifact was created by the scanner's own `sscsb init` (absent from the pre-init file snapshot), the control scores <strong>gap</strong> — evidence the scanner installed seconds earlier is never the repository's evidence. A pre-existing artifact that fails sscsb's shape checks is a real <strong>fail</strong>. For tool-backed controls (secrets, sbom, vuln-scan, sast, provenance-verify) whose raw verdict only reflects scanner-machine tool availability, the committed artifacts decide instead.",
-  },
-  Aprime: {
-    name: "A′ — static audits of committed workflows",
-    rule: "actions-audit, workflow-audit-extended, and harden-runner parse every workflow file. With zero pre-existing workflows the verdict would be vacuous, so it scores <strong>unverified</strong>. Otherwise the raw verdict maps directly: sscsb's own installed templates pass its audit by construction, so init can only pollute toward pass — a fail always implicates the repository's own workflows.",
-  },
-  B: {
-    name: "B — live remote checks",
-    rule: "branch-protection and Scorecard query GitHub itself; init cannot influence them, so raw verdicts map directly. Scorecard's live alert feed requires permissions a cross-repo scan lacks — that half is recorded as unverified, never guessed.",
-  },
-  C: {
-    name: "C — local environment",
-    rule: "Commit signing, signing-model posture, AI trailers, package-trust hooks and similar controls describe the <em>development machine</em>, which no repository scan can observe — from inside CI or out. A repository scan therefore records them as <strong>unverified</strong>: an unperformed check is a third state, never a pass or fail. Class C is the one class a signed local record can settle <strong>by itself</strong>, because there the maintainer's signed word is the best evidence that can exist. It is <em>not</em> the only class a local record may resolve: a local record votes on every control it holds, and its verdict on a class A, A′ or B row becomes countable as soon as an independent record agrees with it — and scores a gap if one disagrees. See “the local lane” below.",
-  },
-  M: {
-    name: "M — meta / informational",
-    rule: "compliance-map (about sscsb itself) and secure-repo (an external service pointer) are excluded from scoring entirely.",
-  },
-};
 
 /** The grade-seal demo row: letters at 64px with alternating small tilts. */
 const SEAL_TILTS = [-4, 2, -3, 3, -2, 4];
@@ -35,7 +19,7 @@ const GRADE_SEALS = (["A+", "A", "B", "C", "D", "F"] as const)
   .join("\n      ");
 
 export function renderMethodology(): string {
-  const classTable = Object.entries(CLASS_DESCRIPTIONS)
+  const classTable = Object.entries(EVIDENCE_CLASS_RULES)
     .map(([key, d]) => {
       const members = Object.entries(CONTROL_CLASSES)
         .filter(([, cls]) => cls === key)
@@ -50,6 +34,7 @@ export function renderMethodology(): string {
     <div class="rail-head">LEDGER · v${METHODOLOGY_VERSION}</div>
     <nav aria-label="Methodology sections">
       <a class="rail-item rail-item-first" href="${href("methodology/#protocol")}"><span class="rail-dot" aria-hidden="true"></span>the protocol</a>
+      <a class="rail-item rail-item-sub" href="${href(`methodology/#${THREATS_SECTION_ID}`)}">what the checks are for</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#evidence-classes")}">evidence classes</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#formula")}">the formula</a>
       <a class="rail-item rail-item-sub" href="${href("methodology/#grades")}">grades</a>
@@ -77,19 +62,14 @@ ${rail}
     <div class="honesty-body">The scanner runs <code>sscsb init</code> before verifying —
     which installs the very files many controls check for. So we snapshot the file
     list first: <strong>evidence the scanner created never counts.</strong> And a
-    check that could not run is <strong>unverified — a third state</strong>, shown
-    hatched, outside every denominator. An unperformed check is never a verdict.</div>
+    check that could not run is <strong class="term">unverified</strong>
+    ${define("unverified")}. That is a third state: shown hatched, and left out of the
+    sums entirely. An unperformed check is never a verdict.</div>
   </div>
 
   <section class="method-section prose" id="protocol">
     <h2>The scan protocol</h2>
-    <p>This directory measures <strong>sscsb-control adoption</strong> — how much of the
-    supply-chain posture sscsb can bootstrap and verify a repository has actually
-    committed to. It is not a general security audit, and in methodology v${METHODOLOGY_VERSION} a
-    repository using an equivalent tool sscsb doesn't model (Dependabot in place of
-    Renovate, say) scores a gap for that control. Tool-equivalence mapping is a
-    roadmap item for a future methodology version; every version bump is recorded
-    here and displayed on each repo's page.</p>
+    ${scanProtocolIntro(METHODOLOGY_VERSION)}
     <ol>
     <li>Shallow-clone the repository's default branch. <strong>The target's code is never executed.</strong></li>
     <li>Snapshot the committed file list (<code>git ls-files</code>).</li>
@@ -99,8 +79,12 @@ ${rail}
     </ol>
   </section>
 
+${threatsSection(href)}
+
   <section class="method-section prose" id="evidence-classes">
     <h2>Evidence classes</h2>
+    <p>Not every check can be answered from the same place. These five groups say who
+    could see what, and each repository page names the group beside every check.</p>
     <div class="table-scroll">
     <table class="method-table">
     <thead><tr><th>Class</th><th>Controls</th><th>Rule</th></tr></thead>
@@ -122,9 +106,9 @@ ${classTable}
 phase %   = 100 · pass / countable
 overall   = Σ pass / Σ countable
 coverage  = Σ countable / |scope|</code></pre>
-    <p class="grade-copy">Unverified and info are <strong>never</strong> in any
-    denominator, and zero countable controls in a phase means "no evidence" —
-    not 0%.</p>
+    <p class="grade-copy">Read it in words: ${defineTerm("countable")}. A
+    ${defineTerm("gap")}. Checks nobody could answer are <strong>never</strong> in any
+    sum, and a phase where nothing was answered reads "no evidence" — not 0%.</p>
   </section>
 
   <section class="method-section" id="grades">
@@ -133,9 +117,10 @@ coverage  = Σ countable / |scope|</code></pre>
       ${GRADE_SEALS}
     </div>
     <p class="grade-copy"><span class="mono" style="font-weight:700">A+ = exactly 100%</span>
-    · A ≥ 90 · B ≥ 80 · C ≥ 70 · D ≥ 60 · F below. Coverage under 50% earns
-    <span class="mono" style="font-weight:700">NA</span> — insufficient evidence for
-    any letter; under 75% the letter is <em>provisional</em>.</p>
+    · A ≥ 90 · B ≥ 80 · C ≥ 70 · D ≥ 60 · F below. Then ${defineTerm("coverage")}:
+    under 50% there is no letter at all
+    (<span class="mono" style="font-weight:700">NA</span>). Under 75% the letter is
+    ${defineTerm("provisional")}.</p>
     <div class="prose">
       <div class="table-scroll">
       <table class="method-table">
@@ -159,6 +144,10 @@ coverage  = Σ countable / |scope|</code></pre>
 
   <section class="method-section prose" id="trust">
     <h2>Authenticated records: the trust chain</h2>
+    <p>Three things can produce a record, and they see different amounts. That is the
+    ${defineTerm("lane")}, shown as a badge on every listing. It decides nothing about
+    the score. It tells you how far the scanner could see. Where a build leaves a signed
+    receipt for what it produced, that receipt is an ${defineTerm("attestation")}.</p>
     <p>The checks that matter most — branch protection, Actions token permissions,
     security-feature enablement — are <em>repository settings</em>, readable only
     with repository credentials. The only place a complete scan can run is the
@@ -168,22 +157,21 @@ coverage  = Σ countable / |scope|</code></pre>
     deliberately.</p>
     <ol>
     <li><strong>Verified scanner.</strong> The action installs an sscsb release
-    only after checking its Sigstore bundle against the tool repository's own
-    release-workflow identity at that exact tag — the scanner proves its own
-    provenance before assessing anyone else's.</li>
+    only after checking its Sigstore bundle. The bundle is checked against the tool
+    repository's own release-workflow identity, at that exact tag. The scanner proves its
+    own provenance before assessing anyone else's.</li>
     <li><strong>Signed record.</strong> With <code>id-token: write</code>, the action
-    keyless-signs <code>scan-record.json</code>. Fulcio issues a short-lived
-    certificate whose identity <em>is</em> the producing workflow — repository,
-    workflow path, and branch ref, burned in by GitHub's OIDC issuer rather than
-    asserted by the record — and the signature is logged to Rekor.</li>
+    signs <code>scan-record.json</code> using ${defineTerm("keyless")}. Fulcio issues a short-lived
+    certificate whose identity <em>is</em> the producing workflow: repository, workflow
+    path, and branch ref. GitHub's OIDC issuer burns those in; the record does not assert
+    them. The signature is then logged to Rekor.</li>
     <li><strong>Pinned verification.</strong> Ingest runs <code>cosign verify-blob</code>
     pinned to <code>https://github.com/OWNER/REPO/.github/workflows/sscsb-scan.yml@refs/heads/&lt;default branch&gt;</code>
     — the default branch fetched <em>live</em> from GitHub, never read from the
     record — and to the commit the record claims. A third party cannot mint that
-    identity; a feature-branch or renamed-workflow signature does not verify; a
-    record whose bundle fails verification is rejected outright, and the
-    directory publishes the bundle beside every verified record so anyone can
-    re-run the check.</li>
+    identity. A feature-branch or renamed-workflow signature does not verify. A record
+    whose bundle fails verification is rejected outright. And the directory publishes the
+    bundle beside every verified record, so anyone can re-run the check.</li>
     <li><strong>Human gate, still.</strong> Verified or not, nothing lists without a
     maintainer's <code>publish</code> label. An action-lane record that arrives
     <em>unsigned</em> is listed only as an unverified claim.</li>
@@ -191,23 +179,25 @@ coverage  = Σ countable / |scope|</code></pre>
     <p><strong>What this deliberately does not prove:</strong> that the workflow which
     signed the record was unmodified. A maintainer who edits their own
     <code>sscsb-scan.yml</code> can sign whatever it emits. OpenSSF Scorecard closes
-    that gap by fetching the producing workflow at the certificate's commit and
-    rule-checking it (allow-listed steps only, no environment redirection,
-    hosted runners); that is this directory's ingestion-hardening milestone, and
-    the human publish gate is the backstop until then.</p>
+    that gap. It fetches the producing workflow at the certificate's commit and
+    rule-checks it: allow-listed steps only, no environment redirection, hosted runners.
+    That is this directory's ingestion-hardening milestone. Until then, the human publish
+    gate is the backstop.</p>
   </section>
 
   <section class="method-section prose" id="${LOCAL_SECTION_ID}">
     <h2>${LOCAL_TITLE}</h2>
+    <p>About a dozen checks describe a developer's own machine, where no scan can look.
+    A maintainer answers them by running the scan there and signing the result. The key
+    they sign with is one the repository already publishes, in its
+    ${defineTerm("anchor")}.</p>
     ${localLaneBody(href, "inkblock")}
   </section>
 
   <section class="method-section prose" id="changelog">
     <h2>Changelog</h2>
     <ul>
-    <li><strong>v1</strong> — initial methodology: diff-based init reclassification, five evidence classes, academic grade scale with A+ reserved for exactly 100%.</li>
-    <li><strong>v1, 2026-09</strong> — authenticated records are signed and verified against the producing workflow's identity (scoring unchanged; provenance is displayed, not scored).</li>
-    <li><strong>v1, 2026-09</strong> — the <a href="${href(`methodology/#${LOCAL_SECTION_ID}`)}">local lane</a>: a maintainer-signed workstation record, verified against the repository's own committed <code>allowed_signers</code>, joins the action and external records as an evidence source. Verdicts are merged per control: sources that disagree score a <strong>gap</strong> with a named contradiction, and a local assertion about a control a repository scan could observe is not counted until an independent record agrees with it. Class rules, the formula and the grade scale are unchanged.</li>
+    ${changelogItems(href(`methodology/#${LOCAL_SECTION_ID}`), { includeProvenance: true })}
     </ul>
   </section>
 </div>

@@ -22,7 +22,7 @@ export const ledger: Design = {
   label: "Ledger",
   head: FONTS_HEAD,
   // css omitted: the build copies site/public/style.css into this tree.
-  renderHome: (n, ctx) => home(ctx, n),
+  renderHome: (records, ctx) => home(ctx, records, ctx),
   renderDirectory: (rs, ctx) => dir(ctx, rs, ctx.trust ?? new Map(), ctx.localTrust ?? new Map()),
   renderRepoDetail: (r, ctx) =>
     detail(ctx, r, lookupTrust(ctx.trust, r), lookupLocalTrust(ctx.localTrust, r)),

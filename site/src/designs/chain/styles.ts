@@ -37,7 +37,9 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 15.5px;
+  /* 16px floor: below it iOS Safari zooms on form focus, and small body copy
+     is the first thing to fail on a phone. */
+  font-size: 16px;
   line-height: 1.6;
   color: var(--ink);
   background: linear-gradient(160deg, var(--ground1) 0%, var(--ground2) 100%) fixed;
@@ -147,8 +149,8 @@ main { max-width: 1060px; margin: 0 auto; padding: 0 24px 72px; }
 .hero { text-align: center; padding: 56px 0 34px; display: flex; flex-direction: column; align-items: center; }
 .display-hl {
   font-family: var(--font-display); font-weight: 700;
-  font-size: clamp(34px, 5.5vw, 56px); line-height: 1.05; letter-spacing: -0.02em;
-  margin: 8px 0 18px; max-width: 20ch;
+  font-size: clamp(26px, 7vw, 56px); line-height: 1.05; letter-spacing: -0.02em;
+  margin: 8px 0 18px; max-inline-size: 20ch;
 }
 .lede { font-size: 17.5px; line-height: 1.65; color: var(--dim); max-width: 56ch; margin: 0 auto; }
 

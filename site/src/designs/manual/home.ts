@@ -3,6 +3,8 @@
  * tenets (a real i./ii./iii. sequence), and one featured directory entry
  * wearing its real seal.
  */
+import type { ScanRecord } from "../../schema";
+import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
 import type { DesignCtx } from "../types";
 import { seal } from "./components";
 import { escapeHtml, page } from "./layout";
@@ -11,21 +13,22 @@ const TENETS: ReadonlyArray<[string, string, string]> = [
   [
     "i.",
     "The commit is the boundary",
-    "Secrets blocked at the hook, humans sign on protected branches, and AI involvement is declared in trailers — not discovered in an incident review.",
+    "Keys never reach the repository, people sign what lands on the main branch, and any AI involvement is written down at the time — not found later in an incident review.",
   ],
   [
     "ii.",
     "Evidence, then verdicts",
-    "SBOMs, dual scanners, keyless signatures and SLSA provenance — every claim bound to a digest something else can check.",
+    "A parts list, two scanners, and a signed receipt for every build — each claim tied to the exact file it describes, so something else can check it.",
   ],
   [
     "iii.",
     "A directory with a spine",
-    "Public grades under a versioned methodology that refuses to count evidence the scanner created — or checks that never ran.",
+    "Public grades under published rules that refuse to count evidence the scanner itself created, or checks that never ran.",
   ],
 ];
 
-export function renderHome(repoCount: number, ctx: DesignCtx): string {
+export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
+  const repoCount = records.length;
   const tenets = TENETS.map(
     ([num, title, copy]) => `<div class="tenet">
     <div class="tenet-num" aria-hidden="true">${num}</div>
@@ -39,14 +42,24 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
 <section class="hero">
   <p class="eyebrow">A field manual for the software supply chain</p>
   <h1 class="hero-hl">Security you can actually <em>verify</em>, not just claim.</h1>
-  <p class="lede">Forty-four controls across five phases — from the commit boundary to
-  continuous posture — bootstrapped in one command and reported with a bluntness
-  your auditor will find unfamiliar. An unperformed check is never a verdict.</p>
+  <p class="lede">An unperformed check is never a verdict.</p>
+  ${searchControl(ctx.h, records, {
+    label: "Look up a repository — or ask for one to be scanned",
+    placeholder: "owner/repo",
+    scanCopy:
+      "No entry yet. Ask for a scan — every result is reviewed by a person before it appears.",
+  })}
   <div class="hero-cta">
     <pre class="install"><code>brew install p4gs/p4gs/sscsb</code></pre>
-    <a class="method-link" href="${ctx.h("methodology/")}">Read the methodology</a>
+    <a class="method-link" href="${ctx.h("methodology/")}">How scoring works</a>
   </div>
 </section>
+
+<div class="hp-panels">
+${exemplarPanels(ctx.h, records, ctx.trust, ctx.localTrust)}
+</div>
+
+${threatStrip(ctx.h)}
 
 <section class="tenets" aria-label="The three tenets">
   ${tenets}
@@ -57,14 +70,14 @@ export function renderHome(repoCount: number, ctx: DesignCtx): string {
     <div class="feature-copy">
       <p class="feature-eyebrow">From the directory</p>
       <p class="feature-name"><a href="${ctx.h(featuredPath)}"><span class="mono-strong">p4gs/sscs-bootstrapper</span></a> — the tool, scanned by itself.</p>
-      <p class="feature-meta">81.8% overall · coverage 73.3% · <em>provisional</em> · methodology v1</p>
+      <p class="feature-meta">81.8% of answered checks passed · 73.3% of checks answered · rules v1</p>
       <p class="feature-links"><a href="${ctx.h("directory/")}">Browse all ${escapeHtml(
         String(repoCount),
       )} ${repoCount === 1 ? "repository" : "repositories"}</a> · <a href="${ctx.h("directory/?submit=1")}">submit yours</a></p>
     </div>
-    <a class="feature-seal" href="${ctx.h(featuredPath)}" aria-label="p4gs/sscs-bootstrapper scan report — grade B, provisional">${seal(
+    <a class="feature-seal" href="${ctx.h(featuredPath)}" aria-label="p4gs/sscs-bootstrapper scan report — grade B">${seal(
       "B",
-      { label: "grade B, provisional" },
+      { label: "grade B" },
     )}</a>
   </div>
 </section>`;

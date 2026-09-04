@@ -1,55 +1,78 @@
-/** Product homepage: the verification receipt, five phases, and the directory hook. */
+/**
+ * Ledger home — search first.
+ *
+ * The page's job changed. It used to be a brochure with the directory one
+ * click away and the search box stranded there; three of the sites worth
+ * copying lead with one input, and ours does more than any of theirs (it finds
+ * a listing OR asks for a scan of one that does not exist). So the input is
+ * the first thing under the headline, the three panels prove the directory is
+ * real, and the prose is a fraction of what it was.
+ *
+ * Copy discipline, measured against scorecard.dev: their sub-headline is 8
+ * words; this one is 7. The old lede was 33 words in its first sentence and
+ * used 27 undefined terms across the page. This page uses none of them —
+ * `src/glossary.ts` lists what was retired and `test/home.test.ts` fails if
+ * one comes back.
+ */
 import { ACTION_REPO_URL } from "../../config";
-import { LOCAL_SCAN_COMMAND } from "../../coverage";
-import { seal } from "./components";
+import type { ScanRecord } from "../../schema";
+import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
+import type { DesignCtx } from "../types";
 import { href, page } from "./layout";
 
-const RECEIPT = `<div class="card">
+/**
+ * The receipt stays. It is the page's strongest hand — a terminal transcript
+ * where readers accept tool names they do not know, which is exactly where
+ * jargon belongs and nowhere else.
+ */
+const RECEIPT = `<div class="card receipt-card">
   <div class="card-head">
     <span class="receipt-head-title">VERIFICATION RECEIPT</span>
     <span class="receipt-head-ver">sscsb 0.3.0</span>
   </div>
   <div class="receipt-body">
-    <div><span class="r-dim">$</span> sscsb verify</div>
-    <div><span class="r-pass">[PASS]</span> secrets <span class="r-dim">· trufflehog + gitleaks</span></div>
-    <div><span class="r-pass">[PASS]</span> commit-signing <span class="r-dim">· human-only on main</span></div>
-    <div><span class="r-pass">[PASS]</span> branch-protection <span class="r-dim">· PRs · sigs · checks</span></div>
-    <div><span class="r-pass">[PASS]</span> slsa-provenance <span class="r-dim">· build L3</span></div>
-    <div><span class="r-fail">[FAIL]</span> harden-runner <span class="r-dim">· 1 job unmonitored</span></div>
-    <div><span class="r-skip">[·····]</span> signing-model <span class="r-dim">· awaiting attestation</span></div>
-    <div class="receipt-sum">verify: <strong>1 failed, 1 degraded</strong></div>
+    <div><code><span class="r-dim">$</span> sscsb verify</code></div>
+    <div><code><span class="r-pass">[PASS]</span> secrets <span class="r-dim">· no keys in the code</span></code></div>
+    <div><code><span class="r-pass">[PASS]</span> commit-signing <span class="r-dim">· humans sign main</span></code></div>
+    <div><code><span class="r-pass">[PASS]</span> branch-protection <span class="r-dim">· PR review</span></code></div>
+    <div><code><span class="r-pass">[PASS]</span> slsa-provenance <span class="r-dim">· build receipts</span></code></div>
+    <div><code><span class="r-fail">[FAIL]</span> harden-runner <span class="r-dim">· 1 job unwatched</span></code></div>
+    <div><code><span class="r-skip">[·····]</span> signing-model <span class="r-dim">· nobody can check</span></code></div>
+    <div class="receipt-sum"><code>verify: <strong>1 failed, 1 unanswered</strong></code></div>
   </div>
 </div>`;
 
 const PHASE_STRIP = [
-  ["PHASE-1", "Commit integrity", "Secrets blocked at the hook. Humans sign; AI declares."],
-  ["PHASE-2", "Dependencies", "SBOMs, dual scanners, a trust gate for every new package."],
-  ["PHASE-3", "Provenance", "Keyless signatures and SLSA attestations, bound to digests."],
-  ["PHASE-4", "SAST & CI", "OpenGrep, CodeQL, egress-monitored, pinned workflows."],
-  ["PHASE-5", "Posture", "VEX, Security Insights, a compliance map that stays true."],
+  ["PHASE-1", "Commit integrity"],
+  ["PHASE-2", "Dependencies"],
+  ["PHASE-3", "Build receipts"],
+  ["PHASE-4", "Code &amp; build hardening"],
+  ["PHASE-5", "Ongoing posture"],
 ]
   .map(
-    ([eyebrow, title, copy]) => `<div class="phase-cell">
+    ([eyebrow, title]) => `<div class="phase-cell">
     <div class="phase-cell-eyebrow">${eyebrow}</div>
     <div class="phase-cell-title">${title}</div>
-    <div class="phase-cell-copy">${copy}</div>
   </div>`,
   )
   .join("\n  ");
 
-export function renderHome(_repoCount: number): string {
+export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
+  const n = records.length;
   const body = `
 <section class="hero">
   <div class="hero-copy">
     <p class="eyebrow">phase-0 · bootstrap</p>
     <h1 class="display-hl">Supply chain<br>security,<br>stamped&nbsp;in.</h1>
-    <p class="lede">44 verifiable controls across five phases — secret scanning, signing
-    policy, SBOMs, provenance, SAST — bootstrapped into any repo in one command.
-    An unperformed check is never a verdict.</p>
-    <div class="hero-cta">
-      <pre class="install-cmd"><code>brew install p4gs/p4gs/sscsb</code></pre>
-      <a class="arrow-link" href="${href("directory/")}">Browse the directory →</a>
-    </div>
+    <p class="lede">An unperformed check is never a verdict.</p>
+    ${searchControl(href, records, {
+      label: "Find a repository — or ask for one to be scanned",
+      placeholder: "owner/repo",
+      scanCopy:
+        "Not listed yet. Ask for a scan — every result is reviewed by a person before it appears.",
+    })}
+    <p class="hero-count">${n} ${n === 1 ? "repository" : "repositories"} on the public record ·
+    <a class="arrow-link" href="${href("directory/")}">browse them all →</a></p>
   </div>
   ${RECEIPT}
 </section>
@@ -58,40 +81,27 @@ export function renderHome(_repoCount: number): string {
   ${PHASE_STRIP}
 </section>
 
+<div class="hp-panels">
+${exemplarPanels(href, records, ctx.trust, ctx.localTrust)}
+</div>
+
+${threatStrip(href)}
+
 <section class="twocol">
   <div class="col-block">
-    <h2 class="h2-display">The public directory</h2>
-    <p class="body-copy">Every listed repository was scanned with sscsb itself and scored by
-    a published, versioned methodology. Evidence the scanner created never counts.
-    Checks that couldn't run are shown, not spun.</p>
-    <div class="seal-demo">
-      ${seal("B", { size: 74, rotationKey: "demo-B" })}
-      <p class="seal-demo-copy">Grades are inspection seals:
-      <strong class="mono">A+</strong> is reserved for exactly&nbsp;100%.
-      Unverified controls sit outside every denominator.</p>
-    </div>
-  </div>
-  <div class="col-block">
-    <h2 class="h2-display">Authenticated scans</h2>
-    <p class="body-copy">External scans are honest about their limits. Run
-    <span class="code-chip">sscsb-action</span> in your own CI to publish a record
-    that sees what an outside scan cannot — through the same reviewed gate.</p>
+    <h2 class="h2-display">Scan your own</h2>
+    <p class="body-copy">A scan from outside sees only what anyone can see. Run sscsb in your
+    own build and it sees the rest — through the same review before publishing.</p>
     <div class="btn-row">
       <a class="btn" href="${ACTION_REPO_URL}">Install the Action</a>
-      <a class="btn-outline" href="${href("directory/")}?submit=1">Submit a repo to the directory</a>
+      <a class="btn-outline" href="${href("methodology/")}">How scoring works</a>
     </div>
   </div>
   <div class="col-block">
-    <h2 class="h2-display">Local scans</h2>
-    <p class="body-copy">Ten or eleven controls describe the development machine,
-    which no repository scan can observe — the reason a well-run repository can still
-    read <em>provisional</em>. <span class="code-chip">${LOCAL_SCAN_COMMAND}</span>
-    signs a record with the git key your repository already commits in
-    <span class="code-chip">allowed_signers</span>. Weaker evidence than CI, so it
-    resolves exactly those controls and nothing else.</p>
-    <div class="btn-row">
-      <a class="btn-outline" href="${href("methodology/#local")}">How it is verified</a>
-    </div>
+    <h2 class="h2-display">Install the tool</h2>
+    <p class="body-copy">44 checks, five phases, one command. It sets them up and then tells
+    you, bluntly, which ones it could not answer.</p>
+    <pre class="install-cmd"><code>brew install p4gs/p4gs/sscsb</code></pre>
   </div>
 </section>`;
   return page({ title: "SSCS Bootstrapper", body });
