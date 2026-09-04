@@ -16,12 +16,47 @@
 //   #dir-sort        <select> with values: grade | coverage | name | scanned
 //   #dir-incomplete  checkbox — show only listings below the coverage floor
 //   #dir-count       element whose textContent is set to "N of M shown"
+//   #dir-index       <script type="application/json"> holding every listed slug
+//                    as an array of lowercase "owner/repo" strings
+//   #dir-found       hidden container revealed when the query names a repo that
+//                    IS listed; carries data-detail-base (the directory prefix)
+//   #dir-found-link  the anchor inside it, pointed at that listing
+//
+// WHY #dir-index EXISTS. "Is this repository already listed?" used to be
+// answered by scanning the table's rows — which is correct on the directory
+// page and silently wrong anywhere else. On a page with no table the row list
+// is empty, no query can ever match, and the control offers to SCAN a
+// repository that already has a live listing. The home page is exactly that
+// page. So the known-slug set is the UNION of the rendered rows and this
+// index: the directory keeps working from its rows alone, the home page works
+// from its index alone, and a page carrying both agrees with itself.
 (function () {
   var input = document.getElementById("dir-filter");
   if (!input) return;
   var tbody = document.querySelector("table.directory tbody");
   var rows = Array.prototype.slice.call(document.querySelectorAll("table.directory tbody tr"));
   var scan = document.getElementById("dir-scan");
+  var found = document.getElementById("dir-found");
+  var foundLink = document.getElementById("dir-found-link");
+  // Every slug this site lists, lowercase, from both sources.
+  var listed = {};
+  rows.forEach(function (tr) {
+    var n = (tr.getAttribute("data-name") || "").toLowerCase();
+    if (n) listed[n] = true;
+  });
+  var indexEl = document.getElementById("dir-index");
+  if (indexEl) {
+    try {
+      var parsed = JSON.parse(indexEl.textContent || "[]");
+      if (parsed && parsed.length) {
+        for (var i = 0; i < parsed.length; i++) {
+          if (typeof parsed[i] === "string") listed[parsed[i].toLowerCase()] = true;
+        }
+      }
+    } catch (e) {
+      /* a malformed index must not take the search box down with it */
+    }
+  }
   var cta = document.getElementById("dir-scan-cta");
   var status = document.getElementById("dir-scan-status");
   var sortSel = document.getElementById("dir-sort");
@@ -94,17 +129,27 @@
       tr.style.display = hit ? "" : "none";
       if (hit) visible++;
     });
-    if (count) {
+    // Only a page that actually renders rows can report a count. Without this
+    // guard a table-less page reports "0 listings" beside a directory that
+    // demonstrably has some.
+    if (count && rows.length > 0) {
       count.textContent =
         visible === rows.length
           ? rows.length + (rows.length === 1 ? " listing" : " listings")
           : visible + " of " + rows.length + " shown";
     }
     var slug = parseSlug(input.value);
-    if (slug) {
-      rows.forEach(function (tr) {
-        if ((tr.getAttribute("data-name") || "").toLowerCase() === slug.toLowerCase()) exact = true;
-      });
+    if (slug) exact = listed[slug.toLowerCase()] === true;
+    // The other half of the same fix: when the typed repository IS listed, say
+    // so and offer the listing. Before, a matching query simply hid the scan
+    // panel and left the visitor staring at an unchanged page.
+    if (found) {
+      found.hidden = !exact;
+      if (exact && slug && foundLink) {
+        var base = found.getAttribute("data-detail-base") || "";
+        foundLink.setAttribute("href", base + slug.toLowerCase().replace("/", "--") + "/");
+        foundLink.textContent = "Open " + slug + " →";
+      }
     }
     if (scan) {
       var show = !!slug && !exact;
@@ -120,16 +165,64 @@
     }
   }
 
-  function fallback(slug) {
+  // The pre-filled issue-form URL for a slug, or null when no fallback form is
+  // configured.
+  function fallbackUrl(slug) {
     var base = (scan && scan.getAttribute("data-fallback")) || "";
     if (!base) return null;
-    var url =
+    return (
       base +
       (base.indexOf("?") === -1 ? "?" : "&") +
       "title=" + encodeURIComponent("[scan] " + slug) +
-      "&repo_url=" + encodeURIComponent("https://github.com/" + slug);
-    window.open(url, "_blank", "noopener,width=720,height=780");
-    return url;
+      "&repo_url=" + encodeURIComponent("https://github.com/" + slug)
+    );
+  }
+
+  // Try to open the pre-filled form in a popup, and REPORT WHETHER IT OPENED.
+  //
+  // WHY THIS RETURNS A HANDLE. This call happens two promise hops inside a
+  // .catch(), which is precisely the shape every browser's popup blocker
+  // stops: the click that started it is long over, so the open is not a user
+  // gesture any more. The old code threw away window.open's return value and
+  // returned the URL string, then branched on that string — so the status line
+  // said "a pre-filled scan request just opened in a popup" whether or not
+  // anything had opened, and structurally could not tell. A blocked user was
+  // told to press a button in a window that did not exist.
+  //
+  // A blocker signals refusal in one of three ways: it returns null, it
+  // returns undefined, or it hands back a window it has already closed. All
+  // three are checked. Anything else that throws is a refusal too.
+  //
+  // WHY `noopener` IS NOT IN THE FEATURE STRING. It cannot be. Passing
+  // "noopener" makes window.open return null BY SPECIFICATION — the whole
+  // point is that no reference to the new window is handed back — so a
+  // SUCCESSFUL open is indistinguishable from a blocked one. Measured in real
+  // Chrome: with "noopener" the return is null while the popup demonstrably
+  // opens (a second tab appears); without it, an object. Keeping it would have
+  // replaced "always claims it opened" with "always claims it was blocked",
+  // which is the same defect facing the other way.
+  // The isolation `noopener` buys is restored on the next line instead:
+  // clearing `opener` severs the new window's reference back to this one, so
+  // it still cannot navigate or script the page that opened it.
+  function openPopup(url) {
+    try {
+      var w = window.open(url, "_blank", "width=720,height=780");
+      if (!w) return false;
+      try {
+        w.opener = null;
+      } catch (e) {
+        /* older engines: the window is same-site GitHub either way */
+      }
+      // Some blockers hand back a window and close it in the same tick.
+      try {
+        if (w.closed) return false;
+      } catch (e) {
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   function requestScan() {
@@ -166,12 +259,25 @@
       })
       .catch(function (err) {
         if (err && err.unconfigured) {
-          var url = fallback(slug);
-          setStatus(
-            url
-              ? "One more click: a pre-filled scan request just opened in a popup — press “Submit new issue” there."
-              : "The scan service isn't available right now."
-          );
+          var url = fallbackUrl(slug);
+          if (!url) {
+            setStatus("The scan service isn't available right now.");
+          } else if (openPopup(url)) {
+            // Substantiated: we hold a live window handle.
+            setStatus(
+              "One more click: a pre-filled scan request just opened in a popup — press “Submit new issue” there. If you can't see it,",
+              url,
+              "open the form here"
+            );
+          } else {
+            // Blocked. Say so, and give a path that CANNOT be blocked: a link
+            // the reader clicks themselves is a user gesture by definition.
+            setStatus(
+              "Your browser blocked the popup, so nothing opened. Open the pre-filled scan request yourself:",
+              url,
+              "Open the scan request form"
+            );
+          }
           cta.disabled = false;
           return;
         }

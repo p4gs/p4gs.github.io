@@ -31,7 +31,7 @@
  */
 import { cp, mkdir, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { BASE_PATH } from "./config";
+import { BASE_PATH, SITE_ORIGIN, STAY_PARAM } from "./config";
 import { DEFAULT_DESIGN, DESIGNS } from "./designs/registry";
 import { repoSlugPath } from "./designs/ledger/directory";
 import { renderLanding } from "./designs/ledger/landing";
@@ -247,34 +247,101 @@ function prefixFor(d: Design): string {
 
 /**
  * The cross-design switcher for one page. Pure links (equivalent subpath in
- * every design) + a small script: remember the chosen design, and on the
- * default tree redirect once to a remembered alternate (`?stay` opts out).
+ * every design) + a small script that remembers a CHOSEN design.
+ *
+ * THE BUG THIS SHAPE EXISTS TO PREVENT. The remembering used to happen on
+ * LOAD: `if (here !== def) localStorage.setItem(KEY, here)`. So merely viewing
+ * one alternate page once — following a link, opening a shared URL, landing
+ * from a search result — silently made that design permanent, and every later
+ * visit to the canonical `/sscsb/` redirected away from the default the site
+ * had chosen. A visit is not a choice. Only a click on the switcher is, so
+ * only a click writes.
+ *
+ * Escape hatches, because a sticky redirect that cannot be undone is the same
+ * bug wearing a hat:
+ *   - clicking the DEFAULT design's link FORGETS the preference outright;
+ *   - that link also carries `?${STAY_PARAM}`, so it is a shareable
+ *     "always give me the default" URL, and arriving with it clears the
+ *     stored value and suppresses the redirect for that load;
+ *   - a stored value naming a design that no longer exists is ignored (and
+ *     cleared) rather than redirecting into a 404.
+ *
+ * A first-time visitor has nothing stored, so no redirect happens. A crawler
+ * runs no script and gets the default tree; every alternate page also points
+ * its canonical at the default page, so the trial is not four publications.
  */
-function switcherFor(current: Design, subpath: string): string {
+export function switcherFor(current: Design, subpath: string): string {
   const links = DESIGNS.map((d) => {
-    const target = `${prefixFor(d)}${subpath}`;
+    const isDefault = d.id === DEFAULT_DESIGN.id;
+    // The default link doubles as the reset: it clears the stored choice, and
+    // carries the opt-out parameter so even a stale write cannot bounce it.
+    const target = `${prefixFor(d)}${subpath}${isDefault ? `?${STAY_PARAM}` : ""}`;
     const cls = d.id === current.id ? ' aria-current="true"' : "";
     return `<a data-design="${d.id}" href="${target}"${cls}>${d.label}</a>`;
   }).join("");
+  const ids = JSON.stringify(DESIGNS.map((d) => d.id));
   return `<nav class="design-switcher" aria-label="Design variant">
 <span class="ds-label">Design</span>${links}
 </nav>
 <script>(function(){
   var KEY="sscsb-design";
+  var DEF=${JSON.stringify(DEFAULT_DESIGN.id)}, KNOWN=${ids};
+  var HERE=${JSON.stringify(current.id)};
+  function known(v){for(var i=0;i<KNOWN.length;i++){if(KNOWN[i]===v)return true;}return false;}
+  function stay(){
+    // An exact parameter match. Substring matching on the query string made
+    // any URL containing the letters "stay" opt out by accident.
+    var q=(location.search||"").replace(/^\\?/,"").split("&");
+    for(var i=0;i<q.length;i++){
+      var k=q[i].split("=")[0];
+      if(k===${JSON.stringify(STAY_PARAM)})return true;
+    }
+    return false;
+  }
   try{
-    var here="${current.id}", def="${DEFAULT_DESIGN.id}", base="${BASE_PATH}", sub="${subpath}";
-    if(here!==def){localStorage.setItem(KEY,here);}
-    else{
-      var want=localStorage.getItem(KEY);
-      if(want&&want!==def&&location.search.indexOf("stay")===-1){
-        var el=document.querySelector('.design-switcher a[data-design="'+want+'"]');
-        if(el){location.replace(el.getAttribute("href"));}
+    var opted=stay();
+    if(opted){try{localStorage.removeItem(KEY);}catch(e){}}
+    // NOTE: nothing is written here from the page's own identity. Viewing a
+    // page is not choosing it.
+    if(HERE===DEF&&!opted){
+      var want=null;
+      try{want=localStorage.getItem(KEY);}catch(e){}
+      if(want&&want!==DEF){
+        if(!known(want)){try{localStorage.removeItem(KEY);}catch(e){}}
+        else{
+          var el=document.querySelector('.design-switcher a[data-design="'+want+'"]');
+          if(el){location.replace(el.getAttribute("href"));return;}
+        }
       }
     }
     var links=document.querySelectorAll(".design-switcher a");
     for(var i=0;i<links.length;i++){links[i].addEventListener("click",function(){
-      try{localStorage.setItem(KEY,this.getAttribute("data-design"));}catch(e){}
+      var id=this.getAttribute("data-design");
+      try{
+        if(id===DEF){localStorage.removeItem(KEY);}
+        else{localStorage.setItem(KEY,id);}
+      }catch(e){}
     });}
+    // The switcher is position:fixed, so it sits OVER whatever is at the
+    // bottom of the viewport — which, scrolled to the end of the page, is the
+    // footer. A static bottom padding on <main> could never fix that: the
+    // footer is outside main. And the height is not a constant to hard-code —
+    // measured live it is 56px at 390px wide and 102px at 320px, where the
+    // links wrap onto three rows. So it measures itself and reserves exactly
+    // that much at the end of the document. The CSS fallback covers no-JS.
+    var nav=document.querySelector(".design-switcher");
+    if(nav){
+      var reserve=function(){
+        var r=nav.getBoundingClientRect();
+        var gap=(window.innerHeight-r.bottom); // its own inset-block-end
+        document.documentElement.style.setProperty(
+          "--switcher-clearance",Math.ceil(r.height+(gap>0?gap:10)+12)+"px");
+      };
+      reserve();
+      window.addEventListener("resize",reserve);
+      window.addEventListener("orientationchange",reserve);
+      if(window.ResizeObserver){new ResizeObserver(reserve).observe(nav);}
+    }
   }catch(e){}
 })();</script>`;
 }
@@ -313,6 +380,8 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       h: (p: string) => `${prefix}${p.replace(/^\//, "")}`,
       switcher: switcherFor(design, subpath),
       active,
+      // Always the DEFAULT design's URL for this page, in every tree.
+      canonical: `${SITE_ORIGIN}${BASE_PATH}${subpath}`,
       trust,
       localTrust,
       facts,
@@ -322,7 +391,7 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
     await write(join("sscsb", tree, "filter.js"), filterJs);
     await write(
       join("sscsb", tree, "index.html"),
-      design.renderHome(records.length, ctxFor("home", "")),
+      design.renderHome(records, ctxFor("home", "")),
     );
     await write(
       join("sscsb", tree, "directory/index.html"),

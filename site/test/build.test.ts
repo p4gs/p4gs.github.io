@@ -5,6 +5,7 @@ import { renderDirectory, renderRepoDetail } from "../src/designs/ledger/directo
 import { renderHome } from "../src/designs/ledger/home";
 import { renderMethodology } from "../src/designs/ledger/methodology";
 import { recordFilename, validateScanRecord, type ScanRecord } from "../src/schema";
+import type { DesignCtx } from "../src/designs/types";
 
 function sampleRecord(overrides: Partial<ScanRecord> = {}): ScanRecord {
   return {
@@ -42,6 +43,15 @@ function sampleRecord(overrides: Partial<ScanRecord> = {}): ScanRecord {
   };
 }
 
+/** The ledger renderers read their prefix from a module-level ctx; the home
+ * page additionally reads trust/localTrust off the one it is handed. */
+const testCtx: DesignCtx = {
+  prefix: BASE_PATH,
+  h: (p: string) => `${BASE_PATH}${p.replace(/^\//, "")}`,
+  switcher: "",
+  active: "home",
+};
+
 describe("escapeHtml", () => {
   test("neutralizes script and attribute contexts", () => {
     expect(escapeHtml(`<script>x</script>`)).toBe("&lt;script&gt;x&lt;/script&gt;");
@@ -51,7 +61,7 @@ describe("escapeHtml", () => {
 
 describe("link integrity — every internal href carries BASE_PATH", () => {
   const pages: Array<[string, string]> = [
-    ["home", renderHome(3)],
+    ["home", renderHome([sampleRecord()], testCtx)],
     ["directory", renderDirectory([sampleRecord()])],
     ["repo", renderRepoDetail(sampleRecord())],
     ["methodology", renderMethodology()],

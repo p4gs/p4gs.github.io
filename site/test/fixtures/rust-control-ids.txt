@@ -1,0 +1,49 @@
+# Control ids, vendored from sscs-bootstrapper src/controls.rs.
+# The site's three id-keyed tables are pinned to this list by
+# test/control-registry.test.ts. Do not hand-edit.
+# Refresh: bun run refresh:controls  (needs the tool repo checked out)
+# 44 controls
+actions-audit
+agent-signing
+ai-dep-gate
+ai-receipts
+ai-trailers
+best-practices-badge
+branch-protection
+bumblebee
+codeql
+commit-signing
+compliance-map
+dependency-track
+fuzzing
+github-attestations
+gittuf
+grype
+guac
+harden-runner
+model-signing
+octo-sts
+openvex
+oras
+osps-baseline
+package-trust
+pr-template
+provenance-verify
+release-immutability
+renovate
+sast
+sbom
+sbom-attestation
+scorecard
+secrets
+secure-repo
+security-insights
+sighthound
+signing-model
+sigstore-signing
+slsa-provenance
+socket-firewall
+vuln-scan
+wait-for-secrets
+witness
+workflow-audit-extended

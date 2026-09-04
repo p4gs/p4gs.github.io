@@ -28,6 +28,20 @@ export function escapeHtml(s: string): string {
 }
 
 /**
+ * `<link rel="canonical">` for this page: always the DEFAULT design's URL.
+ *
+ * The alternate design trees publish the same pages under `_d/<id>/`. Without
+ * this, a crawler sees four copies of every page and picks one; with it, the
+ * default design is the copy that counts, which is the same answer a
+ * first-time visitor gets.
+ */
+export function canonicalLink(): string {
+  return ctx.canonical
+    ? `\n<link rel="canonical" href="${escapeHtml(ctx.canonical)}">`
+    : "";
+}
+
+/**
  * What the evidence merge did for one listing — contradictions, a stale local
  * record, assertions held back awaiting independent observation. Read through
  * the render context so a design never has to be handed it explicitly.
@@ -64,7 +78,7 @@ export function page(opts: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(opts.title)}</title>
+<title>${escapeHtml(opts.title)}</title>${canonicalLink()}
 ${FONTS_HEAD}
 <link rel="stylesheet" href="${href("style.css")}">
 </head>

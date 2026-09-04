@@ -41,6 +41,14 @@ export interface DesignCtx {
   switcher: string;
   /** Which nav item is active: "home" | "directory" | "methodology". */
   active: string;
+  /**
+   * Absolute URL of the DEFAULT design's equivalent page, emitted as
+   * `<link rel="canonical">`. The alternate trees are a design trial, not four
+   * separate publications: a crawler should index one copy of each page, the
+   * default design's. Absent outside the build (tests, direct calls), where
+   * there is no origin to be canonical against.
+   */
+  canonical?: string;
   /** Trust sidecars keyed by `owner--name` (trust.ts trustKeyOf); absent = none loaded. */
   trust?: ReadonlyMap<string, TrustInfo>;
   /**
@@ -70,7 +78,13 @@ export interface Design {
   head: string;
   /** Complete stylesheet for this design's tree; omitted = public/style.css. */
   css?: string;
-  renderHome(repoCount: number, ctx: DesignCtx): string;
+  /**
+   * The home page. It takes the RECORDS, not a count: its job is now to show
+   * the directory (search it, and read three panels off it), and a count
+   * cannot do either. `ctx.trust` / `ctx.localTrust` / `ctx.facts` were always
+   * passed here and were simply unused.
+   */
+  renderHome(records: ScanRecord[], ctx: DesignCtx): string;
   renderDirectory(records: ScanRecord[], ctx: DesignCtx): string;
   renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string;
   renderMethodology(ctx: DesignCtx): string;

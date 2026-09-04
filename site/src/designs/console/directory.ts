@@ -23,6 +23,9 @@ import {
   type TrustKind,
 } from "../../trust";
 import { compactMeters, gradeBadge, meterStack, PHASE_NAMES } from "./components";
+import { define, defineTerm } from "../../glossary";
+import { directoryTermsNote } from "../home-shared";
+import { exposurePanel } from "../threats-shared";
 import { escapeHtml, page } from "./layout";
 import type { DesignCtx } from "../types";
 
@@ -177,7 +180,7 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
 <div class="dir-controls">
   <label class="dir-filter-label" for="dir-filter">SEARCH · OR SUBMIT OWNER/REPO</label>
   <input type="search" id="dir-filter"
-    placeholder="⌕ search the directory — or type owner/repo to submit…"
+    placeholder="owner/repo"
     aria-label="Search the directory, or submit a repository by typing owner/repo or a GitHub URL">
   <div id="dir-scan" hidden data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
     <p class="scan-copy"><span class="scan-eyebrow">NO RECORD</span>
@@ -201,7 +204,7 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
 </div>
 <div class="table-scroll">
 <table class="directory">
-  <thead><tr><th>Grade</th><th>Repository</th><th>Phase telemetry</th><th>Lane</th><th>Scanned</th></tr></thead>
+  <thead><tr><th>Grade</th><th>Repository</th><th>Phases</th><th>Evidence source</th><th>Scanned</th></tr></thead>
   <tbody>
 ${rows}
   </tbody>
@@ -211,9 +214,10 @@ ${rows}
   <span class="key-label">KEY</span>
   <span class="key-item"><span class="key-swatch key-pass"></span>pass</span>
   <span class="key-item"><span class="key-swatch key-fail"></span>fail / gap</span>
-  <span class="key-item"><span class="key-swatch key-unv"></span>unverified — outside the math</span>
-  <span class="key-item">${LANE_CHIP.local}maintainer-signed workstation scan — its local-environment verdicts count on their own</span>
+  <span class="key-item"><span class="key-swatch key-unv"></span>${defineTerm("unverified")}</span>
+  <span class="key-item">${LANE_CHIP.local}a maintainer ran this on their own machine and signed it — the only evidence that can exist for the checks only they can see</span>
 </div>
+${directoryTermsNote(ctx.h)}
 <script src="${ctx.h("filter.js")}" defer></script>`;
   return page(ctx, { title: "Scan Directory", body });
 }
@@ -399,8 +403,8 @@ function provenance(
   there. Before listing it, the directory verified the Sigstore bundle against the
   certificate identity <code>${escapeHtml(t.identity ?? "")}</code>${
       t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
-    }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
-  repository, workflow path, and default branch are burned into that certificate by
+    }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""}.
+  The repository, workflow path, and default branch are burned into that certificate by
   GitHub's OIDC issuer, not asserted by the record.</p>
   <p class="body-copy">Re-verify it yourself: <a href="${recordHref}">scan-record.json</a> ·
   <a href="${bundleHref}">signature bundle</a></p>
@@ -472,12 +476,15 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   methodology v${r.methodology_version} ·
   <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a>
 </p>
-<p class="score-line">Overall: <strong>${
+<p class="score-line"><strong>${
     r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`
-  }</strong> · evidence coverage: ${r.score.evidence_coverage_percent}%${
-    r.score.provisional ? ` · <em class="prov-flag">provisional</em>` : ""
+  }</strong> of the answered checks passed · <strong>${
+    r.score.evidence_coverage_percent
+  }%</strong> of the checks were answered at all${
+    r.score.provisional ? ` · <em class="prov-flag">provisional</em> ${define("provisional")}` : ""
   }</p>
 <div class="detail-meters">${meterStack(r.score.phases)}</div>
+${exposurePanel(ctx.h, r)}
 ${provenance(r, t, kind, ctx, lt)}
 ${lt && kind !== "local" ? localProvenance(r, lt, false, ctx) : ""}
 ${renderFactsSection(lookupFacts(ctx.facts, r), r.score)}

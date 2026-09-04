@@ -33,6 +33,9 @@ import {
 } from "../../trust";
 import type { DesignCtx } from "../types";
 import { gradeSeal, PHASE_NAMES, phaseBars } from "./components";
+import { define, defineTerm } from "../../glossary";
+import { directoryTermsNote } from "../home-shared";
+import { exposurePanel } from "../threats-shared";
 import { escapeHtml, page } from "./layout";
 
 const GRADE_ORDER: Readonly<Record<string, number>> = {
@@ -201,7 +204,7 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
   maintainer's review before appearing here; every seal names its own limits.
   To submit a repository, type its <code>owner/repo</code> into the field below.</p>
   <input type="search" id="dir-filter"
-    placeholder="Search the directory, or submit owner/repo…"
+    placeholder="owner/repo"
     aria-label="Search the directory, or submit a repository as owner/repo">
   <div id="dir-scan" hidden data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
     <p class="scan-copy">This repository isn't in the directory yet. Run an unauthenticated
@@ -230,10 +233,14 @@ ${rows}
 <p class="legend"><span class="legend-label">Legend</span>
   <span class="legend-item"><span class="sw sw-pass" aria-hidden="true"></span>pass</span> ·
   <span class="legend-item"><span class="sw sw-fail" aria-hidden="true"></span>fail / gap</span> ·
-  <span class="legend-item"><span class="sw sw-unv" aria-hidden="true"></span>unverified — shown, never counted</span> ·
-  grades A+–F per the methodology, <em>NA</em> = insufficient evidence, <em>provisional</em> = coverage under ${COVERAGE_FLOOR_PROVISIONAL}%.
-  ${LANE_LABEL.local} marks a maintainer-signed workstation scan — its local-environment verdicts count on their own,
-  and weaker evidence than a record the repository's own CI produced.</p>
+  <span class="legend-item"><span class="sw sw-unv" aria-hidden="true"></span>${defineTerm("unverified")}</span> ·
+  grades A+–F per the published rules; <em>NA</em> means too little was answered for any
+  letter, and the letter is marked when fewer than ${COVERAGE_FLOOR_PROVISIONAL}% of the
+  checks were answered.
+  ${LANE_LABEL.local} marks a scan a maintainer ran on their own machine and signed. It is
+  the only evidence that can exist for the checks only they can see. It is also weaker than
+  a scan the repository's own build ran.</p>
+${directoryTermsNote(ctx.h)}
 <script src="${ctx.h("filter.js")}" defer></script>`;
   return page(ctx, { title: "Scan Directory", body });
 }
@@ -442,8 +449,8 @@ function closingNote(
   keyless-signed there. Before listing it, the directory verified the Sigstore bundle
   against the certificate identity <code>${escapeHtml(t.identity ?? "")}</code>${
     t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
-  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
-  repository, workflow path, and default branch are burned into that certificate by
+  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""}.
+  The repository, workflow path, and default branch are burned into that certificate by
   GitHub's OIDC issuer, not asserted by the record. Controls still marked unverified
   live in the development environment, which no CI scan can observe; that is a limit
   of the method, stated rather than hidden.</p>
@@ -500,11 +507,12 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   methodology v${r.methodology_version} ·
   <a href="${escapeHtml(r.repo.url)}">repository</a> ·
   <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a></p>
-  <p class="score-line">Overall <strong>${overall}</strong> · evidence coverage ${
-    r.score.evidence_coverage_percent
-  }%${r.score.provisional ? ` · <em>provisional</em>` : ""}</p>
+  <p class="score-line"><strong>${overall}</strong> of the answered checks passed ·
+  <strong>${r.score.evidence_coverage_percent}%</strong> of the checks were answered at
+  all${r.score.provisional ? ` · <em>provisional</em> ${define("provisional")}` : ""}</p>
   <div class="plate-bars">${phaseBars(r.score)}</div>
 </section>
+${exposurePanel(ctx.h, r)}
 <section class="controls-sec">
   <h2 class="sec-title">All controls</h2>
   <p class="sec-copy">Raw sscsb verdicts and every reclassification are shown —

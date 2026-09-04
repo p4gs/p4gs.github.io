@@ -26,6 +26,26 @@
   --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --font-body: "Public Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
   --font-mono: "Spline Sans Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  /* Fluid type. One scale, viewport-interpolated, so the four narrow
+     breakpoints this site is checked at (320/360/390/414 portrait, 667×375
+     and 844×390 landscape) are covered by the ramp rather than by four sets
+     of overrides. Floors are chosen so nothing lands under 12.5px and body
+     copy never drops below 16px — under 16px, iOS Safari zooms the page when
+     a form control takes focus, and the page is then wider than the screen. */
+  --step--2: clamp(0.78rem, 0.755rem + 0.13vw, 0.8125rem);  /* 12.5 → 13 */
+  --step--1: clamp(0.875rem, 0.85rem + 0.13vw, 0.9375rem);  /* 14 → 15 */
+  --step-0:  clamp(1rem, 0.98rem + 0.1vw, 1.0625rem);       /* 16 → 17 */
+  --step-1:  clamp(1.0625rem, 1.02rem + 0.23vw, 1.1875rem); /* 17 → 19 */
+  --step-2:  clamp(1.1875rem, 1.09rem + 0.48vw, 1.4375rem); /* 19 → 23 */
+  --step-3:  clamp(1.4375rem, 1.24rem + 0.97vw, 1.875rem);  /* 23 → 30 */
+  --step-4:  clamp(1.75rem, 1.32rem + 2.14vw, 2.875rem);    /* 28 → 46 */
+  --step-5:  clamp(1.9375rem, 1.35rem + 2.94vw, 3.625rem);  /* 31 → 58 */
+
+  /* The smallest thing a finger is expected to hit. */
+  --tap: 44px;
+  /* Page gutter — 16px at 320, 32px from ~800 up. */
+  --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -50,19 +70,69 @@
 }
 
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: var(--step-0);
   line-height: 1.6;
+  /* `dvh`, not `vh`: on a phone the URL bar and toolbar come and go, and 100vh
+     is the LARGEST of those states — so a `vh`-sized page overflows the screen
+     the moment the chrome is showing. The dynamic unit tracks the real box.
+     Column layout so a short page still pins its footer to the bottom. */
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+  /* Nothing may push the page sideways. Long unbroken tokens (a 60-character
+     repository name, a signing identity) are the usual culprit; they wrap
+     instead. */
+  overflow-wrap: break-word;
 }
 a { color: var(--stamp); }
 code, pre, .mono { font-family: var(--font-mono); }
 :focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
 
-main { max-width: 1200px; margin: 0 auto; padding: 0 32px 72px; }
+main {
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  inline-size: 100%;
+  padding: 0 var(--gutter) 72px;
+  flex: 1;
+}
+
+/* Clearance for the FIXED design switcher.
+   It belongs on <body>, not on <main>: the switcher is fixed to the viewport,
+   so scrolled to the end of the page it sits over whatever is last — and what
+   is last is the FOOTER, which lives outside main. Padding on main reserved
+   116px in the wrong place and the footer's two spans were still covered at
+   390x844 (measured: switcher top 778, footer spans 770-790 and 806-826).
+   The switcher's own script measures it and sets --switcher-clearance, because
+   its height is not a constant: 56px at 390px wide, 102px at 320px where the
+   links wrap onto three rows. The literal here is the no-JS fallback, sized
+   for that 320px worst case. */
+body { padding-block-end: var(--switcher-clearance, 132px); }
+
+/* Accessibility floor, deliberately !important. Under 16px, iOS Safari zooms
+   the viewport when a text field or select takes focus, and the page is then
+   wider than the screen — the exact horizontal-overflow bug this whole pass
+   exists to remove. A design may restyle these controls any way it likes; it
+   may not put them back under 16px. Measured live: console #dir-filter was
+   14px and #dir-sort 11px, chain 14.5px and 11px, manual #dir-sort 13.5px.
+   Checkboxes are exempt — they carry no text and do not trigger the zoom. */
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+  font-size: max(16px, 1em) !important;
+}
+
+/* Anything that cannot be made narrow scrolls INSIDE its own box. The rule
+   the reference sites get wrong: scorecard.dev overflows at 390px
+   (scrollWidth 438) because its check tables sit in an overflow-visible
+   parent, so the whole document scrolls sideways instead of the table. */
+.table-scroll, pre, .inkblock, .install-cmd, .trust pre, .exposure pre {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .hatch {
   background: repeating-linear-gradient(45deg, var(--hatch-a) 0 3px, var(--hatch-b) 3px 6px);
@@ -71,53 +141,68 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 32px 72px; }
 /* ---------- chrome ---------- */
 .topbar { border-bottom: 2px solid var(--line-strong); }
 .topbar-in {
-  max-width: 1200px; margin: 0 auto; padding: 22px 32px;
-  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  max-inline-size: 1200px; margin-inline: auto; padding: 14px var(--gutter);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px 24px; flex-wrap: wrap;
 }
 .wordmark {
   font-family: var(--font-mono); font-weight: 700; font-size: 17px;
   letter-spacing: 0.02em; color: var(--ink); text-decoration: none;
 }
 .wordmark .caret { color: var(--stamp); }
-.topnav { display: flex; gap: 28px; font-size: 15px; font-weight: 500; flex-wrap: wrap; }
-.topnav a { color: var(--ink); text-decoration: none; }
+/* Tap targets. Every nav link is at least 44px tall, which also fixes the
+   observed defect where the wrapped second row ("GitHub ↗") sat indented
+   under the first rather than aligned to an edge: the nav now starts at the
+   inline start once it wraps. */
+.topnav {
+  display: flex; gap: 4px 20px; font-size: var(--step--1); font-weight: 500;
+  flex-wrap: wrap; align-items: center;
+}
+.topnav a {
+  color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center;
+  min-block-size: var(--tap); padding-inline: 2px;
+}
 .topnav a:hover { color: var(--stamp); }
 .topnav a.active { border-bottom: 3px solid var(--stamp); padding-bottom: 2px; }
 .topnav a.ext { color: var(--stamp); }
 
 .site-footer { border-top: 2px solid var(--line-strong); }
 .footer-in {
-  max-width: 1200px; margin: 0 auto; padding: 18px 32px;
+  max-inline-size: 1200px; margin-inline: auto; padding: 18px var(--gutter);
   display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;
-  font-size: 13px; color: var(--ink-dim);
+  font-size: var(--step--2); color: var(--ink-dim);
 }
-.footer-in .domain { font-family: var(--font-mono); font-size: 12px; }
+.footer-in .domain { font-family: var(--font-mono); font-size: var(--step--2); }
 
 /* ---------- shared atoms ---------- */
 .eyebrow {
-  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--stamp);
 }
 .display-hl {
   font-family: var(--font-display); font-weight: 900;
-  font-size: clamp(40px, 4.6vw, 58px); line-height: 1.02;
+  font-size: var(--step-5); line-height: 1.02;
   letter-spacing: -0.015em; text-transform: uppercase; margin: 0;
 }
 .page-title {
   font-family: var(--font-display); font-weight: 900;
-  font-size: clamp(34px, 3.8vw, 46px); line-height: 1.05;
+  font-size: var(--step-4); line-height: 1.05;
   letter-spacing: -0.015em; text-transform: uppercase; margin: 0;
 }
 .h2-display {
-  font-family: var(--font-display); font-weight: 900; font-size: 30px;
+  font-family: var(--font-display); font-weight: 900; font-size: var(--step-3);
   letter-spacing: -0.01em; margin: 0;
 }
-.lede { font-size: 18px; line-height: 1.6; color: var(--ink-dim); max-width: 58ch; margin: 0; }
+.lede { font-size: var(--step-1); line-height: 1.6; color: var(--ink-dim); max-inline-size: 58ch; margin: 0; }
 
 .card {
   background: var(--surface);
   border: 2px solid var(--line-strong);
   box-shadow: var(--shadow);
+  /* A card is often a grid/flex item; without this its content's intrinsic
+     minimum becomes the track's minimum. */
+  min-inline-size: 0;
 }
 .card-head {
   display: flex; justify-content: space-between; align-items: center; gap: 16px;
@@ -126,16 +211,20 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 32px 72px; }
 }
 
 .btn {
-  display: inline-block; background: var(--stamp); color: var(--stamp-ink);
-  padding: 13px 20px; font-weight: 600; font-size: 15px; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--stamp); color: var(--stamp-ink);
+  min-block-size: var(--tap); padding: 10px 20px;
+  font-weight: 600; font-size: var(--step--1); text-decoration: none;
   border: 2px solid var(--stamp);
 }
 .btn:hover { filter: brightness(1.08); }
 button.btn { font-family: var(--font-body); cursor: pointer; }
 button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
 .btn-outline {
-  display: inline-block; background: transparent; color: var(--ink);
-  padding: 11px 20px; font-weight: 600; font-size: 15px; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--ink);
+  min-block-size: var(--tap); padding: 10px 20px;
+  font-weight: 600; font-size: var(--step--1); text-decoration: none;
   border: 2px solid var(--line-strong);
 }
 .btn-row { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -143,12 +232,13 @@ button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
 .inkblock {
   background: var(--inkblock-bg); color: var(--inkblock-ink);
   border: 1px solid var(--inkblock-edge);
-  font-family: var(--font-mono); font-size: 14px; line-height: 1.9;
-  padding: 20px 24px; overflow-x: auto; margin: 0;
+  font-family: var(--font-mono); font-size: var(--step--1); line-height: 1.9;
+  padding: 20px 24px; margin: 0;
 }
 
 .arrow-link {
-  font-weight: 600; font-size: 15px; color: var(--ink);
+  display: inline-flex; align-items: center; min-block-size: var(--tap);
+  font-weight: 600; font-size: var(--step--1); color: var(--ink);
   text-decoration: underline; text-underline-offset: 4px;
 }
 
@@ -181,14 +271,16 @@ button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
 
 /* ---------- phase bars ---------- */
 .phase-bars { display: grid; gap: 7px; margin: 10px 0; }
+/* The label column is the thing that will not fit on a phone, so it is
+   fluid rather than fixed at 170px. */
 .phase-row {
-  display: grid; grid-template-columns: 170px 1fr 44px; gap: 10px;
-  align-items: center; font-size: 13px;
+  display: grid; grid-template-columns: clamp(96px, 26%, 170px) minmax(0, 1fr) 48px;
+  gap: 10px; align-items: center; font-size: var(--step--2);
 }
-.phase-bars-compact .phase-row { grid-template-columns: 34px 1fr 44px; }
-.phase-name { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.phase-bars-compact .phase-row { grid-template-columns: 34px minmax(0, 1fr) 48px; }
+.phase-name { color: var(--muted); font-family: var(--font-mono); font-size: var(--step--2); }
 .phase-pct {
-  font-family: var(--font-mono); font-size: 11px; text-align: right;
+  font-family: var(--font-mono); font-size: var(--step--2); text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .bar { display: flex; gap: 2px; height: 10px; }
@@ -199,23 +291,42 @@ button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
 
 /* ---------- home ---------- */
 .hero {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px;
-  align-items: center; padding: 64px 0 56px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(28px, 5vw, 56px);
+  align-items: center; padding-block: clamp(32px, 6vw, 64px) clamp(32px, 5vw, 56px);
 }
 .hero-copy { display: flex; flex-direction: column; gap: 28px; }
 .hero-cta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+/* `<pre>` defaults to white-space:pre, so a command one character longer than
+   the box used to push the whole document sideways. It scrolls itself now. */
 .install-cmd {
   background: var(--inkblock-bg); color: var(--inkblock-ink);
   border: 2px solid var(--inkblock-edge);
-  font-family: var(--font-mono); font-size: 15px; padding: 15px 22px; margin: 0;
+  font-family: var(--font-mono); font-size: var(--step--1);
+  padding: 14px 18px; margin: 0; max-inline-size: 100%;
 }
 
-.receipt-head-title { font-size: 13px; font-weight: 700; }
-.receipt-head-ver { font-size: 12px; color: var(--muted); }
+.receipt-head-title { font-size: var(--step--2); font-weight: 700; }
+.receipt-head-ver { font-size: var(--step--2); color: var(--muted); }
+/* The receipt is a terminal transcript: it may not wrap mid-line, so it keeps
+   its own scroller rather than reflowing into nonsense.
+   But it is also the page's PROOF ELEMENT, and a reader should not have to
+   discover that a scroller exists to read it. Measured at 390px it was 351
+   wide against 373 of content — 22px of the right-hand edge simply hidden,
+   with nothing on screen saying so; at 320px, 86px hidden. So the type scales
+   down on narrow viewports until the longest line fits, and the scroller stays
+   only as the backstop it was meant to be. The `min()` cap means nothing
+   changes from 414px up, where it already fit.
+   Longest line is 40 characters; at ~0.6em per character that needs
+   40 × 0.6 × font-size ≤ (viewport − page gutters − this padding). */
 .receipt-body {
-  font-family: var(--font-mono); font-size: 13.5px; line-height: 2.05;
-  padding: 20px 22px;
+  font-family: var(--font-mono);
+  font-size: min(var(--step--2), 3.45vw);
+  line-height: 2.05;
+  padding: 18px; overflow-x: auto;
 }
+@media (max-width: 400px) { .receipt-body { padding: 14px 12px; } }
+.receipt-body > div { white-space: nowrap; }
 .receipt-body .r-pass { color: var(--pass); font-weight: 700; }
 .receipt-body .r-fail { color: var(--fail); font-weight: 700; }
 .receipt-body .r-skip { color: var(--muted); font-weight: 700; }
@@ -241,63 +352,71 @@ button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
   display: flex; border-top: 2px solid var(--line-strong);
   border-bottom: 2px solid var(--line-strong);
 }
-.phase-cell { flex: 1 1 0; padding: 30px 28px; border-right: 1px solid var(--line); }
-.phase-cell:last-child { border-right: none; }
+.phase-cell {
+  flex: 1 1 0; padding: clamp(16px, 3vw, 30px) clamp(14px, 2.4vw, 28px);
+  border-inline-end: 1px solid var(--line);
+}
+.phase-cell:last-child { border-inline-end: none; }
 .phase-cell-eyebrow {
-  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
   letter-spacing: 0.12em; color: var(--stamp);
 }
 .phase-cell-title {
-  font-family: var(--font-display); font-weight: 700; font-size: 17px; margin-top: 8px;
+  font-family: var(--font-display); font-weight: 700; font-size: var(--step-1);
+  margin-block-start: 8px;
 }
-.phase-cell-copy { font-size: 13.5px; color: var(--ink-dim); margin-top: 6px; line-height: 1.5; }
+.phase-cell-copy { font-size: var(--step--1); color: var(--ink-dim); margin-block-start: 6px; line-height: 1.5; }
 
 .twocol {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px;
-  padding: 56px 0 16px; align-items: start;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(28px, 5vw, 56px);
+  padding-block: clamp(32px, 5vw, 56px) 16px; align-items: start;
 }
 .col-block { display: flex; flex-direction: column; gap: 16px; }
-.col-block .body-copy { font-size: 16px; line-height: 1.65; color: var(--ink-dim); margin: 0; }
+.col-block .body-copy { font-size: var(--step-0); line-height: 1.65; color: var(--ink-dim); margin: 0; }
 .seal-demo { display: flex; align-items: center; gap: 18px; margin-top: 6px; }
-.seal-demo-copy { font-size: 14px; color: var(--ink-dim); line-height: 1.5; }
+.seal-demo-copy { font-size: var(--step--1); color: var(--ink-dim); line-height: 1.5; }
 .code-chip {
-  font-family: var(--font-mono); font-size: 14px;
-  background: var(--hatch-b); padding: 2px 7px;
+  font-family: var(--font-mono); font-size: var(--step--1);
+  background: var(--hatch-b); padding: 2px 7px; overflow-wrap: anywhere;
 }
 
 /* ---------- directory ---------- */
 .page-head {
-  padding: 52px 0 24px;
+  padding-block: clamp(28px, 5vw, 52px) 24px;
   display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; flex-wrap: wrap;
 }
 .page-head-copy { display: flex; flex-direction: column; gap: 14px; }
-.page-head-copy .body-copy { font-size: 16px; color: var(--ink-dim); max-width: 60ch; line-height: 1.6; margin: 0; }
+.page-head-copy .body-copy { font-size: var(--step-0); color: var(--ink-dim); max-inline-size: 60ch; line-height: 1.6; margin: 0; }
 
 .dir-controls { margin: 8px 0 20px; }
 .dir-controls-label {
   display: block; margin: 0 0 8px;
-  font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
 }
+/* 16px is not a taste call: below it, iOS Safari zooms the viewport when the
+   field takes focus and the page is then wider than the screen. */
 #dir-filter {
-  width: 100%; max-width: 520px; padding: 12px 16px;
+  inline-size: 100%; max-inline-size: 520px; padding: 12px 16px;
+  min-block-size: var(--tap);
   border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink);
-  font-family: var(--font-mono); font-size: 14px; border-radius: 0;
+  font-family: var(--font-mono); font-size: 16px; border-radius: 0;
 }
 #dir-filter::placeholder { color: var(--muted); }
 
 /* Scan-intake callout: revealed by filter.js when the query is a repo slug
    with no directory entry. Quiet — dashed rule, no shadow, not a hero. */
 .dir-scan {
-  max-width: 520px; margin: 14px 0 0; padding: 18px 22px;
+  max-inline-size: 520px; margin-block-start: 14px; padding: 18px;
   background: var(--surface); border: 2px dashed var(--line-strong);
 }
 .dir-scan-copy {
-  margin: 0 0 14px; font-size: 14px; color: var(--ink-dim);
-  line-height: 1.55; max-width: 52ch;
+  margin: 0 0 14px; font-size: var(--step--1); color: var(--ink-dim);
+  line-height: 1.55; max-inline-size: 52ch;
 }
 .dir-scan-status {
-  margin: 12px 0 0; font-family: var(--font-mono); font-size: 12.5px;
+  margin-block-start: 12px; font-family: var(--font-mono); font-size: var(--step--2);
   color: var(--ink-dim); line-height: 1.6;
 }
 .dir-scan-status a { color: var(--stamp); }
@@ -306,119 +425,129 @@ button.btn:disabled { opacity: 0.55; cursor: default; filter: none; }
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 12px 14px; vertical-align: top; }
 thead th {
-  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
   text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-dim);
   border-bottom: 2px solid var(--line-strong); padding: 12px 14px;
 }
 tbody td { border-bottom: 1px solid var(--line); }
 
 table.directory tbody tr { background: var(--surface); }
-table.directory tbody td { padding: 24px 14px; vertical-align: middle; }
-.repo-cell { min-width: 220px; }
+table.directory tbody td { padding: clamp(14px, 2.4vw, 24px) 12px; vertical-align: middle; }
+.repo-cell { min-inline-size: 200px; }
 .repo-name {
-  font-family: var(--font-mono); font-size: 17px; font-weight: 700;
+  font-family: var(--font-mono); font-size: var(--step-1); font-weight: 700;
   color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center; min-block-size: var(--tap);
 }
 .repo-name:hover { color: var(--stamp); }
-.desc { display: block; font-size: 13.5px; color: var(--muted); margin-top: 5px; }
+.desc { display: block; font-size: var(--step--1); color: var(--muted); margin-block-start: 5px; }
 .meta-line {
-  display: block; font-family: var(--font-mono); font-size: 12.5px;
-  color: var(--ink-dim); margin-top: 5px;
+  display: block; font-family: var(--font-mono); font-size: var(--step--2);
+  color: var(--ink-dim); margin-block-start: 5px;
 }
 .prov-flag { font-style: normal; color: var(--warn); }
-.bars-cell { min-width: 260px; }
+.bars-cell { min-inline-size: 220px; }
 .lane {
-  display: inline-block; font-family: var(--font-mono); font-size: 12px;
+  display: inline-block; font-family: var(--font-mono); font-size: var(--step--2);
   padding: 5px 10px; text-align: center; white-space: nowrap;
 }
 .lane-ext { border: 1.5px solid var(--line-strong); color: var(--ink); }
 .lane-auth { border: 1.5px solid var(--stamp); color: var(--stamp); font-weight: 700; }
-.date-cell { font-family: var(--font-mono); font-size: 13px; color: var(--ink-dim); }
+.date-cell { font-family: var(--font-mono); font-size: var(--step--2); color: var(--ink-dim); white-space: nowrap; }
 
 .key-row {
-  display: flex; gap: 26px; padding: 18px 14px; align-items: center; flex-wrap: wrap;
-  font-size: 12.5px; color: var(--ink-dim);
+  display: flex; gap: 14px 26px; padding: 18px 0; align-items: center; flex-wrap: wrap;
+  font-size: var(--step--2); color: var(--ink-dim);
 }
-.key-label { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+.key-label { font-family: var(--font-mono); font-size: var(--step--2); color: var(--muted); }
 .key-item { display: inline-flex; align-items: center; gap: 7px; }
 .key-swatch { width: 22px; height: 9px; display: inline-block; }
 .key-pass { background: var(--pass); }
 .key-fail { background: var(--fail); }
 
 /* ---------- repo detail ---------- */
-.crumbs { margin-top: 28px; font-size: 14px; font-family: var(--font-mono); }
+.crumbs { margin-block-start: 28px; font-size: var(--step--1); font-family: var(--font-mono); }
+.crumbs a { display: inline-flex; align-items: center; min-block-size: var(--tap); }
 .repo-hero { display: flex; align-items: center; gap: 24px; margin: 28px 0 10px; flex-wrap: wrap; }
 .repo-title {
   font-family: var(--font-display); font-weight: 900;
-  font-size: clamp(26px, 3vw, 38px); letter-spacing: -0.01em; margin: 0;
+  font-size: var(--step-4); letter-spacing: -0.01em; margin: 0;
   overflow-wrap: anywhere;
 }
-.repo-meta { font-family: var(--font-mono); font-size: 13px; color: var(--ink-dim); line-height: 1.9; }
-.score-line { font-size: 15px; color: var(--ink-dim); }
+.repo-meta { font-family: var(--font-mono); font-size: var(--step--2); color: var(--ink-dim); line-height: 1.9; overflow-wrap: anywhere; }
+.score-line { font-size: var(--step-0); color: var(--ink-dim); }
 .nudge {
   background: var(--surface); border: 2px solid var(--line-strong);
-  box-shadow: var(--shadow); padding: 26px 30px; margin: 36px 0;
+  box-shadow: var(--shadow); padding: clamp(18px, 3.5vw, 30px); margin-block: 36px;
 }
-.nudge-title { font-family: var(--font-display); font-weight: 900; font-size: 24px; margin: 0 0 10px; }
+.nudge-title { font-family: var(--font-display); font-weight: 900; font-size: var(--step-2); margin: 0 0 10px; }
 .nudge .body-copy { color: var(--ink-dim); margin: 0 0 18px; }
-.transparency-note { font-size: 14px; color: var(--ink-dim); }
-.controls-title { font-family: var(--font-display); font-weight: 900; font-size: 26px; margin: 40px 0 12px; }
+.transparency-note { font-size: var(--step--1); color: var(--ink-dim); }
+.controls-title { font-family: var(--font-display); font-weight: 900; font-size: var(--step-3); margin: 40px 0 12px; }
 table.controls tbody tr { background: var(--surface); }
 .oc-fail .outcome, .oc-gap .outcome { color: var(--fail); font-weight: 600; }
 .oc-pass .outcome { color: var(--pass); font-weight: 600; }
 .oc-unverified .outcome { color: var(--muted); }
-.outcome { font-family: var(--font-mono); font-size: 14px; white-space: nowrap; }
+.outcome { font-family: var(--font-mono); font-size: var(--step--1); white-space: nowrap; }
 .out-of-scope { opacity: 0.55; }
-.oos, .raw { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
-.reason { font-size: 13px; color: var(--ink-dim); }
-details summary { cursor: pointer; font-size: 13px; color: var(--stamp); }
-details ul { font-size: 13px; color: var(--ink-dim); }
+.oos, .raw { font-size: var(--step--2); color: var(--muted); font-family: var(--font-mono); }
+.reason { font-size: var(--step--2); color: var(--ink-dim); }
+details summary {
+  cursor: pointer; font-size: var(--step--1); color: var(--stamp);
+  min-block-size: var(--tap); display: flex; align-items: center;
+}
+details ul { font-size: var(--step--2); color: var(--ink-dim); }
 
 /* ---------- methodology ---------- */
-.method-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 0; }
-.rail { border-right: 2px solid var(--line-strong); padding: 56px 24px 56px 0; }
+.method-grid { display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); gap: 0; }
+.rail { border-inline-end: 2px solid var(--line-strong); padding: 56px 24px 56px 0; }
 .rail-sticky { position: sticky; top: 24px; }
 .rail-head {
   font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
   color: var(--muted); padding-bottom: 16px;
 }
 .rail-item {
-  display: flex; align-items: center; gap: 12px; padding: 10px 0;
-  font-family: var(--font-mono); font-size: 13.5px; color: var(--ink-dim);
+  display: flex; align-items: center; gap: 12px; padding-block: 10px;
+  min-block-size: var(--tap);
+  font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-dim);
   text-decoration: none;
 }
 .rail-item:hover { color: var(--stamp); }
 .rail-item-first { font-weight: 700; color: var(--ink); }
 .rail-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--stamp); flex-shrink: 0; }
 .rail-item-sub { border-left: 2px solid var(--line); margin-left: 4px; padding-left: 20px; }
-.method-main { padding: 56px 0 56px 48px; max-width: 860px; display: flex; flex-direction: column; gap: 40px; }
+.method-main {
+  padding: 56px 0 56px clamp(20px, 3.5vw, 48px); max-inline-size: 860px;
+  min-inline-size: 0; display: flex; flex-direction: column; gap: 40px;
+}
 .method-section { display: flex; flex-direction: column; gap: 14px; }
 .method-section-label {
   font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em;
   color: var(--stamp); font-weight: 500; text-transform: uppercase;
 }
-.honesty-body { padding: 20px 24px; font-size: 15.5px; line-height: 1.7; color: var(--ink-dim); }
+.honesty-body { padding: 20px; font-size: var(--step-0); line-height: 1.7; color: var(--ink-dim); }
 .honesty-body strong { color: var(--ink); }
 .seal-row { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
-.grade-copy { font-size: 14.5px; color: var(--ink-dim); line-height: 1.65; }
+.grade-copy { font-size: var(--step--1); color: var(--ink-dim); line-height: 1.65; }
 .mv { font-size: 14px; color: var(--muted); font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
 
 .prose { color: var(--ink-dim); }
 .prose h2 {
-  font-family: var(--font-display); font-weight: 900; font-size: 24px;
+  font-family: var(--font-display); font-weight: 900; font-size: var(--step-2);
   color: var(--ink); margin: 0 0 12px;
 }
 .prose p, .prose ol, .prose ul { margin: 0 0 14px; }
 .prose strong { color: var(--ink); }
 .prose li { margin-bottom: 6px; }
-.method-table td { font-size: 14px; color: var(--ink-dim); }
+.method-table td { font-size: var(--step--1); color: var(--ink-dim); }
+.method-table { min-inline-size: 560px; }
 .method-table code { font-size: 12.5px; }
 .method-table strong { color: var(--ink); }
 
 /* ---------- landing ---------- */
 .landing-bar { border-bottom: 2px solid var(--line-strong); }
 .landing-bar-in {
-  max-width: 1200px; margin: 0 auto; padding: 24px 32px;
+  max-inline-size: 1200px; margin-inline: auto; padding: 24px var(--gutter);
   display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;
 }
 .landing-domain { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
@@ -426,48 +555,387 @@ details ul { font-size: 13px; color: var(--ink-dim); }
 .landing-hero { padding: 80px 0 40px; display: flex; flex-direction: column; gap: 20px; }
 .landing-display {
   font-family: var(--font-display); font-weight: 900;
-  font-size: clamp(42px, 5vw, 64px); line-height: 1.0; letter-spacing: -0.015em;
-  text-transform: uppercase; max-width: 20ch; margin: 0;
+  font-size: clamp(2rem, 1.3rem + 3.5vw, 4rem); line-height: 1.0; letter-spacing: -0.015em;
+  text-transform: uppercase; max-inline-size: 20ch; margin: 0;
 }
 .registry-card { display: flex; align-items: stretch; flex-wrap: wrap; margin: 24px 0 80px; }
 .reg-left { padding: 30px 34px; flex: 1 1 380px; display: flex; flex-direction: column; gap: 10px; }
 .reg-name-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .reg-name { font-family: var(--font-display); font-size: 26px; font-weight: 900; }
 .reg-path { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.reg-copy { font-size: 15.5px; color: var(--ink-dim); line-height: 1.6; max-width: 62ch; margin: 0; }
+.reg-copy { font-size: var(--step-0); color: var(--ink-dim); line-height: 1.6; max-inline-size: 62ch; margin: 0; }
 .reg-links { display: flex; gap: 22px; margin-top: 6px; }
 .reg-links a {
   font-weight: 600; font-size: 14.5px; color: var(--ink);
   text-decoration: underline; text-underline-offset: 4px;
 }
 .reg-stats {
-  border-left: 2px dashed var(--line); padding: 30px 34px; min-width: 220px;
+  border-inline-start: 2px dashed var(--line); padding: 30px 34px; min-inline-size: 220px;
   display: flex; flex-direction: column; justify-content: center; gap: 8px;
 }
 .stat-label { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
 .stat { font-family: var(--font-mono); font-size: 15px; }
 .landing-foot { border-top: 2px solid var(--line-strong); }
 .landing-foot-in {
-  max-width: 1200px; margin: 0 auto; padding: 18px 32px;
-  font-size: 13px; color: var(--ink-dim);
+  max-inline-size: 1200px; margin-inline: auto; padding: 18px var(--gutter);
+  font-size: var(--step--2); color: var(--ink-dim);
 }
 
-/* ---------- responsive ---------- */
+/* ---------- responsive ----------
+   Most of the adaptation is already done by the fluid scale and the logical
+   properties above; these are the layout changes a ramp cannot express.
+   Checked at 320 / 360 / 390 / 414 portrait and 667×375 / 844×390 landscape —
+   `document.documentElement.scrollWidth` must equal the viewport width at
+   every one of them. */
 @media (max-width: 900px) {
-  .hero, .twocol { grid-template-columns: 1fr; gap: 40px; }
-  .phase-strip { flex-direction: column; }
-  .phase-cell { border-right: none; border-bottom: 1px solid var(--line); }
-  .phase-cell:last-child { border-bottom: none; }
+  /* `minmax(0, 1fr)`, not `1fr`: a bare `1fr` track carries an implicit
+     min-width:auto, so the receipt card's non-wrapping transcript lines set
+     the column's floor and pushed the whole document 88px wide at 320. */
+  .hero, .twocol { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  /* The phase strip wraps rather than stacking into five full-width rows: at
+     390px five stacked cells is 5 screens of scrolling for five words each. */
+  .phase-strip { flex-wrap: wrap; }
+  .phase-cell { flex: 1 1 clamp(140px, 44%, 240px); border-block-end: 1px solid var(--line); }
+  .phase-cell:last-child { border-inline-end: none; }
   .method-grid { grid-template-columns: 1fr; }
-  .rail { border-right: none; border-bottom: 2px solid var(--line-strong); padding: 32px 0 20px; }
+  .rail { border-inline-end: none; border-block-end: 2px solid var(--line-strong); padding: 24px 0 16px; }
   .rail-sticky { position: static; }
-  .method-main { padding: 40px 0; }
-  .reg-stats { border-left: none; border-top: 2px dashed var(--line); flex: 1 1 100%; }
+  .method-main { padding: 32px 0; }
+  .reg-stats { border-inline-start: none; border-block-start: 2px dashed var(--line); flex: 1 1 100%; }
 }
-@media (max-width: 600px) {
-  main { padding: 0 20px 56px; }
-  .topbar-in, .footer-in, .landing-bar-in, .landing-foot-in { padding-left: 20px; padding-right: 20px; }
-  .hero { padding: 44px 0 40px; }
+
+/* Landscape phones (667×375, 844×390): the constraint is HEIGHT, not width.
+   A hero sized for a tall viewport pushes everything below the fold. */
+@media (max-height: 460px) and (orientation: landscape) {
+  .hero { padding-block: 20px 24px; }
+  .display-hl { font-size: clamp(1.5rem, 3.4vh + 1rem, 2.25rem); }
+  .page-head { padding-block: 18px 14px; }
+  .rail-sticky { position: static; }
+}
+
+@media (max-width: 640px) {
+  /* The seal and its caption stop competing for a 320px line. */
+  .seal-demo { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .repo-hero { gap: 14px; }
+  .key-row { gap: 10px 18px; }
+  .dir-count { margin-inline-start: 0; }
+  /* The switcher is a trial artifact and it sat ON TOP of the receipt card at
+     phone width. Centred and full-width-capped, it now behaves like a bar. */
+  .design-switcher {
+    inset-inline: 10px auto; inset-block-end: 10px;
+    max-inline-size: calc(100vw - 20px);
+  }
+}
+
+/* Reduced motion: the receipt's line-by-line print is decorative. The
+   `no-preference` rule above already gates it, and this makes the intent
+   explicit for anything added later. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .receipt-body > div { opacity: 1; }
+}
+
+/* ---------- home: search, panels, cards ---------- */
+.hero-copy .hp-search { margin-block: 4px; }
+.hp-search-label {
+  display: block; margin-block-end: 8px;
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.hp-search-input {
+  inline-size: 100%; max-inline-size: 520px; padding: 12px 16px;
+  min-block-size: var(--tap);
+  border: 2px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  font-family: var(--font-mono); font-size: 16px; border-radius: 0;
+}
+.hp-search-input::placeholder { color: var(--muted); }
+.hp-chips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-block: 10px 0; font-size: var(--step--2);
+}
+.hp-chips-label {
+  font-family: var(--font-mono); font-size: var(--step--2);
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+.hp-chip {
+  display: inline-flex; align-items: center; min-block-size: 36px;
+  padding: 4px 10px; border: 1.5px solid var(--line);
+  font-family: var(--font-mono); font-size: var(--step--2);
+  color: var(--ink); text-decoration: none; background: var(--surface);
+}
+.hp-chip:hover { border-color: var(--stamp); color: var(--stamp); }
+/* Results and prompts render as a relative block that pushes the page down,
+   never as a floating dropdown — an overlay is the difference between usable
+   and unusable on a phone. */
+.dir-found {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  max-inline-size: 520px; margin-block-start: 14px; padding: 14px 16px;
+  background: var(--surface); border: 2px solid var(--pass);
+}
+.dir-found-copy { margin: 0; font-size: var(--step--1); color: var(--ink-dim); }
+/* `display: flex` on a class beats the user-agent's `[hidden] { display: none }`,
+   so without this the "already listed" block is visible on every page load —
+   it announced a match before anything had been typed. */
+.dir-found[hidden], .dir-scan[hidden], [hidden] { display: none !important; }
+
+.hero-count { font-size: var(--step--1); color: var(--ink-dim); margin: 0; }
+
+.hp-panels {
+  display: grid; gap: clamp(28px, 5vw, 48px);
+  padding-block: clamp(32px, 5vw, 56px);
+}
+.hp-panel, .tx-strip { container-type: inline-size; min-inline-size: 0; }
+.hp-panel-eyebrow {
+  font-family: var(--font-mono); font-size: var(--step--2); font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--stamp);
+  margin: 0 0 6px;
+}
+.hp-panel-title {
+  font-family: var(--font-display); font-weight: 900; font-size: var(--step-3);
+  letter-spacing: -0.01em; margin: 0;
+}
+.hp-panel-line {
+  font-size: var(--step-0); color: var(--ink-dim); margin: 8px 0 20px;
+  max-inline-size: 60ch;
+}
+
+/* Container queries, not media queries: how many cards fit is a property of
+   the PANEL's width, not the window's. The same panel dropped into a narrow
+   column later will collapse correctly without a new breakpoint. */
+.hp-cards { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@container (min-width: 640px) {
+  .hp-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (min-width: 900px) {
+  .hp-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+}
+
+/* Fixed height, clamped text. A 60-character name and a 400-character
+   description have to produce the same grid, or the first unusual listing
+   reflows the panel into a mess. */
+.hp-card {
+  display: grid; grid-template-rows: auto auto 1fr auto auto; gap: 8px;
+  min-block-size: 224px;
+  padding: 16px; text-decoration: none; color: var(--ink);
+  background: var(--surface); border: 2px solid var(--line-strong);
+  box-shadow: 6px 6px 0 rgba(22, 33, 31, 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  .hp-card { box-shadow: 6px 6px 0 rgba(232, 237, 233, 0.08); }
+}
+.hp-card:hover { border-color: var(--stamp); }
+.hp-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.hp-grade {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 40px; block-size: 40px; border-radius: 50%; flex-shrink: 0;
+  border: 2.5px solid var(--seal-color, var(--muted)); color: var(--seal-color, var(--muted));
+  font-family: var(--font-mono); font-weight: 700; font-size: var(--step--1);
+}
+.hp-grade-aplus, .hp-grade-a, .hp-grade-b { --seal-color: var(--pass); }
+.hp-grade-c { --seal-color: var(--warn); }
+.hp-grade-d { --seal-color: var(--seal-d); }
+.hp-grade-f { --seal-color: var(--fail); }
+.hp-grade-na { --seal-color: var(--muted); }
+.hp-src {
+  font-family: var(--font-mono); font-size: var(--step--2); color: var(--ink-dim);
+  text-align: end; line-height: 1.3;
+}
+.hp-card-name {
+  font-family: var(--font-mono); font-size: var(--step-0); font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hp-card-desc {
+  font-size: var(--step--1); color: var(--muted); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  line-clamp: 2; overflow: hidden;
+}
+.hp-card-facts {
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  font-family: var(--font-mono); font-size: var(--step--2); color: var(--ink-dim);
+  border-block-start: 1px dashed var(--line); padding-block-start: 8px;
+}
+.hp-fact-date { margin-inline-start: auto; }
+.hp-card-note {
+  font-size: var(--step--2); color: var(--warn); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  line-clamp: 2; overflow: hidden;
+}
+
+/* A panel below its threshold says what it is waiting for, out loud. A panel
+   that silently starts meaning something is worse than one that explains its
+   own emptiness — nobody could audit when the ranking switched on. */
+.hp-waiting {
+  padding: clamp(16px, 3vw, 24px);
+  background: var(--surface); border: 2px dashed var(--line-strong);
+  display: flex; flex-direction: column; gap: 12px; align-items: flex-start;
+}
+.hp-waiting-copy {
+  margin: 0; font-size: var(--step--1); color: var(--ink-dim);
+  line-height: 1.55; max-inline-size: 62ch;
+}
+.hp-waiting-link {
+  font-weight: 600; font-size: var(--step--1); color: var(--ink);
+  text-decoration: underline; text-underline-offset: 4px;
+  display: inline-flex; align-items: center; min-block-size: var(--tap);
+}
+
+.hp-unans { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.hp-unans-row {
+  display: grid; gap: 4px 12px; align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  padding-block-end: 10px; border-block-end: 1px solid var(--line);
+}
+@container (min-width: 620px) {
+  .hp-unans-row {
+    grid-template-columns: minmax(140px, 1fr) minmax(80px, 2fr) auto minmax(0, 2fr);
+  }
+}
+.hp-unans-id { font-family: var(--font-mono); font-size: var(--step--1); overflow-wrap: anywhere; }
+.hp-unans-q { font-size: var(--step--1); color: var(--ink); line-height: 1.4; }
+.hp-unans-q .hp-unans-id {
+  display: block; font-family: var(--font-mono); font-size: var(--step--2);
+  color: var(--muted); margin-block-start: 2px;
+}
+.tx-questions { margin-block-start: 24px; }
+.tx-q-table { min-inline-size: 640px; }
+.tx-q-groups { font-family: var(--font-mono); white-space: nowrap; }
+
+.hp-unans-track { display: block; block-size: 8px; background: var(--hatch-b); }
+.hp-unans-fill {
+  display: block; block-size: 100%;
+  background: repeating-linear-gradient(45deg, var(--hatch-a) 0 3px, var(--hatch-b) 3px 6px);
+}
+.hp-unans-count {
+  font-family: var(--font-mono); font-size: var(--step--2); color: var(--ink-dim);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.hp-unans-why { font-size: var(--step--2); color: var(--muted); }
+.hp-unans-foot {
+  font-size: var(--step--1); color: var(--ink-dim); line-height: 1.55;
+  max-inline-size: 68ch; margin-block-start: 16px;
+}
+.hp-more {
+  display: inline-flex; align-items: center; min-block-size: var(--tap);
+  font-weight: 600; font-size: var(--step--1); color: var(--ink);
+  text-decoration: underline; text-underline-offset: 4px;
+}
+
+/* ---------- the attack-class taxonomy ---------- */
+.tx-strip { padding-block: clamp(24px, 4vw, 40px); border-block-start: 2px solid var(--line-strong); }
+.tx-chips { display: grid; grid-template-columns: 1fr; gap: 8px; margin-block-end: 18px; }
+@container (min-width: 560px) { .tx-chips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 880px) { .tx-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tx-chip {
+  display: flex; align-items: center; gap: 10px;
+  min-block-size: var(--tap); padding: 8px 12px;
+  background: var(--surface); border: 1.5px solid var(--line);
+  color: var(--ink); text-decoration: none; font-size: var(--step--1);
+}
+.tx-chip:hover { border-color: var(--stamp); color: var(--stamp); }
+.tx-chip-id {
+  font-family: var(--font-mono); font-weight: 700; font-size: var(--step--2);
+  color: var(--stamp); flex-shrink: 0;
+}
+.tx-classes { display: grid; gap: 20px; }
+.tx-class {
+  padding: 16px; background: var(--surface);
+  border-inline-start: 3px solid var(--line-strong);
+}
+.tx-class-title {
+  font-family: var(--font-display); font-weight: 900; font-size: var(--step-1);
+  margin: 0 0 6px; color: var(--ink);
+}
+.tx-class-line { margin: 0 0 8px; font-size: var(--step-0); color: var(--ink); }
+.tx-class-controls { margin: 0 0 8px; font-size: var(--step--1); overflow-wrap: anywhere; }
+.tx-label {
+  font-family: var(--font-mono); font-size: var(--step--2);
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+  margin-inline-end: 6px;
+}
+.tx-lineage {
+  margin: 8px 0 0; font-family: var(--font-mono); font-size: var(--step--2);
+  color: var(--muted);
+}
+.tx-incidents { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 12px; }
+.tx-incident { display: grid; gap: 3px; font-size: var(--step--1); }
+.tx-incident-when { font-family: var(--font-mono); font-size: var(--step--2); color: var(--muted); }
+.tx-incident-what { color: var(--ink-dim); line-height: 1.5; }
+.tx-reported {
+  display: inline-block; font-family: var(--font-mono); font-size: var(--step--2);
+  color: var(--warn); border: 1px solid var(--warn); padding: 0 6px;
+  margin-inline-start: 6px;
+}
+.tx-sourcing { font-size: var(--step--1); color: var(--ink-dim); }
+.tx-defs { font-size: var(--step-0); color: var(--ink-dim); line-height: 1.6; }
+.tx-class-posture { border-inline-start-color: var(--muted); border-inline-start-style: dashed; }
+
+/* ---------- per-repository exposure panel ---------- */
+.exposure {
+  margin-block: 32px; padding: clamp(16px, 3vw, 26px);
+  background: var(--surface); border: 2px solid var(--line-strong);
+}
+.exposure .body-copy { color: var(--ink-dim); font-size: var(--step--1); line-height: 1.55; margin: 0 0 18px; }
+.ex-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.ex-row {
+  display: grid; gap: 5px;
+  padding-inline-start: 12px; border-inline-start: 3px solid var(--line);
+}
+/* Deliberately NOT a severity ramp. The scan measured whether checks are
+   present, not how likely or costly an attack is, so it has no basis for
+   calling one group scarier than another. These mark the EVIDENCE state. */
+.ex-none-found { border-inline-start-color: var(--fail); }
+.ex-partial { border-inline-start-color: var(--warn); }
+.ex-evidenced { border-inline-start-color: var(--pass); }
+.ex-not-observed { border-inline-start-color: var(--muted); border-inline-start-style: dashed; }
+.ex-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.ex-name {
+  font-weight: 600; font-size: var(--step-0); color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 8px; min-block-size: 32px;
+}
+.ex-name:hover { color: var(--stamp); }
+.ex-state {
+  font-family: var(--font-mono); font-size: var(--step--2);
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+}
+.ex-line { font-size: var(--step--1); color: var(--ink-dim); }
+.ex-detail { font-size: var(--step--2); color: var(--ink-dim); line-height: 1.5; overflow-wrap: anywhere; }
+.ex-detail-quiet { color: var(--muted); }
+.ex-detail-label {
+  font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin-inline-end: 6px;
+}
+.ex-foot {
+  margin-block-start: 18px; font-size: var(--step--2); color: var(--muted);
+  line-height: 1.55; overflow-wrap: anywhere;
+}
+
+
+/* ---------- tap targets, measured ----------
+   Every one of these was under 44px in a real 390px render and is a standalone
+   control, not a link inside a sentence (WCAG 2.5.8 exempts those). */
+.wordmark {
+  display: inline-flex; align-items: center; min-block-size: var(--tap);
+}
+.dir-controls-label, .hp-search-label {
+  display: flex; align-items: flex-end; min-block-size: var(--tap);
+  padding-block-end: 6px;
+}
+/* A 20px checkbox needs its label to supply the target. */
+.dir-check, .dir-sortbar label { min-block-size: var(--tap); display: inline-flex; align-items: center; }
+.design-switcher a { min-block-size: var(--tap); }
+.hp-chip { min-block-size: var(--tap); }
+
+/* ---------- inline term definitions ---------- */
+.term { color: var(--ink); }
+.term-def { color: var(--muted); font-style: italic; }
+.key-note {
+  font-size: var(--step--1); color: var(--ink-dim); line-height: 1.6;
+  max-inline-size: 70ch; margin-block: 6px 24px;
 }
 
 /* ---------- provenance: lane markers + trust section ---------- */
@@ -491,24 +959,31 @@ details ul { font-size: 13px; color: var(--ink-dim); }
 .trust-coverage { border-left-color: var(--warn); }
 .trust pre { overflow-x: auto; font-family: var(--font-mono); font-size: 13px; background: var(--surface); padding: 12px 14px; }
 .cov-note {
-  display: block; margin-top: 6px; font-size: 12.5px; line-height: 1.5;
-  color: var(--warn); max-width: 62ch;
+  display: block; margin-block-start: 6px; font-size: var(--step--2); line-height: 1.5;
+  color: var(--warn); max-inline-size: 62ch;
 }
 .cov-note code {
-  font-family: var(--font-mono); font-size: 12px;
-  background: var(--surface); padding: 1px 5px; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--step--2);
+  background: var(--surface); padding: 1px 5px; overflow-wrap: anywhere;
 }
 .dir-sortbar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
-  margin-top: 12px; font-size: 12.5px; color: var(--ink-dim);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  margin-block-start: 12px; font-size: var(--step--2); color: var(--ink-dim);
 }
-.dir-sortbar label { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+.dir-sortbar label { font-family: var(--font-mono); font-size: var(--step--2); color: var(--muted); }
+/* 16px again — a <select> under 16px zooms iOS on focus exactly like an input. */
 .dir-sortbar select {
-  font: inherit; padding: 4px 8px; border: 1.5px solid var(--line-strong);
-  background: var(--surface); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px;
+  min-block-size: var(--tap); padding: 6px 10px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); max-inline-size: 100%;
 }
-.dir-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.dir-count { margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+.dir-check {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  min-block-size: var(--tap); font-size: var(--step--2);
+}
+.dir-check input[type="checkbox"] { inline-size: 20px; block-size: 20px; flex-shrink: 0; }
+.dir-count { margin-inline-start: auto; font-family: var(--font-mono); font-size: var(--step--2); color: var(--muted); }
 @media (prefers-color-scheme: dark) {
   .lane-unsigned-action { color: #E3B96A; }
   .trust-unsigned { border-left-color: #E3B96A; }
@@ -516,18 +991,20 @@ details ul { font-size: 13px; color: var(--ink-dim); }
 
 /* ── Design switcher (four-up trial) ─────────────────────────────────── */
 .design-switcher {
-  position: fixed; right: 18px; bottom: 18px; z-index: 50;
-  display: flex; align-items: center; gap: 2px;
+  position: fixed; inset-inline-end: 18px; inset-block-end: 18px; z-index: 50;
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  max-inline-size: calc(100vw - 20px);
   background: var(--surface); border: 2px solid var(--ink);
   box-shadow: 4px 4px 0 rgba(22, 33, 31, 0.12);
-  padding: 6px 8px; font-family: var(--mono); font-size: 12px;
+  padding: 4px 6px; font-family: var(--font-mono); font-size: var(--step--2);
 }
 .design-switcher .ds-label {
   color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
-  font-size: 10px; margin-right: 6px;
+  font-size: var(--step--2); margin-inline-end: 6px;
 }
 .design-switcher a {
-  color: var(--ink); text-decoration: none; padding: 4px 8px;
+  color: var(--ink); text-decoration: none; padding: 6px 10px;
+  display: inline-flex; align-items: center; min-block-size: var(--tap);
 }
 .design-switcher a:hover { color: var(--stamp); }
 .design-switcher a[aria-current="true"] {

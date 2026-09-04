@@ -5,6 +5,22 @@
  */
 export const BASE_PATH = "/sscsb/";
 
+/**
+ * Where the site actually serves. Used for the canonical URL only — every
+ * internal href stays relative to BASE_PATH. The alternate design trees are a
+ * design trial, not four separate publications, so each of their pages points
+ * its canonical at the DEFAULT design's equivalent page: a crawler indexing
+ * this site sees one copy of each page, the Ledger one.
+ */
+export const SITE_ORIGIN = "https://tools.sensiblesecurity.xyz";
+
+/**
+ * The query parameter that opts out of the remembered-design redirect AND
+ * forgets the remembered design. `/sscsb/?stay` is a shareable "always give me
+ * the default design" link, and the switcher's default-design link carries it.
+ */
+export const STAY_PARAM = "stay";
+
 export const SITE_NAME = "SSCS Bootstrapper";
 export const REPO_URL = "https://github.com/p4gs/sscs-bootstrapper";
 export const SITE_REPO_URL = "https://github.com/p4gs/p4gs.github.io";

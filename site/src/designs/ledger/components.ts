@@ -4,10 +4,10 @@ import { escapeHtml } from "./layout";
 
 export const PHASE_NAMES: Readonly<Record<number, string>> = {
   1: "Commit integrity",
-  2: "Dependencies & SBOM",
-  3: "Provenance",
-  4: "SAST & CI hardening",
-  5: "Continuous posture",
+  2: "Dependencies",
+  3: "Build receipts",
+  4: "Code & build hardening",
+  5: "Ongoing posture",
 };
 
 export type SealSize = 84 | 74 | 64 | 44;

@@ -14,6 +14,20 @@ export function escapeHtml(s: string): string {
     .replaceAll("'", "&#39;");
 }
 
+/**
+ * `<link rel="canonical">` for this page: always the DEFAULT design's URL.
+ *
+ * The alternate design trees publish the same pages under `_d/<id>/`. Without
+ * this, a crawler sees four copies of every page and picks one; with it, the
+ * default design is the copy that counts, which is the same answer a
+ * first-time visitor gets.
+ */
+export function canonicalLink(ctx: DesignCtx): string {
+  return ctx.canonical
+    ? `\n<link rel="canonical" href="${escapeHtml(ctx.canonical)}">`
+    : "";
+}
+
 /** Geist (UI) + Geist Mono (instrument labels), with real fallback stacks in CSS. */
 export const FONTS_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +45,7 @@ export function page(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>${escapeHtml(opts.title)}</title>
+<title>${escapeHtml(opts.title)}</title>${canonicalLink(ctx)}
 ${FONTS_HEAD}
 <link rel="stylesheet" href="${ctx.h("style.css")}">
 ${opts.head ?? ""}

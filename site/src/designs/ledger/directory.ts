@@ -23,6 +23,9 @@ import {
   type TrustInfo,
   type TrustKind,
 } from "../../trust";
+import { define, defineTerm } from "../../glossary";
+import { directoryTermsNote } from "../home-shared";
+import { exposurePanel } from "../threats-shared";
 import { gradeBadge, PHASE_NAMES, phaseBars } from "./components";
 import { escapeHtml, factsFor, href, page } from "./layout";
 
@@ -214,16 +217,16 @@ export function renderDirectory(
   <div class="page-head-copy">
     <p class="eyebrow">ledger · public record</p>
     <h1 class="page-title">Scan directory</h1>
-    <p class="body-copy">Repositories scanned with sscsb, scored by the
-    <a href="${href("methodology/")}">published methodology</a>. Every listing passed
-    a maintainer's review before appearing here. <strong>✓ verified</strong> listings
-    were produced in the repository's own CI and cryptographically verified against
-    its workflow identity (<a href="${href("methodology/#trust")}">how</a>).</p>
+    <p class="body-copy">Every repository here was scanned with sscsb and scored by
+    <a href="${href("methodology/")}">published rules</a>. A person reviewed each result
+    before it appeared. The <strong>${defineTerm("lane")}</strong> column says who ran the
+    scan. <strong>✓ verified</strong> means the repository's own build ran it and signed
+    the result (<a href="${href("methodology/#trust")}">how that is checked</a>).</p>
   </div>
 </div>
 <div class="dir-controls">
   <label class="dir-controls-label" for="dir-filter">Search the ledger — or submit a repository</label>
-  <input type="search" id="dir-filter" placeholder="⌕ owner/repo — search, or paste a repo to request a scan…"
+  <input type="search" id="dir-filter" placeholder="owner/repo"
     aria-label="Search the directory, or enter owner/repo to submit a repository for scanning">
   <div id="dir-scan" class="dir-scan" hidden
     data-api="${escapeHtml(SCAN_API_URL)}" data-fallback="${escapeHtml(SUBMIT_URL)}">
@@ -247,7 +250,7 @@ export function renderDirectory(
 </div>
 <div class="table-scroll">
 <table class="directory">
-  <thead><tr><th>Seal</th><th>Repository</th><th>Phase coverage</th><th>Lane</th><th>Scanned</th></tr></thead>
+  <thead><tr><th>Seal</th><th>Repository</th><th>Phases</th><th>Evidence source</th><th>Scanned</th></tr></thead>
   <tbody>
 ${rows}
   </tbody>
@@ -257,9 +260,10 @@ ${rows}
   <span class="key-label">KEY</span>
   <span class="key-item"><span class="key-swatch key-pass"></span>pass</span>
   <span class="key-item"><span class="key-swatch key-fail"></span>fail / gap</span>
-  <span class="key-item"><span class="key-swatch hatch"></span>unverified — outside every denominator</span>
-  <span class="key-item"><span class="lane lane-local">local · signed</span>maintainer-signed workstation scan — its local-environment verdicts count on their own</span>
+  <span class="key-item"><span class="key-swatch hatch"></span>${defineTerm("unverified")}</span>
+  <span class="key-item"><span class="lane lane-local">local · signed</span>a maintainer ran this on their own machine and signed it — the only evidence that can exist for the checks only they can see</span>
 </div>
+${directoryTermsNote(href)}
 <script src="${href("filter.js")}" defer></script>`;
   return page({ title: "Scan Directory", body, active: "directory" });
 }
@@ -341,9 +345,9 @@ function renderCoverageSectionBody(r: ScanRecord, f: CoverageFacts): string {
     return `<section class="trust trust-coverage">
   <h2 class="nudge-title">${escapeHtml(head)}</h2>
   <p class="body-copy">Evidence coverage is <strong>${f.coverage}%</strong>, under the
-  ${COVERAGE_FLOOR_PROVISIONAL}% floor. ${plural(f.unverified)} carry no verdict at all, and
-  <strong>${plural(f.localResolvable)}</strong> of those are local-environment checks —
-  commit signing, AI trailers, dependency gates — which live on a maintainer's
+  ${COVERAGE_FLOOR_PROVISIONAL}% floor. ${plural(f.unverified)} carry no verdict at all.
+  <strong>${plural(f.localResolvable)}</strong> of those are local-environment checks:
+  commit signing, AI trailers, dependency gates. They live on a maintainer's
   machine and are invisible to any repository scan. They are not counted against
   this repository; they are simply missing.</p>
   <p class="body-copy">${f.anchorReady === false
@@ -448,8 +452,8 @@ export function renderTrustSection(
   bundle against the certificate identity
   <code>${escapeHtml(t.identity ?? "")}</code>${
     t.commit ? ` bound to commit <code>${escapeHtml(t.commit.slice(0, 12))}</code>` : ""
-  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""} — the
-  repository, workflow path, and default branch are burned into that certificate
+  }${t.verified_at ? ` on ${escapeHtml(t.verified_at.slice(0, 10))}` : ""}.
+  The repository, workflow path, and default branch are burned into that certificate
   by GitHub's OIDC issuer, not asserted by the record.</p>
   <p class="body-copy">Re-verify it yourself: <a href="${recordHref}">scan-record.json</a> ·
   <a href="${bundleHref}">signature bundle</a></p>
@@ -521,12 +525,17 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
   methodology v${r.methodology_version} ·
   <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a>
 </p>
-<p class="score-line">Overall: <strong>${
+<p class="score-line"><strong>${
     r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`
-  }</strong> · evidence coverage: ${r.score.evidence_coverage_percent}%${
-    r.score.provisional ? ` · <em class="prov-flag">provisional</em>` : ""
+  }</strong> of the answered checks passed · <strong>${
+    r.score.evidence_coverage_percent
+  }%</strong> of the checks were answered at all${
+    r.score.provisional
+      ? ` · <em class="prov-flag">provisional</em> ${define("provisional")}`
+      : ""
   }</p>
 ${phaseBars(r.score)}
+${exposurePanel(href, r)}
 ${renderTrustSection(r, t, lt)}
 ${lt && resolveTrustKind(r, t, lt) !== "local" ? renderLocalTrustSection(r, lt, false) : ""}
 ${renderFactsSection(factsFor(r), r.score)}

@@ -279,7 +279,9 @@ table.directory td { display: block; padding: 0; }
   font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em;
   text-transform: uppercase; margin-right: 8px;
 }
-.legend-item { white-space: nowrap; }
+/* Was white-space:nowrap, fine for the two-word swatch labels it used to hold
+   and not fine now that each carries a full sentence of definition. */
+.legend-item { display: inline; }
 .sw { display: inline-block; width: 16px; height: 7px; margin-right: 5px; vertical-align: baseline; }
 .sw-pass { background: var(--pass); }
 .sw-fail { background: var(--fail); }
