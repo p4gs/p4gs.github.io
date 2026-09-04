@@ -18,6 +18,7 @@ import { DESIGNS } from "../src/designs/registry";
 import type { DesignCtx } from "../src/designs/types";
 import { GLOSSARY, RETIRED_ON_HOME } from "../src/glossary";
 import type { ScanRecord } from "../src/schema";
+import { textFrom } from "./html-text";
 
 function rec(name: string, over: Partial<ScanRecord["score"]> = {}): ScanRecord {
   return {
@@ -69,13 +70,23 @@ const HOMES: Array<[string, string]> = DESIGNS.map((d) => [
   d.renderHome(RECORDS, ctxFor(d.id)),
 ]);
 
-/** Everything outside a `<code>` element and outside tag markup. */
+/**
+ * Everything outside a `<code>` element and outside tag markup.
+ *
+ * WHAT WAS WRONG. This was four regexes, and the script and style rules carried
+ * no `i` flag: `<SCRIPT>…</SCRIPT>` matched nothing, so a design that shouted
+ * its tag names had its JavaScript measured as page copy — the banned-
+ * vocabulary check below would then have been reading `location`, `replace` and
+ * every string literal in the switcher as prose the reader sees. The tag rule
+ * `/<[^>]+>/g` was wrong in the other direction: it ends a tag at the first
+ * `>`, including one inside a quoted attribute value, leaking the rest of the
+ * attribute into the text.
+ *
+ * `textFrom` hands the same question to a real HTML parser, which agrees with
+ * the browser about all of it.
+ */
 function prose(html: string): string {
-  return html
-    .replace(/<code\b[^>]*>[\s\S]*?<\/code>/g, " ")
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, " ")
-    .replace(/<[^>]+>/g, " ");
+  return textFrom(html, ["code", "script", "style"]);
 }
 
 describe("every design renders the new home page", () => {

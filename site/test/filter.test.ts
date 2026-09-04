@@ -114,6 +114,10 @@ function mount(opts: {
   api?: string;
   popup?: PopupMode;
   fetchImpl?: (url: string, init?: unknown) => Promise<unknown>;
+  /** The directory prefix the page carries; the shipped value by default. */
+  detailBase?: string;
+  /** The URL of the document the script is running in. */
+  pageUrl?: string;
 }): Harness {
   const input = el("dir-filter", {}, "input");
   const scan = el("dir-scan", {
@@ -122,7 +126,9 @@ function mount(opts: {
   });
   const cta = el("dir-scan-cta", {}, "button");
   const status = el("dir-scan-status");
-  const found = el("dir-found", { "data-detail-base": "/sscsb/directory/" });
+  const found = el("dir-found", {
+    "data-detail-base": opts.detailBase ?? "/sscsb/directory/",
+  });
   const foundLink = el("dir-found-link", { href: "/sscsb/directory/" }, "a");
   const count = el("dir-count");
   const index = el("dir-index", {}, "script");
@@ -154,7 +160,15 @@ function mount(opts: {
     querySelectorAll: (sel: string) => (sel.includes("tbody tr") ? rows : []),
     createElement: (tag: string) => el("", {}, tag),
   };
-  const location = { search: "" };
+  // filter.js resolves the listing path against the document URL to prove it
+  // stays on this origin, so the stub carries a real one. `href` is not
+  // decoration: with no usable document URL the code fails closed and offers no
+  // link at all, which is the behaviour asserted in "a document URL it cannot
+  // resolve against" below.
+  const location = {
+    search: "",
+    href: opts.pageUrl ?? "https://tools.sensiblesecurity.xyz/sscsb/",
+  };
   const opened: string[] = [];
   const mode: PopupMode = opts.popup ?? "blocked";
   const openFeatures: string[] = [];
@@ -398,6 +412,209 @@ describe("the fallback popup says what actually happened", () => {
       const h = await submit(mode);
       expect(h.cta.disabled, mode).toBe(false);
     }
+  });
+});
+
+/**
+ * THE DEFECT THIS PINS. The listing link was assembled by concatenation:
+ *
+ *     foundLink.setAttribute("href", base + slug.toLowerCase().replace("/", "--") + "/")
+ *
+ * Both halves of that string come out of the DOM — `base` is the page's
+ * `data-detail-base` attribute, `slug` is what the visitor typed — and the
+ * whole safety argument lived somewhere else entirely, in parseSlug's regex,
+ * three call sites away. Nothing at the write itself constrained the result, so
+ * the destination of the link was whatever those two strings happened to spell,
+ * including a scheme that executes. The tests below are all about the WRITE:
+ * whatever reaches it, the address that comes out is a same-origin path.
+ *
+ * `.replace("/", "--")` is a second, quieter defect in the same line: without
+ * `/g` it rewrites only the FIRST slash, so a two-slash value would have kept
+ * the rest and walked a directory level out of the listing prefix. Splitting on
+ * "/" and refusing anything that is not exactly two parts removes the shape
+ * rather than patching the flag.
+ */
+describe("the listing link is a path this site built, not a string it was handed", () => {
+  const LISTED = ["p4gs/sscs-bootstrapper"];
+
+  test("the ordinary case still produces exactly the path it always did", () => {
+    const h = mount({ listed: LISTED });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(false);
+    expect(h.foundLink.getAttribute("href")).toBe(
+      "/sscsb/directory/p4gs--sscs-bootstrapper/",
+    );
+  });
+
+  test("a `javascript:` prefix cannot become the link", () => {
+    // Concatenation produced "javascript:alert(1)//p4gs--sscs-bootstrapper/",
+    // an href that runs on click. The colon is not in the alphabet, so no path
+    // is built and the panel does not appear.
+    const h = mount({ listed: LISTED, detailBase: "javascript:alert(1)//" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+    expect(h.foundLink.getAttribute("href")).toBe("/sscsb/directory/");
+    // And it still does not offer to re-scan a repository that IS listed.
+    expect(h.scan.hidden).toBe(true);
+  });
+
+  test("a protocol-relative prefix cannot point the link off-site", () => {
+    // Every character of "//evil.example/" is inside the alphabet, so this is
+    // the case the alphabet alone does not catch and the origin check does.
+    const h = mount({ listed: LISTED, detailBase: "//evil.example/" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+    expect(h.foundLink.getAttribute("href")).toBe("/sscsb/directory/");
+  });
+
+  test("an absolute prefix on another origin cannot become the link", () => {
+    const h = mount({ listed: LISTED, detailBase: "https://evil.example/d/" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+  });
+
+  /**
+   * The contract this narrows, deliberately. `data-detail-base` is a PATH —
+   * every design emits one through `h()`, which produces `/sscsb/directory/` or
+   * `/sscsb/_d/<id>/directory/`. Keeping `:` out of the alphabet means no
+   * spelling of the attribute can name a scheme at all, which is a simpler
+   * thing to be sure of than "a scheme, but only these two". A base that names
+   * its own origin — even the right one — is refused rather than parsed.
+   */
+  test("an absolute prefix is refused even when its origin is correct", () => {
+    const h = mount({
+      listed: LISTED,
+      detailBase: "https://tools.sensiblesecurity.xyz/sscsb/directory/",
+    });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+  });
+
+  test("the prefix the designs actually emit for an alternate design works", () => {
+    const h = mount({ listed: LISTED, detailBase: "/sscsb/_d/console/directory/" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(false);
+    expect(h.foundLink.getAttribute("href")).toBe(
+      "/sscsb/_d/console/directory/p4gs--sscs-bootstrapper/",
+    );
+  });
+
+  /**
+   * Found by driving the built artifact against a hostile corpus, not by
+   * reading the code: `..` is inside the base alphabet and means something to a
+   * URL resolver, so a prefix could walk out of the directory it claimed to
+   * address — and the same-origin check waves it through, because the result IS
+   * on this origin. The probe printed
+   * "/sscsb/directory/../../p4gs--sscs-bootstrapper/" resolving to
+   * "/p4gs--sscs-bootstrapper/".
+   */
+  test("a prefix that walks out of the directory is refused", () => {
+    const h = mount({ listed: LISTED, detailBase: "/sscsb/directory/../../" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+  });
+
+  test("a single-dot segment in the prefix is refused too", () => {
+    const h = mount({ listed: LISTED, detailBase: "/sscsb/./directory/" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+  });
+
+  test("dots INSIDE a segment are still ordinary characters", () => {
+    // "..foo" is not a walk; only a segment that IS "." or ".." is.
+    const h = mount({ listed: LISTED, detailBase: "/sscsb/v1.2/directory/" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(false);
+    expect(h.foundLink.getAttribute("href")).toBe(
+      "/sscsb/v1.2/directory/p4gs--sscs-bootstrapper/",
+    );
+  });
+
+  test("no usable document URL means no link at all, not an unchecked one", () => {
+    const h = mount({ listed: LISTED, pageUrl: "" });
+    h.type("p4gs/sscs-bootstrapper");
+    expect(h.found.hidden).toBe(true);
+  });
+
+  test("every character of the href comes from the site's own alphabet", () => {
+    // A repository name may legally contain dots and dashes. Whatever it
+    // contains, the finished href is [A-Za-z0-9._/-] and nothing else — no
+    // colon, no percent, no query, no fragment, no angle bracket, no quote.
+    const h = mount({ listed: ["a-b/d.e_f-g"] });
+    h.type("a-b/d.e_f-g");
+    expect(h.found.hidden).toBe(false);
+    const href = h.foundLink.getAttribute("href")!;
+    expect(href).toBe("/sscsb/directory/a-b--d.e_f-g/");
+    expect(href).toMatch(/^[A-Za-z0-9._/-]+$/);
+  });
+});
+
+/**
+ * THE DEFECT THIS PINS. `setStatus` assigned whatever it was given to `a.href`,
+ * and it was given two things this file does not control: the page's
+ * `data-fallback` attribute, and `issue_url` out of the scan relay's JSON
+ * response. A relay that answered with a `javascript:` URL — compromised, or
+ * simply wrong — got that URL rendered as the "Track progress" link, one click
+ * from executing. A scheme allowlist at the single point both pass through is
+ * the whole fix.
+ */
+describe("only an http(s) URL is ever put in the status line's href", () => {
+  function relay(issueUrl: string) {
+    return (url: string) => {
+      if (url.startsWith("https://api.github.com/repos/")) {
+        return Promise.resolve({ status: 200, ok: true });
+      }
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        json: () => Promise.resolve({ state: "queued", issue_url: issueUrl }),
+      });
+    };
+  }
+
+  async function queue(issueUrl: string) {
+    const h = mount({
+      listed: ["p4gs/sscs-bootstrapper"],
+      api: "https://relay.example/scan",
+      fetchImpl: relay(issueUrl) as never,
+    });
+    h.type("torvalds/linux");
+    h.clickScan();
+    await settle();
+    return h;
+  }
+
+  test("a normal issue URL is still linked", async () => {
+    const h = await queue("https://github.com/p4gs/p4gs.github.io/issues/7");
+    expect(h.statusText()).toContain("Scan queued");
+    expect(h.statusLink()?.href).toBe("https://github.com/p4gs/p4gs.github.io/issues/7");
+  });
+
+  test("a `javascript:` issue URL is reported without a link", async () => {
+    const h = await queue("javascript:alert(document.domain)");
+    expect(h.statusText()).toContain("Scan queued");
+    expect(h.statusLink()).toBeNull();
+  });
+
+  test("a `data:` issue URL is reported without a link", async () => {
+    const h = await queue("data:text/html,<script>alert(1)</script>");
+    expect(h.statusLink()).toBeNull();
+  });
+
+  test("a `javascript:` fallback form is never opened and never linked", async () => {
+    const h = mount({
+      listed: ["p4gs/sscs-bootstrapper"],
+      fallback: "javascript:alert(1)",
+      api: "",
+      popup: "allowed",
+      fetchImpl: repoExists(),
+    });
+    h.type("torvalds/linux");
+    h.clickScan();
+    await settle();
+    expect(h.opened.length).toBe(0);
+    expect(h.statusText()).toBe("The scan service isn't available right now. ");
+    expect(h.statusLink()).toBeNull();
   });
 });
 

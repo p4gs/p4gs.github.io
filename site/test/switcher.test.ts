@@ -21,13 +21,30 @@ import { describe, expect, test } from "bun:test";
 import { switcherFor } from "../src/build";
 import { BASE_PATH, STAY_PARAM } from "../src/config";
 import { DEFAULT_DESIGN, DESIGNS } from "../src/designs/registry";
+import { textOfEach, withoutElements } from "./html-text";
 
 const ALT = DESIGNS.find((d) => d.id !== DEFAULT_DESIGN.id)!;
 
+/**
+ * The switcher's inline script, taken from the parse.
+ *
+ * WHAT WAS WRONG. `/<script>([\s\S]*?)<\/script>/` only recognises a bare,
+ * lowercase start tag. `<SCRIPT>`, `<script defer>` or a `type` attribute all
+ * make it match nothing, and this function then throws "switcherFor emitted no
+ * script" about a page that plainly has one — a test failure blaming the wrong
+ * file. Its end anchor is just as narrow: browsers close a script at
+ * `</script foo="bar">` too, so a regex that only accepts `</script>` reads
+ * markup after the script as if it were code.
+ *
+ * `textOfEach` asks the parser, which recognises every one of those spellings.
+ * Decoding is OFF because a script element is raw text: `&&` inside it is the
+ * JavaScript operator, not an escaped entity, and must reach `new Function`
+ * exactly as written.
+ */
 function scriptOf(html: string): string {
-  const m = html.match(/<script>([\s\S]*?)<\/script>/);
-  if (!m) throw new Error("switcherFor emitted no script");
-  return m[1]!;
+  const scripts = textOfEach(html, "script", false);
+  if (!scripts.length) throw new Error("switcherFor emitted no script");
+  return scripts[0]!;
 }
 
 interface Link {
@@ -237,7 +254,12 @@ describe("the redirect on the canonical tree", () => {
 describe("what the crawler sees", () => {
   test("the switcher is links first — the script only ever adds behaviour", () => {
     const html = switcherFor(ALT, "methodology/");
-    const withoutScript = html.replace(/<script>[\s\S]*?<\/script>/, "");
+    // Removing the script with `/<script>[\s\S]*?<\/script>/` removed nothing
+    // at all the moment the tag gained an attribute or a capital letter, and
+    // the assertion below — "no script, no redirect" — then passed on a
+    // document that still contained the entire script. The parser removes the
+    // element however it is spelled.
+    const withoutScript = withoutElements(html, "script");
     for (const d of DESIGNS) {
       expect(withoutScript).toContain(`data-design="${d.id}"`);
     }

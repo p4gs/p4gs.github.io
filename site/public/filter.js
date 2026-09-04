@@ -19,7 +19,10 @@
 //   #dir-index       <script type="application/json"> holding every listed slug
 //                    as an array of lowercase "owner/repo" strings
 //   #dir-found       hidden container revealed when the query names a repo that
-//                    IS listed; carries data-detail-base (the directory prefix)
+//                    IS listed; carries data-detail-base — the directory prefix
+//                    as a PATH ("/sscsb/directory/"), never an absolute URL: a
+//                    prefix that names a scheme is refused, and the panel then
+//                    stays hidden rather than showing a link built from it
 //   #dir-found-link  the anchor inside it, pointed at that listing
 //
 // WHY #dir-index EXISTS. "Is this repository already listed?" used to be
@@ -103,15 +106,124 @@
     return m[1] + "/" + m[2];
   }
 
+  // ── Anything that becomes a URL ────────────────────────────────────────────
+  //
+  // An href is one of the last places in a modern page where a plain string
+  // still executes: `javascript:…` runs on click, and `data:text/html,…` opens
+  // a document with its own script. Two of the URLs this file hands to the DOM
+  // come from outside it — `data-fallback` is an attribute on the page, and
+  // `issue_url` is a field in a JSON body from the scan relay — so neither is
+  // this file's to vouch for. `safeHref` is the one gate they both pass
+  // through: an absolute http(s) URL comes back normalised, everything else
+  // comes back null and the caller shows the message without a link.
+  function safeHref(url) {
+    if (!url) return null;
+    var parsed;
+    try {
+      parsed = new URL(String(url));
+    } catch (e) {
+      return null; // relative, malformed, or not a URL at all
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.href;
+  }
+
+  // Building the listing link.
+  //
+  // Two DOM-supplied strings meet in this href: the slug the visitor typed and
+  // the `data-detail-base` prefix the page carries. Neither is interpolated
+  // into it.
+  //
+  // WHY parseSlug IS NOT ENOUGH ON ITS OWN. Its allowlist is strict, and
+  // nothing it can return today is dangerous in an href. But that is a claim
+  // about the CURRENT regex, made in a different function, three call sites
+  // away from the DOM write — precisely the kind of reasoning that stops being
+  // true the first time someone widens the pattern to accept a host, a query
+  // string or a percent escape, and nothing near the write would notice. The
+  // guarantee is therefore made HERE, where the write happens.
+  //
+  // HOW. Every character of the finished path is re-emitted from a literal
+  // alphabet in this file: each input character is looked up in the alphabet,
+  // and the character appended is the one taken back OUT of the alphabet
+  // constant — never the one that came in. Anything outside the alphabet makes
+  // the whole path null. So the string handed to setAttribute is built from
+  // characters in this source file and cannot contain `:`, `%`, `?`, `#`, `<`,
+  // `>`, a quote, a backslash or whitespace, whatever the inputs were.
+  //
+  // Three checks sit on top of that, because a string can be entirely inside
+  // the alphabet and still not be a place on this site — "//evil.example/" and
+  // "/sscsb/directory/../../" both are:
+  //   - a leading "//" (protocol-relative) is refused outright,
+  //   - no path segment may be "." or ".." — a prefix is a place, not a walk,
+  //     and the origin check below cannot see a traversal because the result of
+  //     one is still on this origin, and
+  //   - the finished path is resolved against the current document and must
+  //     land on this origin.
+  // Resolution is a CHECK ONLY. What gets assigned is the alphabet-built path,
+  // so nothing derived from location.href reaches the DOM either.
+  var SEGMENT_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789._-";
+  var BASE_CHARS =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-/";
+
+  function fromAlphabet(text, alphabet) {
+    var out = "";
+    for (var i = 0; i < text.length; i++) {
+      var at = alphabet.indexOf(text.charAt(i));
+      if (at === -1) return null;
+      out += alphabet.charAt(at);
+    }
+    return out;
+  }
+
+  function listingPath(base, slug) {
+    // Exactly one "/" separates owner from repo. Splitting on it and REFUSING
+    // anything else is what the old `slug.replace("/", "--")` only looked like
+    // it did: replace() without /g rewrites the FIRST slash and leaves every
+    // other one in place, so a two-slash value would have walked a directory
+    // level out of the listing prefix rather than being rejected. parseSlug
+    // cannot produce one today; this no longer depends on that.
+    var parts = String(slug).toLowerCase().split("/");
+    if (parts.length !== 2) return null;
+    var owner = fromAlphabet(parts[0], SEGMENT_CHARS);
+    var repo = fromAlphabet(parts[1], SEGMENT_CHARS);
+    var prefix = fromAlphabet(String(base), BASE_CHARS);
+    if (owner === null || repo === null || prefix === null) return null;
+    if (!owner || !repo) return null;
+    if (prefix.slice(0, 2) === "//") return null;
+    // Found by driving the built file against a hostile corpus, not by reading
+    // it: a base of "/sscsb/directory/../../" is entirely inside BASE_CHARS,
+    // resolves to this origin quite happily, and lands the link at the site
+    // root — outside the directory it claims to address. Measured before this
+    // loop existed: "/sscsb/directory/../../p4gs--sscs-bootstrapper/" resolved
+    // to "/p4gs--sscs-bootstrapper/".
+    var segments = prefix.split("/");
+    for (var s = 0; s < segments.length; s++) {
+      if (segments[s] === "." || segments[s] === "..") return null;
+    }
+    // encodeURIComponent is a no-op on SEGMENT_CHARS today — every character in
+    // it is unreserved. It is here so the segments stay URL-safe if that
+    // alphabet is ever widened, rather than relying on a reader noticing.
+    var path =
+      prefix + encodeURIComponent(owner) + "--" + encodeURIComponent(repo) + "/";
+    try {
+      var here = location.href;
+      if (new URL(path, here).origin !== new URL(here).origin) return null;
+    } catch (e) {
+      return null; // no usable document URL: fail closed, offer no link
+    }
+    return path;
+  }
+
   function setStatus(text, href, linkText) {
     if (!status) return;
     status.textContent = text ? text + " " : "";
-    if (href) {
+    var safe = safeHref(href);
+    if (safe) {
       var a = document.createElement("a");
-      a.href = href;
+      a.href = safe;
       a.target = "_blank";
       a.rel = "noopener";
-      a.textContent = linkText || href;
+      a.textContent = linkText || safe;
       status.appendChild(a);
     }
     status.hidden = !text;
@@ -144,10 +256,18 @@
     // so and offer the listing. Before, a matching query simply hid the scan
     // panel and left the visitor staring at an unchanged page.
     if (found) {
-      found.hidden = !exact;
-      if (exact && slug && foundLink) {
-        var base = found.getAttribute("data-detail-base") || "";
-        foundLink.setAttribute("href", base + slug.toLowerCase().replace("/", "--") + "/");
+      var path =
+        exact && slug
+          ? listingPath(found.getAttribute("data-detail-base") || "", slug)
+          : null;
+      // Fail closed. A listing whose address we cannot vouch for is not
+      // announced at all, rather than announced behind a link we could not
+      // build safely. The scan panel below stays hidden too — `exact` is still
+      // true — so a broken `data-detail-base` costs the visitor one message,
+      // never a bad link and never an offer to re-scan a listed repository.
+      found.hidden = !path;
+      if (path && foundLink) {
+        foundLink.setAttribute("href", path);
         foundLink.textContent = "Open " + slug + " →";
       }
     }
@@ -166,15 +286,18 @@
   }
 
   // The pre-filled issue-form URL for a slug, or null when no fallback form is
-  // configured.
+  // configured — or when the configured one is not an http(s) URL. That last
+  // case matters because this value is both opened with window.open() and
+  // written into an href, and `data-fallback` is page-supplied: a scheme
+  // allowlist here covers both sinks at their single source.
   function fallbackUrl(slug) {
     var base = (scan && scan.getAttribute("data-fallback")) || "";
     if (!base) return null;
-    return (
+    return safeHref(
       base +
-      (base.indexOf("?") === -1 ? "?" : "&") +
-      "title=" + encodeURIComponent("[scan] " + slug) +
-      "&repo_url=" + encodeURIComponent("https://github.com/" + slug)
+        (base.indexOf("?") === -1 ? "?" : "&") +
+        "title=" + encodeURIComponent("[scan] " + slug) +
+        "&repo_url=" + encodeURIComponent("https://github.com/" + slug)
     );
   }
 

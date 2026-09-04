@@ -33,6 +33,8 @@
  * with none treats each child's text as its own fragment.
  */
 
+import { decodeEntities } from "./html-text";
+
 /** Fragments shorter than this are labels, not sentences. */
 export const MIN_WORDS = 4;
 
@@ -66,20 +68,21 @@ function stripDropped(html: string): string {
   return out.replace(/<!--[\s\S]*?-->/g, " ");
 }
 
+/**
+ * Entity decoding, one pass.
+ *
+ * WHAT WAS WRONG. This used to be a chain of thirteen `.replace()` calls with
+ * `&amp;` second in line, so every later replacement ran over text the
+ * ampersand rule had just produced. A page writing `&amp;lt;` — the four
+ * literal characters `&lt;`, which is exactly how this site shows markup to a
+ * reader — decoded to `&lt;` and then to `<`. The measured prose then contained
+ * a `<` the page never displayed, and the two rules at the end of the chain
+ * (`&[a-z]+;` → " ") could not tell a real leftover entity from one the chain
+ * had manufactured. Reordering so the ampersand goes last fixes that one case
+ * and keeps the shape; a single pass removes the possibility.
+ */
 function decode(s: string): string {
-  return s
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&mdash;/g, "—")
-    .replace(/&ndash;/g, "–")
-    .replace(/&hellip;/g, "…")
-    .replace(/&rarr;/g, "→")
-    .replace(/&[a-z]+;/gi, " ")
-    .replace(/&#\d+;/g, " ");
+  return decodeEntities(s, " ");
 }
 
 /**

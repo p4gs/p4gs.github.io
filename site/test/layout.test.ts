@@ -30,6 +30,7 @@ import { switcherFor } from "../src/build";
 import { DESIGNS } from "../src/designs/registry";
 import { renderHome } from "../src/designs/ledger/home";
 import { RECORDS, ctxFor } from "./fixtures";
+import { textOfEach } from "./html-text";
 
 const DEFAULT_CSS = await Bun.file(
   new URL("../public/style.css", import.meta.url).pathname,
@@ -81,16 +82,34 @@ describe("the hero receipt fits the narrowest phone", () => {
   const MAX_CHARS = 40;
 
   const html = renderHome(RECORDS, ctxFor("ledger", "home", ""));
-  const body = html.match(/<div class="receipt-body">([\s\S]*?)<\/div>\s*<\/div>/);
+
+  /**
+   * One string per transcript row, read out of the parse rather than out of a
+   * regex.
+   *
+   * WHAT WAS WRONG. The receipt was located with
+   * `/<div class="receipt-body">([\s\S]*?)<\/div>\s*<\/div>/` — a lazy match
+   * that stops at the FIRST `</div></div>`, so it ends at the first nested row
+   * rather than at the receipt, and the whole measurement silently ran on a
+   * fragment. What survived was then split on `/<div[^>]*>/` and stripped with
+   * `/<[^>]+>/g`, which treats "`<`, anything, `>`" as a tag: `<a title="a>b">`
+   * ends at the `>` inside the quoted value and leaks `b">` into the measured
+   * line, and a `<` with no `>` after it — a truncated `<script`, say — is
+   * copied into the output untouched. That last case is the reappearing
+   * sequence CodeQL's js/incomplete-multi-character-sanitization names, and it
+   * is also just a wrong character count on a test whose entire job is counting
+   * characters.
+   *
+   * A parser gives the rows directly, entity-decoded, with no fragment to get
+   * wrong: `&amp;` is one character on screen and is counted as one here.
+   */
+  const lines = textOfEach(html, "div.receipt-body > div")
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   test("the receipt is on the page and is readable as lines", () => {
-    expect(body).not.toBeNull();
+    expect(lines.length).toBeGreaterThan(0);
   });
-
-  const lines = (body?.[1] ?? "")
-    .split(/<div[^>]*>/)
-    .map((l) => l.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim())
-    .filter(Boolean);
 
   test("every transcript line is inside the width budget", () => {
     expect(lines.length).toBeGreaterThanOrEqual(7);
