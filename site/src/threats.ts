@@ -26,7 +26,7 @@
  *  - Never rank classes by severity or colour them by risk. The scan measures
  *    whether controls are present, not how likely or costly an attack is.
  *  - "Evidenced" means every sscsb control mapped to this class passed. It
- *    does not mean the project is safe from the class — nine classes and 44
+ *    does not mean the project is safe from the class — nine classes and 47
  *    controls do not exhaust the space.
  *
  * ── Fail-closed ─────────────────────────────────────────────────────────
@@ -352,9 +352,20 @@ export const CONTROL_THREATS: Readonly<Record<string, readonly AttackClassId[]>>
     "ai-dep-gate": ["A3", "A4", "A6"],
     "pr-template": ["A1", "A6"],
     "ai-receipts": ["A1", "A6"],
+    // A compiled program nobody can review, checked in beside the source:
+    // the classic carrier for a poisoned commit, and the thing a build then
+    // ships as if it were built from that source.
+    "binary-artifacts": ["A1", "A9"],
+    // An unsecreted hook lets anyone forge the event that drives a deploy
+    // receiver, and a hook is a credential-shaped thing that leaks.
+    webhooks: ["A5", "A7"],
     // Phase 2 — dependency & vulnerability visibility
     sbom: ["A4", "A9"],
     "vuln-scan": ["A4", "A7", "A8"],
+    // A floating base-image tag, a manifest with no lockfile, a download run
+    // before it is verified: each is how a dependency you did not choose
+    // arrives, or a chosen one is quietly swapped in transit.
+    "dependency-pinning": ["A4", "A3", "A9"],
     scorecard: ["A4", "A1", "A5"],
     renovate: ["A4", "A5"],
     "package-trust": ["A3", "A4"],
@@ -568,7 +579,7 @@ export function exposureLine(e: ClassExposure): string {
 export const EXPOSURE_CAVEAT =
   "This lists defences the scan found, not weaknesses it found. " +
   "A missing defence is not a break-in, and a full set of checks is not safety: " +
-  "nine groups and 44 checks do not cover everything.";
+  "nine groups and 47 checks do not cover everything.";
 
 /** The one-line explainer for the posture-disclosure group. */
 export const POSTURE_DISCLOSURE_LINE =

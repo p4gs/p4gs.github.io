@@ -12,7 +12,7 @@
  * maintainer opt-in exactly like sscsb's. A third party CAN run the CLI
  * against someone else's repository, but that is the secondary path, not the
  * defining one. sscsb itself installs `.github/workflows/scorecard.yml` and
- * ships Scorecard as one of its own 44 controls.
+ * ships Scorecard as one of its own 47 controls.
  *
  * The real difference is WHAT EACH CAN SEE, and what it does about it:
  *
@@ -68,9 +68,9 @@ export const SCORECARD_ROWS: readonly ScorecardRow[] = [
     check: "Binary-Artifacts",
     risk: "High",
     what: "Detects generated executable artifacts in source repository",
-    coverage: "none",
-    controls: [],
-    note: "No sscsb control checks for committed binaries. A real gap, not a deliberate omission.",
+    coverage: "covered",
+    controls: ["binary-artifacts"],
+    note: "sscsb reads the bytes, not the name: an executable committed as logo.png is still flagged, and only tracked files count.",
   },
   {
     check: "Branch-Protection",
@@ -164,8 +164,8 @@ export const SCORECARD_ROWS: readonly ScorecardRow[] = [
     risk: "Medium",
     what: "Verifies dependencies are pinned to specific versions or hashes",
     coverage: "covered",
-    controls: ["actions-audit", "renovate"],
-    note: "sscsb SHA-pins every action except the SLSA generator, which must stay tag-pinned because slsa-verifier validates the trusted builder's ref and rejects a digest.",
+    controls: ["actions-audit", "dependency-pinning", "renovate"],
+    note: "sscsb SHA-pins every action except the SLSA generator, which must stay tag-pinned because slsa-verifier validates the trusted builder's ref and rejects a digest. dependency-pinning covers what Scorecard's ecosystem list stops at: base-image digests, manifests without a lockfile, and downloads run before they are verified.",
   },
   {
     check: "SAST",
@@ -218,9 +218,9 @@ export const SCORECARD_ROWS: readonly ScorecardRow[] = [
     check: "Webhooks",
     risk: "Critical",
     what: "Verifies repository webhooks have token authentication configured",
-    coverage: "none",
-    controls: [],
-    note: "No sscsb control inspects webhook configuration. A real gap.",
+    coverage: "covered",
+    controls: ["webhooks"],
+    note: "Scorecard's own Webhooks check is experimental and never runs for a default install; sscsb reads each hook's secret and TLS setting with any token that holds read:repo_hook, and says unverified when it cannot.",
   },
 ];
 

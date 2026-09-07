@@ -28,7 +28,7 @@ export const EVIDENCE_CLASS_RULES: Readonly<Record<string, EvidenceClassRule>> =
   Object.freeze({
     A: {
       name: "A — committed artifacts",
-      rule: "The control's evidence is files committed to the repository. The scanner snapshots that file list before it runs <code>sscsb init</code>. A registered artifact missing from that snapshot was installed by the scanner itself, so the control scores <strong>gap</strong>. Evidence the scanner installed seconds earlier is never the repository's evidence. A pre-existing artifact that fails sscsb's shape checks is a real <strong>fail</strong>. Five controls are different: secrets, sbom, vuln-scan, sast and provenance-verify. Their raw verdict only reflects which tools the scanning machine happened to have, so the committed artifacts decide instead.",
+      rule: "The control's evidence is files committed to the repository. The scanner snapshots that file list before it runs <code>sscsb init</code>. A registered artifact missing from that snapshot was installed by the scanner itself, so the control scores <strong>gap</strong>. Evidence the scanner installed seconds earlier is never the repository's evidence. A pre-existing artifact that fails sscsb's shape checks is a real <strong>fail</strong>. Five controls depend on tools the scanning machine may lack: secrets, sbom, vuln-scan, sast and provenance-verify. When the tool was absent, the committed artifacts decide instead. When the tool ran and could not verify, nothing decides, and the row is <strong>unverified</strong>.",
     },
     Aprime: {
       name: "A′ — static audits of committed workflows",
@@ -36,7 +36,7 @@ export const EVIDENCE_CLASS_RULES: Readonly<Record<string, EvidenceClassRule>> =
     },
     B: {
       name: "B — live remote checks",
-      rule: "branch-protection and Scorecard query GitHub itself. Init cannot influence them, so raw verdicts map directly. Scorecard's live alert feed needs permissions a cross-repo scan does not have. That half is recorded as unverified, never guessed.",
+      rule: "branch-protection, webhooks and Scorecard query GitHub itself. Init cannot influence them, so raw verdicts map directly. Scorecard's live alert feed and a repository's webhook settings need permissions a cross-repo scan does not have. Those rows are recorded as unverified, never guessed.",
     },
     C: {
       name: "C — local environment",
@@ -79,5 +79,6 @@ export function changelogItems(
     ? `\n    <li><strong>v1, 2026-09</strong> — authenticated records are signed and verified against the producing workflow's identity. Scoring is unchanged: provenance is displayed, not scored.</li>`
     : "";
   return `<li><strong>v1</strong> — initial methodology: diff-based init reclassification, five evidence classes, and an academic grade scale with A+ reserved for exactly 100%.</li>${provenance}
-    <li><strong>v1, 2026-09</strong> — the <a href="${localHref}">local lane</a>. A maintainer-signed workstation record, verified against the repository's own committed <code>allowed_signers</code>, joins the action and external records as an evidence source. Verdicts are merged per control. Sources that disagree score a <strong>gap</strong> with a named contradiction. A local assertion about a control a repository scan could observe is not counted until an independent record agrees with it. Class rules, the formula and the grade scale are unchanged.</li>`;
+    <li><strong>v1, 2026-09</strong> — the <a href="${localHref}">local lane</a>. A maintainer-signed workstation record, verified against the repository's own committed <code>allowed_signers</code>, joins the action and external records as an evidence source. Verdicts are merged per control. Sources that disagree score a <strong>gap</strong> with a named contradiction. A local assertion about a control a repository scan could observe is not counted until an independent record agrees with it. Class rules, the formula and the grade scale are unchanged.</li>
+    <li><strong>v2, 2026-09</strong> — three controls join the registry: binary-artifacts, webhooks and dependency-pinning. All three are on by default, so every score has more checks in it. The sbom and vuln-scan gates now run their tools instead of checking that a tool exists. A scanner that ran and could not verify is recorded as unverified; only an absent tool lets the committed artifacts stand in. A record made under v1 says so until its next scan.</li>`;
 }

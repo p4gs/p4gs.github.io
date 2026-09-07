@@ -35,7 +35,7 @@ anchor-namespaces    git,sscsb-scan-record
 signed-bytes         the bytes of .sscsb/scan-record.local.json, verbatim
 record-shape         ScanRecord
 schema-version       1
-methodology-version  1
+methodology-version  2
 record-fields        schema_version methodology_version repo scanned_at scanner request_issue controls score
 repo-fields          owner name url default_branch commit description
 control-fields       id phase in_scope raw_outcome scan_outcome reclassified reason messages
@@ -50,7 +50,7 @@ export const CONTRACT_HEADER = "sscsb local-lane contract v1";
  * reordering of the block does not read as a contract change.
  */
 export const CONTRACT_DIGEST =
-  "6f7f55db83c16865499db2230ef7aed46982cc84e16bdd550e44b6754d991227";
+  "15c9e9a204bd57c321e94120cf76689705ec4f9fcf031e73cea9e2a0cf6b9070";
 
 /** Parse the block: `key`, two-or-more spaces, `value`. */
 export function parseContract(text: string = CONTRACT_TEXT): Map<string, string> {
