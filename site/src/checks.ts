@@ -72,6 +72,13 @@ export const CHECK_QUESTIONS: Readonly<Record<string, string>> = Object.freeze({
   "best-practices-badge": "Does the project hold an OpenSSF Best Practices badge?",
   "osps-baseline": "Are the enabled checks mapped to the OSPS Baseline?",
   "compliance-map": "Are the checks mapped to the frameworks an auditor asks about?",
+  // Phase 6 — distribution & publishing
+  "publish-targets": "Is it clear where this project publishes its releases?",
+  "trusted-publishing": "Does publishing use short-lived identity instead of a stored token?",
+  "maintainer-mfa": "Is the account that can publish protected by strong two-factor?",
+  "publish-tokens": "Are publishing credentials kept out of the repository and short-lived?",
+  "publish-provenance": "Can anyone check that a published package came from this project?",
+  "dist-manifests": "Do the packaging files pin a checksum for what they install?",
 });
 
 /** Fail-closed: a control with no question is an error, never a blank. */

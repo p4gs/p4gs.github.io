@@ -47,6 +47,7 @@ import {
   requiresIndependentObservation,
   type EvidenceSource,
 } from "../src/reclassify";
+import { PHASES } from "../src/scoring";
 import { validateScanRecord, type ControlRecord, type ScanOutcome, type ScanRecord } from "../src/schema";
 import {
   LOCAL_SIGNATURE_NAMESPACE,
@@ -222,8 +223,11 @@ describe("evidence classes decide what a lone self-report may settle", () => {
   test("every control's class and phase come from ONE registry", () => {
     for (const [id, meta] of Object.entries(CONTROL_REGISTRY)) {
       expect(CONTROL_CLASSES[id]).toBe(meta.cls);
-      expect(meta.phase).toBeGreaterThanOrEqual(1);
-      expect(meta.phase).toBeLessThanOrEqual(5);
+      // Derived from PHASES, not a literal bound. The previous `<= 5` had to
+      // be found by hand the moment a phase was added — and a phase missing
+      // from PHASES is a SILENT scoring failure (see scoring.ts's comment),
+      // so this assertion has to track it automatically rather than lag it.
+      expect(PHASES as readonly number[]).toContain(meta.phase);
     }
   });
 

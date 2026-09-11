@@ -1,7 +1,7 @@
 /**
  * The tool's control registry, read from its Rust source.
  *
- * WHY: this site holds THREE 48-entry tables keyed by control id —
+ * WHY: this site holds THREE 54-entry tables keyed by control id —
  * CONTROL_REGISTRY (reclassify.ts), CONTROL_THREATS (threats.ts) and
  * CHECK_QUESTIONS (checks.ts). All three describe controls that are DEFINED
  * somewhere else entirely: `src/controls.rs` in the sscs-bootstrapper

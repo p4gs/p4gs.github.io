@@ -111,6 +111,18 @@ export const CONTROL_REGISTRY: Readonly<
   "best-practices-badge": { cls: "A", phase: 5 },
   "osps-baseline": { cls: "A", phase: 5 },
   "compliance-map": { cls: "M", phase: 5 },
+  // Phase 6 — distribution & publishing
+  "publish-targets": { cls: "A", phase: 6 },
+  "trusted-publishing": { cls: "Aprime", phase: 6 },
+  // C, not B: the far-left check reads the MAINTAINER's own accounts
+  // (`gh api user`, `npm profile get`) with the maintainer's own credentials.
+  // No repository scan can see it, which is exactly what class C means.
+  "maintainer-mfa": { cls: "C", phase: 6 },
+  "publish-tokens": { cls: "Aprime", phase: 6 },
+  // B: the only control here that queries a third-party registry for a fact
+  // about published artifacts rather than reading the repository.
+  "publish-provenance": { cls: "B", phase: 6 },
+  "dist-manifests": { cls: "A", phase: 6 },
 };
 
 /** Control → evidence class, derived from the one registry above. */
