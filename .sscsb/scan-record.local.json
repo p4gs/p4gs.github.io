@@ -6,10 +6,10 @@
     "name": "p4gs.github.io",
     "url": "https://github.com/p4gs/p4gs.github.io",
     "default_branch": "main",
-    "commit": "3ce8ef768eefca07784a4acca43f21504cd47327",
+    "commit": "710cf8e461f28eb1e80cd240df74b87ae8018020",
     "description": ""
   },
-  "scanned_at": "2026-09-11T15:14:27Z",
+  "scanned_at": "2026-09-11T15:28:38Z",
   "scanner": {
     "sscsb_version": "0.4.0",
     "workflow_run_id": 0,
@@ -183,7 +183,7 @@
       "reclassified": false,
       "reason": null,
       "messages": [
-        "144 tracked file(s), none a compiled program or a code-carrying archive"
+        "146 tracked file(s), none a compiled program or a code-carrying archive"
       ]
     },
     {
@@ -721,15 +721,15 @@
     "record_version": 1,
     "lane": "local",
     "namespace": "sscsb-scan-record",
-    "generated_at": "2026-09-11T15:14:27Z",
+    "generated_at": "2026-09-11T15:28:38Z",
     "sscsb_version": "0.4.0",
     "repo": {
       "owner": "p4gs",
       "name": "p4gs.github.io",
       "url": "https://github.com/p4gs/p4gs.github.io",
       "default_branch": "main",
-      "branch": "chore/local-scan-record",
-      "commit": "3ce8ef768eefca07784a4acca43f21504cd47327"
+      "branch": "chore/rescan-on-main",
+      "commit": "710cf8e461f28eb1e80cd240df74b87ae8018020"
     },
     "worktree": {
       "clean": true,
