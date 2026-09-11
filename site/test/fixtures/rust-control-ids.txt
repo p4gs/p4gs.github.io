@@ -2,18 +2,20 @@
 # The site's three id-keyed tables are pinned to this list by
 # test/control-registry.test.ts. Do not hand-edit.
 # Refresh: bun run refresh:controls  (needs the tool repo checked out)
-# 44 controls
+# 47 controls
 actions-audit
 agent-signing
 ai-dep-gate
 ai-receipts
 ai-trailers
 best-practices-badge
+binary-artifacts
 branch-protection
 bumblebee
 codeql
 commit-signing
 compliance-map
+dependency-pinning
 dependency-track
 fuzzing
 github-attestations
@@ -45,5 +47,6 @@ slsa-provenance
 socket-firewall
 vuln-scan
 wait-for-secrets
+webhooks
 witness
 workflow-audit-extended

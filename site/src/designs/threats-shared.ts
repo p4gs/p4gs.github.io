@@ -106,7 +106,7 @@ ${incidents}
   </div>
   <div class="tx-questions" id="every-check">
     <h3 class="tx-class-title">Every check, as a question</h3>
-    <p class="tx-class-line">All 44, in the order they run, with the groups each one
+    <p class="tx-class-line">All 47, in the order they run, with the groups each one
     defends. A blank group means the check tells outsiders what a project does rather
     than stopping an attack.</p>
     <div class="table-scroll">

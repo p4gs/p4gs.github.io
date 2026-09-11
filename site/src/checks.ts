@@ -31,9 +31,12 @@ export const CHECK_QUESTIONS: Readonly<Record<string, string>> = Object.freeze({
   "ai-dep-gate": "Do AI commits that add dependencies get extra review?",
   "pr-template": "Does the pull-request template ask what an AI generated?",
   "ai-receipts": "Is there a signed receipt linking a commit to its AI tool?",
+  "binary-artifacts": "Is the source tree free of checked-in compiled programs?",
+  webhooks: "Does every webhook carry a shared secret?",
   // Phase 2 — dependency & vulnerability visibility
   sbom: "Does the project publish a list of what it is made of?",
   "vuln-scan": "Is the project scanned for publicly known vulnerabilities?",
+  "dependency-pinning": "Are base images, lockfiles and downloads pinned to exact contents?",
   scorecard: "Does the project publish an OpenSSF Scorecard result?",
   renovate: "Are dependency updates automated and pinned to exact versions?",
   "package-trust": "Is a new dependency checked before anyone installs it?",

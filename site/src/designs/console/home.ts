@@ -25,7 +25,7 @@ const FLAGSHIP_PHASES: readonly PhaseScore[] = [
 ];
 
 const STAT_TILES = [
-  ["44", "checks, across five phases", ""],
+  ["47", "checks, across five phases", ""],
   ["3", "ways to get scanned — from outside, from your build, from your machine", ""],
   ["A+", "means every answered check passed", " accent"],
   ["0", "checks nobody could answer are ever counted against you", ""],

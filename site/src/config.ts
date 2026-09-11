@@ -31,7 +31,7 @@ export const SUBMIT_URL = `${SITE_REPO_URL}/issues/new?template=scan-request.yml
 export const SCAN_API_URL = "https://sscsb-scan-intake.vercel.app/api/scan-request";
 
 /** Bumped when the scoring rules change; displayed on every repo page. */
-export const METHODOLOGY_VERSION = 1;
+export const METHODOLOGY_VERSION = 2;
 
 /** The scan-record schema this site build understands. */
 export const SCHEMA_VERSION = 1;

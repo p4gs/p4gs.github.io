@@ -61,6 +61,7 @@ jobs:
             index.crates.io:443
             static.crates.io:443
             crates.io:443
+            api.osv.dev:443
       - name: Checkout (this repo)
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -91,6 +92,33 @@ jobs:
             https://github.com/p4gs/sscs-bootstrapper.git "$RUNNER_TEMP/sscsb-src"
           cargo build --release --locked --manifest-path "$RUNNER_TEMP/sscsb-src/Cargo.toml"
           echo "$RUNNER_TEMP/sscsb-src/target/release" >> "$GITHUB_PATH"
+      - name: Install osv-scanner (pinned, digest-checked)
+        # OSV-Scanner is what makes `verify vuln-scan` a verdict rather than a
+        # presence check: sscsb ≥ 0.4 runs every installed scanner and gates on
+        # findings. One static binary, online mode against api.osv.dev (in the
+        # egress allowlist above), no database pull — the same mechanism OpenSSF
+        # Scorecard's Vulnerabilities check uses. A download that does not match
+        # the pinned digest, or a binary that does not answer `--version`, fails
+        # the job outright, so this lane never publishes a record while claiming
+        # a scanner it did not have. Trivy and Syft are deliberately NOT
+        # installed here: Trivy pulls a vulnerability database per runner, and
+        # both stay local-lane depth.
+        env:
+          OSV_VERSION: "2.4.0"
+          OSV_SHA256: "15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0"
+        run: |
+          set -euo pipefail
+          dl="$(mktemp -d)"
+          curl -fsSL -o "${dl}/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          actual="$(sha256sum "${dl}/osv-scanner" | cut -d' ' -f1)"
+          if [ -z "$OSV_SHA256" ] || [ "$actual" != "$OSV_SHA256" ]; then
+            echo "::error::osv-scanner v${OSV_VERSION} digest ${actual} does not match the pinned ${OSV_SHA256}"
+            exit 1
+          fi
+          chmod 0755 "${dl}/osv-scanner"
+          sudo mv "${dl}/osv-scanner" /usr/local/bin/osv-scanner
+          osv-scanner --version || { echo "::error::osv-scanner installed but does not run"; exit 1; }
       - name: Clone target (data, never code)
         env:
           SLUG: ${{ steps.req.outputs.slug }}

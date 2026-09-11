@@ -15,10 +15,17 @@ const DEFAULT_ON = new Set([
   "provenance-verify", "octo-sts", "harden-runner",
   "sast", "codeql", "workflow-audit-extended", "secure-repo",
   "openvex", "security-insights", "best-practices-badge", "osps-baseline", "compliance-map",
+  "binary-artifacts", "webhooks", "dependency-pinning",
 ]);
 
-function row(control: string, outcome: VerifyRow["outcome"], artifacts: string[] = []): VerifyRow {
-  return { control, phase: 1, name: control, outcome, messages: [], artifacts, tools: [] };
+function row(
+  control: string,
+  outcome: VerifyRow["outcome"],
+  artifacts: string[] = [],
+  degraded_reason?: string,
+): VerifyRow {
+  const base: VerifyRow = { control, phase: 1, name: control, outcome, messages: [], artifacts, tools: [] };
+  return degraded_reason === undefined ? base : { ...base, degraded_reason };
 }
 
 function input(partial: Partial<ReclassifyInput>): ReclassifyInput {
@@ -63,6 +70,43 @@ describe("reclassify", () => {
     expect(r!.scan_outcome).toBe("pass");
     expect(r!.reclassified).toBe(true);
     expect(r!.reason).toContain("runner-tool availability");
+  });
+
+  test("the lift applies when the row says the tool was missing", () => {
+    const arts = [".github/workflows/vuln-scan.yml"];
+    const rows = [row("vuln-scan", "degraded", arts, "tool-missing")];
+    const [r] = reclassify(input({ rows, preFiles: new Set(arts), workflowsPre: 1 }));
+    expect(r!.scan_outcome).toBe("pass");
+    expect(r!.reclassified).toBe(true);
+  });
+
+  test("a scanner that ran and failed is never lifted to pass", () => {
+    const arts = [".github/workflows/vuln-scan.yml"];
+    const rows = [row("vuln-scan", "degraded", arts, "scan-error")];
+    const [r] = reclassify(input({ rows, preFiles: new Set(arts), workflowsPre: 1 }));
+    expect(r!.scan_outcome).toBe("unverified");
+    expect(r!.reclassified).toBe(false);
+    expect(r!.reason).toContain("scan-error");
+    expect(r!.reason).toContain("not a verdict");
+  });
+
+  test("a scanner that found nothing to examine is never lifted to pass", () => {
+    const arts = [".github/workflows/sbom.yml"];
+    const rows = [row("sbom", "degraded", arts, "no-inventory")];
+    const [r] = reclassify(input({ rows, preFiles: new Set(arts), workflowsPre: 1 }));
+    expect(r!.scan_outcome).toBe("unverified");
+    expect(r!.reason).toContain("no-inventory");
+  });
+
+  test("the three new controls classify without throwing and carry their phase", () => {
+    const rows = [
+      row("binary-artifacts", "pass"),
+      row("webhooks", "degraded", [], "tool-missing"),
+      row("dependency-pinning", "fail"),
+    ];
+    const out = reclassify(input({ rows, workflowsPre: 1 }));
+    expect(out.map((r) => r.scan_outcome)).toEqual(["pass", "unverified", "fail"]);
+    expect(out.every((r) => r.in_scope)).toBe(true);
   });
 
   test("class C never yields a verdict — even a raw pass goes unverified", () => {

@@ -50,7 +50,7 @@ ${FONTS_HEAD}
       <span class="stat"><strong>${escapeHtml(String(repoCount))}</strong> ${
         repoCount === 1 ? "repo" : "repos"
       } scanned</span>
-      <span class="stat"><strong>44</strong> controls each</span>
+      <span class="stat"><strong>47</strong> controls each</span>
       <span class="stat"><strong>2</strong> lanes · ext + auth</span>
     </div>
   </section>

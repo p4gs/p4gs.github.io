@@ -1,7 +1,7 @@
 /**
  * The three site tables against the tool's OWN control registry.
  *
- * THE GAP THIS CLOSES. This site holds three 44-entry tables keyed by control
+ * THE GAP THIS CLOSES. This site holds three 47-entry tables keyed by control
  * id: CONTROL_REGISTRY (reclassify.ts), CONTROL_THREATS (threats.ts) and
  * CHECK_QUESTIONS (checks.ts). Every existing parity test compared them to EACH
  * OTHER. So all three could stay in perfect agreement while all three drifted
@@ -46,9 +46,9 @@ const TABLES: Array<[string, readonly string[]]> = [
 ];
 
 describe("every id-keyed table matches the tool's control registry", () => {
-  test("the vendored registry is the 44 controls, with no duplicates", () => {
-    expect(EXPECTED.length).toBe(44);
-    expect(new Set(EXPECTED).size).toBe(44);
+  test("the vendored registry is the 47 controls, with no duplicates", () => {
+    expect(EXPECTED.length).toBe(47);
+    expect(new Set(EXPECTED).size).toBe(47);
   });
 
   for (const [name, keys] of TABLES) {

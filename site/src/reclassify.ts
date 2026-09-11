@@ -59,9 +59,18 @@ export const CONTROL_REGISTRY: Readonly<
   "ai-dep-gate": { cls: "C", phase: 1 },
   "pr-template": { cls: "A", phase: 1 },
   "ai-receipts": { cls: "C", phase: 1 },
+  // A committed binary is in the tree: the tree is the evidence.
+  "binary-artifacts": { cls: "A", phase: 1 },
+  // Hook settings are a live remote read that any lane holding
+  // `read:repo_hook` can make; the default github.token cannot, and that
+  // lane degrades to unverified rather than guessing.
+  webhooks: { cls: "B", phase: 1 },
   // Phase 2
   sbom: { cls: "A", phase: 2 },
   "vuln-scan": { cls: "A", phase: 2 },
+  // Dockerfile digests, lockfiles and verified downloads are committed
+  // files: the tree is the evidence.
+  "dependency-pinning": { cls: "A", phase: 2 },
   scorecard: { cls: "B", phase: 2 },
   renovate: { cls: "A", phase: 2 },
   "package-trust": { cls: "C", phase: 2 },
@@ -115,6 +124,13 @@ export interface VerifyRow {
   messages: string[];
   artifacts: string[];
   tools: string[];
+  /**
+   * Why a `degraded` row degraded, when the control says (sscsb ≥ 0.4):
+   * `tool-missing` | `scan-error` | `no-inventory` | `no-remote` |
+   * `unconfigured`. Additive within schema v1 — absent on every other outcome
+   * and on controls that have not adopted it, never `null`.
+   */
+  degraded_reason?: string;
 }
 
 export interface ReclassifyInput {
@@ -204,12 +220,24 @@ export function reclassify(input: ReclassifyInput): ControlRecord[] {
       } else {
         scan = mapDirect(row.outcome);
         if (row.outcome === "degraded" && row.artifacts.length > 0) {
-          // Artifact-carrying tool controls degrade on missing runner tools;
-          // with all artifacts pre-existing, the committed evidence stands.
-          scan = "pass";
-          reclassified = true;
-          reason =
-            "runner-tool availability is the scanner's environment, not the repository's; all registered artifacts pre-exist";
+          // Artifact-carrying tool controls degrade when the scanning machine
+          // lacks the tool; with all artifacts pre-existing, the committed
+          // evidence stands. That lift is ONLY for an absent tool. A scanner
+          // that ran and did not complete (`scan-error`), or ran and found
+          // nothing to examine (`no-inventory`), verified nothing — lifting
+          // that to `pass` would let a scan that failed outrank a
+          // maintainer's real `fail` at the merge. Rows from binaries older
+          // than the field carry no reason and keep the lift: an absent tool
+          // was the only degrade they could report.
+          const why = row.degraded_reason;
+          if (why === undefined || why === "tool-missing") {
+            scan = "pass";
+            reclassified = true;
+            reason =
+              "runner-tool availability is the scanner's environment, not the repository's; all registered artifacts pre-exist";
+          } else {
+            reason = `the scanner ran and could not verify (${why}); committed artifacts alone are not a verdict`;
+          }
         }
       }
     }
