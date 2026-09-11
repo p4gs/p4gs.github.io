@@ -540,7 +540,7 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
 ${exposurePanel(href, r)}
 <p class="transparency-note">Raw sscsb verdicts and every reclassification are shown —
 transparency about what was and wasn't verifiable is the product.</p>
-${[1, 2, 3, 4, 5].map((phase) => phaseGroup(r, phase)).join("\n")}
+${[1, 2, 3, 4, 5, 6].map((phase) => phaseGroup(r, phase)).join("\n")}
 ${improveCard(r, t, kind, lt)}
 ${lt && kind !== "local" ? localCard(r, lt, false) : ""}
 ${renderFactsSection(factsFor(r), r.score)}

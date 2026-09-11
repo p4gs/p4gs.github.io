@@ -77,7 +77,7 @@ export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
   ${RECEIPT}
 </section>
 
-<section class="phase-strip" aria-label="The five phases">
+<section class="phase-strip" aria-label="The six phases">
   ${PHASE_STRIP}
 </section>
 
@@ -99,7 +99,7 @@ ${threatStrip(href)}
   </div>
   <div class="col-block">
     <h2 class="h2-display">Install the tool</h2>
-    <p class="body-copy">48 checks, five phases, one command. It sets them up and then tells
+    <p class="body-copy">54 checks, six phases, one command. It sets them up and then tells
     you, bluntly, which ones it could not answer.</p>
     <pre class="install-cmd"><code>brew install p4gs/p4gs/sscsb</code></pre>
   </div>

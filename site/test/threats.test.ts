@@ -76,6 +76,9 @@ describe("drift — the threat map against the control registry", () => {
       "best-practices-badge",
       "compliance-map",
       "osps-baseline",
+      // An inventory of where the project publishes. It reports posture and
+      // blocks no technique, so the sentinel is the honest mapping.
+      "publish-targets",
       "secure-repo",
       "security-insights",
     ]);

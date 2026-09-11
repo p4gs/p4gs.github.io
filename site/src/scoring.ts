@@ -11,7 +11,20 @@
 
 import type { ControlRecord, Grade, PhaseScore, Score } from "./schema";
 
-export const PHASES = [1, 2, 3, 4, 5] as const;
+/**
+ * Every phase the tool emits. **Load-bearing, and stale is a SILENT failure.**
+ *
+ * `computeScore` reduces `totalPass` and `totalCountable` over this list, but
+ * derives `coverage` from `scoped.length`, which has no phase filter. A phase
+ * missing here therefore does not merely lose its own row: its passes vanish
+ * from the overall percentage, a FAIL inside it becomes invisible, and its
+ * controls still inflate the coverage denominator — so every listing's
+ * published coverage drops for a reason nobody can see. `reclassify()`
+ * fail-closes on an unknown control *id*; there is no equivalent guard on
+ * phase, which makes this constant the guard. Phase 6 (distribution &
+ * publishing) is why it now reads 1..6.
+ */
+export const PHASES = [1, 2, 3, 4, 5, 6] as const;
 
 /** Grade boundaries (owner-specified academic scale). A+ requires exactly 100. */
 export function gradeFor(overallPercent: number): Exclude<Grade, "NA"> {
