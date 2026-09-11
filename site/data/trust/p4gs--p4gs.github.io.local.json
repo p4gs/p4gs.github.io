@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "lane": "local",
+  "signature": "verified",
+  "identity": null,
+  "commit": "710cf8e461f28eb1e80cd240df74b87ae8018020",
+  "verified_at": "2026-09-11T15:35:54Z",
+  "bundle": null,
+  "signer": "10093271+p4gs@users.noreply.github.com",
+  "key_fingerprint": "SHA256:prXatGO56nl8Or4JdDSzIIcj8hZE1jBxnFaXZOnAPDQ",
+  "signature_file": "p4gs--p4gs.github.io.local.sig",
+  "resolved": []
+}
