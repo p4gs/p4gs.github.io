@@ -208,7 +208,7 @@ describe("the terms that survive are defined where they are used", () => {
 describe("the plain-English questions", () => {
   test("every check has one, and nothing has one without being a check", () => {
     expect(() => assertQuestionParity()).not.toThrow();
-    expect(Object.keys(CHECK_QUESTIONS).length).toBe(47);
+    expect(Object.keys(CHECK_QUESTIONS).length).toBe(48);
   });
 
   test("each is a question, 5 to 14 words, in scorecard.dev's register", () => {

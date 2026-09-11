@@ -2,7 +2,7 @@
 # The site's three id-keyed tables are pinned to this list by
 # test/control-registry.test.ts. Do not hand-edit.
 # Refresh: bun run refresh:controls  (needs the tool repo checked out)
-# 47 controls
+# 48 controls
 actions-audit
 agent-signing
 ai-dep-gate
@@ -45,6 +45,7 @@ signing-model
 sigstore-signing
 slsa-provenance
 socket-firewall
+socket-firewall-ci
 vuln-scan
 wait-for-secrets
 webhooks

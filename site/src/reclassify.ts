@@ -77,6 +77,12 @@ export const CONTROL_REGISTRY: Readonly<
   bumblebee: { cls: "C", phase: 2 },
   grype: { cls: "C", phase: 2 },
   "socket-firewall": { cls: "C", phase: 2 },
+  // A' where its sibling is C, and deliberately so: `socket-firewall` probes
+  // the developer's own PATH, which no repository scan can observe, while
+  // `socket-firewall-ci` reads committed workflow files — the definition of
+  // A'. Same defence, different evidence, so it is an additive control rather
+  // than a widening of the existing one.
+  "socket-firewall-ci": { cls: "Aprime", phase: 2 },
   // Phase 3
   "sigstore-signing": { cls: "A", phase: 3 },
   "slsa-provenance": { cls: "A", phase: 3 },

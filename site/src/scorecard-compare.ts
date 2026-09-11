@@ -12,7 +12,7 @@
  * maintainer opt-in exactly like sscsb's. A third party CAN run the CLI
  * against someone else's repository, but that is the secondary path, not the
  * defining one. sscsb itself installs `.github/workflows/scorecard.yml` and
- * ships Scorecard as one of its own 47 controls.
+ * ships Scorecard as one of its own 48 controls.
  *
  * The real difference is WHAT EACH CAN SEE, and what it does about it:
  *
