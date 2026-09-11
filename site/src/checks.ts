@@ -43,6 +43,7 @@ export const CHECK_QUESTIONS: Readonly<Record<string, string>> = Object.freeze({
   bumblebee: "Are installed tools and extensions checked against known compromises?",
   grype: "Is that parts list itself scanned for known vulnerabilities?",
   "socket-firewall": "Are malicious packages blocked at the moment of install?",
+  "socket-firewall-ci": "Does the build install its dependencies behind that block?",
   // Phase 3 — provenance, signing & credential federation
   "sigstore-signing": "Are released files signed so anyone can check them?",
   "slsa-provenance": "Does every build publish a receipt saying how it was made?",

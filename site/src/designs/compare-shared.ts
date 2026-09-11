@@ -6,7 +6,7 @@
  * page stops being a contract.
  *
  * The comparison is deliberately not a scoreboard, and not a rivalry: sscsb
- * INSTALLS Scorecard and ships it as one of its own 47 controls. Both are
+ * INSTALLS Scorecard and ships it as one of its own 48 controls. Both are
  * opt-in and both run in the maintainer's CI. They differ in what they can
  * see — Scorecard reads the repository and its forge; sscsb reads that plus
  * the maintainer's own machine — and in what they do with it: Scorecard
@@ -70,7 +70,7 @@ export function compareSection(h: Href): string {
   const t = compareTotals();
   return `<section class="method-section prose cmp-section" id="${COMPARE_SECTION_ID}">
     <h2>${COMPARE_TITLE}</h2>
-    <p>These are not rival tools. sscsb <strong>installs</strong> Scorecard: one of its 47
+    <p>These are not rival tools. sscsb <strong>installs</strong> Scorecard: one of its 48
     checks is whether Scorecard is running on your repository at all. Both are opt-in and
     both run in your own CI.</p>
     <p>They differ in what they can see. Scorecard reads the repository and its GitHub

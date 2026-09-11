@@ -32,7 +32,7 @@ export const EVIDENCE_CLASS_RULES: Readonly<Record<string, EvidenceClassRule>> =
     },
     Aprime: {
       name: "A′ — static audits of committed workflows",
-      rule: "actions-audit, workflow-audit-extended and harden-runner parse every workflow file. With zero pre-existing workflows the verdict would be vacuous, so it scores <strong>unverified</strong>. Otherwise the raw verdict maps directly. sscsb's own installed templates pass its audit by construction, so init can only push a verdict toward pass. A fail therefore always implicates the repository's own workflows.",
+      rule: "actions-audit, workflow-audit-extended, harden-runner and socket-firewall-ci parse every workflow file. With zero pre-existing workflows the verdict would be vacuous, so it scores <strong>unverified</strong>. Otherwise the raw verdict maps directly. sscsb's own installed templates pass its audit by construction, so init can only push a verdict toward pass. A fail therefore always implicates the repository's own workflows.",
     },
     B: {
       name: "B — live remote checks",

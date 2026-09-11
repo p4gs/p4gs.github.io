@@ -26,7 +26,7 @@
  *  - Never rank classes by severity or colour them by risk. The scan measures
  *    whether controls are present, not how likely or costly an attack is.
  *  - "Evidenced" means every sscsb control mapped to this class passed. It
- *    does not mean the project is safe from the class — nine classes and 47
+ *    does not mean the project is safe from the class — nine classes and 48
  *    controls do not exhaust the space.
  *
  * ── Fail-closed ─────────────────────────────────────────────────────────
@@ -372,6 +372,7 @@ export const CONTROL_THREATS: Readonly<Record<string, readonly AttackClassId[]>>
     bumblebee: ["A6", "A4"],
     grype: ["A4"],
     "socket-firewall": ["A3", "A4", "A6"],
+    "socket-firewall-ci": ["A3", "A4", "A5"],
     // Phase 3 — provenance, signing & credential federation
     "sigstore-signing": ["A9", "A2"],
     "slsa-provenance": ["A9", "A5"],
@@ -579,7 +580,7 @@ export function exposureLine(e: ClassExposure): string {
 export const EXPOSURE_CAVEAT =
   "This lists defences the scan found, not weaknesses it found. " +
   "A missing defence is not a break-in, and a full set of checks is not safety: " +
-  "nine groups and 47 checks do not cover everything.";
+  "nine groups and 48 checks do not cover everything.";
 
 /** The one-line explainer for the posture-disclosure group. */
 export const POSTURE_DISCLOSURE_LINE =
