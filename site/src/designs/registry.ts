@@ -7,7 +7,6 @@ import type { Design } from "./types";
 import { chain } from "./chain/index";
 import { consoleDesign } from "./console/index";
 import { ledger } from "./ledger/index";
-import { manual } from "./manual/index";
 
-export const DESIGNS: Design[] = [ledger, consoleDesign, manual, chain];
+export const DESIGNS: Design[] = [ledger, consoleDesign, chain];
 export const DEFAULT_DESIGN = DESIGNS[0]!;
