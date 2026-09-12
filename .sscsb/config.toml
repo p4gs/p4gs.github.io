@@ -17,11 +17,17 @@ github_repo = "p4gs/p4gs.github.io"
 
 # ── Phase 1 — Local source integrity ──
 
-# Secret scanning hooks: TruffleHog + Gitleaks block secrets at pre-commit and pre-push
+# Secret scanning hooks: TruffleHog blocks secrets at pre-commit and pre-push.
+# TruffleHog ONLY (owner policy 2026-09-12): where two tools cover one control we keep the
+# single strongest. TruffleHog live-validates candidate credentials against the issuing
+# provider, so it distinguishes an active secret from a dead string; Gitleaks is regex/entropy
+# matching with no verification step. Running both added duplicate unverified findings without
+# adding detection capability, so `gitleaks` is off here and its CI job and .gitleaks.toml
+# are removed rather than left dormant.
 [controls.secrets]
 enabled = true
 trufflehog = true
-gitleaks = true
+gitleaks = false
 pre_push_range_scan = true
 
 # CommitSigningGuard: human-only signing enforced on protected branches at pre-push.
@@ -41,6 +47,33 @@ allowed_backends = ["github-app", "tpm", "fido2", "kms", "piv", "software"]
 max_key_age_days = 90
 
 # Five-environment signing model: Machine-wide signing posture: human enclave lane, distinct agent identity, cloud/web/Codespaces guidance
+#
+# STANDING DEGRADED — documented, not silent (reviewed 2026-09-12). Four sub-items remain
+# open; each is blocked by a policy decision or by a fact no API exposes, NOT by unfinished work:
+#
+#   agent-claude-code — WILL NOT BE CONVERGED. `sscsb signing setup agent-claude-code` requires
+#     a distinct agent commit identity whose email "must NOT be a verified email on your GitHub
+#     account". The owner directive of 2026-08-02 (one signer, everywhere) retired the separate
+#     AI identity outright: every commit, code or housekeeping, signs as the human via the
+#     1Password-vaulted SSH key, and the former agent key is retired. Agent commits falling
+#     through to the human identity is the INTENDED posture here, not identity blur. This control
+#     and that directive genuinely disagree; the directive wins.
+#
+#   cloud-claude  — repo-side half is DONE (.claude/settings.json attribution block, probeable).
+#     `github_app_installed` needs the owner to authorize the Claude GitHub App at claude.ai/code;
+#     it is an off-machine account action that cannot be observed or performed from here.
+#
+#   github-web    — `vigilant_mode` and `phishing_resistant_mfa` have no read API. Measured
+#     2026-09-12: `gh api user` returns two_factor_authentication: null (token lacks read:user),
+#     and even WITH that scope GitHub exposes only a 2FA boolean, never the factor TYPE — so
+#     "phishing-resistant" (passkey/WebAuthn vs TOTP/SMS) is structurally unreadable. Attesting
+#     it from here would assert a fact nothing observed.
+#
+#   codespaces    — `gpg_verification` is a web setting with no read API; same class.
+#
+# The three attestation lanes close with `sscsb signing setup <env> --confirm`, which records a
+# DATED HUMAN ASSERTION. Deliberately not run by an agent: the value of an attestation is that a
+# person vouched for what they saw.
 [controls.signing-model]
 enabled = true
 
