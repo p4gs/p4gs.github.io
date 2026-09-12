@@ -95,7 +95,7 @@ describe("every design renders the new home page", () => {
   test("all five designs are covered by this suite", () => {
     expect(HOMES.length).toBe(5);
     expect(HOMES.map(([id]) => id).sort()).toEqual([
-      "bulletin", "chain", "console", "ledger", "manual",
+      "bulletin", "chain", "console", "ledger", "signal",
     ]);
   });
 

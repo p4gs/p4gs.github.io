@@ -8,6 +8,7 @@ import { bulletin } from "./bulletin/index";
 import { chain } from "./chain/index";
 import { consoleDesign } from "./console/index";
 import { ledger } from "./ledger/index";
+import { signal } from "./signal/index";
 
-export const DESIGNS: Design[] = [ledger, consoleDesign, chain, bulletin];
+export const DESIGNS: Design[] = [ledger, consoleDesign, chain, signal, bulletin];
 export const DEFAULT_DESIGN = DESIGNS[0]!;
