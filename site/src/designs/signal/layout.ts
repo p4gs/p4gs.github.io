@@ -24,7 +24,7 @@
  * per page via setCtx(); outside the build (tests, direct calls) the default
  * keeps BASE_PATH-rooted, switcherless behaviour.
  */
-import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL, SITE_HOST_LABEL } from "../../config";
 import { lookupFacts, type ListingFacts } from "../../listing";
 import type { DesignCtx } from "../types";
 
@@ -214,6 +214,10 @@ export function page(opts: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Signal commits to one light theme (see styles.ts). Without this the UA
+     paints native form controls — the directory's search box and order select —
+     from a dark system preference, on a page that is painted light throughout. -->
+<meta name="color-scheme" content="light">
 <title>${escapeHtml(opts.title)}</title>${canonicalLink()}
 ${FONTS_HEAD}
 <link rel="stylesheet" href="${href("style.css")}">
@@ -236,7 +240,7 @@ ${opts.body}
 </main>
 <footer class="sg-foot">
   <div class="sg-foot-in">
-    <span class="mono">tools.sensiblesecurity.xyz/sscsb</span>
+    <span class="mono">${SITE_HOST_LABEL}</span>
     <span>Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>

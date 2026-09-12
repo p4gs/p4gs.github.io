@@ -23,6 +23,22 @@ export const SITE_ORIGIN = "https://sscsb.dev";
  */
 export const STAY_PARAM = "stay";
 
+/**
+ * How the site names ITSELF in body text — the footer colophon on every
+ * design. Derived from SITE_ORIGIN + BASE_PATH rather than typed out, because
+ * a hand-typed host is how a domain move ships a page that footers the old
+ * address: the five designs each had their own literal, and three of them
+ * disagreed with the other two after the move to sscsb.dev.
+ *
+ * The origin loses its scheme (a footer is a label, not a link) and the base
+ * path is appended without its trailing slash, so "/" yields a bare host and a
+ * future move back under a subpath yields `host/subpath` with no edit here.
+ */
+export const SITE_HOST_LABEL = `${SITE_ORIGIN.replace(/^https?:\/\//, "")}${BASE_PATH.replace(
+  /\/$/,
+  "",
+)}`;
+
 export const SITE_NAME = "SSCS Bootstrapper";
 export const REPO_URL = "https://github.com/p4gs/sscs-bootstrapper";
 export const SITE_REPO_URL = "https://github.com/p4gs/p4gs.github.io";

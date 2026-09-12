@@ -17,6 +17,7 @@ import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
 import type { DesignCtx } from "../types";
 import { stat } from "./components";
 import { href, page } from "./layout";
+import { CONTROL_COUNT } from "../../reclassify";
 
 /** The median of the listings that produced any answer at all. */
 function medianPassed(records: readonly ScanRecord[]): string {
@@ -49,7 +50,7 @@ const PIPELINE = `<figure class="sg-pipe" aria-label="How a scan is produced: re
   <ol class="sg-pipe-flow">
     <li class="sg-pipe-node"><span class="sg-pipe-n">01</span><span class="sg-pipe-name">source</span><span class="sg-pipe-note">clone, never execute</span></li>
     <li class="sg-pipe-node"><span class="sg-pipe-n">02</span><span class="sg-pipe-name">resolve</span><span class="sg-pipe-note">snapshot before setup</span></li>
-    <li class="sg-pipe-node"><span class="sg-pipe-n">03</span><span class="sg-pipe-name">evaluate</span><span class="sg-pipe-note">54 checks, one verdict each</span></li>
+    <li class="sg-pipe-node"><span class="sg-pipe-n">03</span><span class="sg-pipe-name">evaluate</span><span class="sg-pipe-note">${CONTROL_COUNT} checks, each answered or left unanswered</span></li>
     <li class="sg-pipe-node"><span class="sg-pipe-n">04</span><span class="sg-pipe-name">sign</span><span class="sg-pipe-note">the record, in the open</span></li>
   </ol>
 </figure>`;

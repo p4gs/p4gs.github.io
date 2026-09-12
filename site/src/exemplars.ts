@@ -25,7 +25,7 @@
  */
 
 import { isLocallyResolvable } from "./reclassify";
-import type { ScanRecord } from "./schema";
+import type { ScanRecord, Score } from "./schema";
 import { resolveTrustKind, trustKeyOf, type TrustInfo, type TrustKind } from "./trust";
 
 /** Listings needed before a ranked "best" panel is anything but self-praise. */
@@ -96,6 +96,20 @@ export type Panel<T> =
   | { ready: true; items: T[] }
   | { ready: false; waitingFor: string };
 
+/**
+ * The plain-language line that must ride with a PROVISIONAL grade wherever a
+ * grade is shown large. Exported because the grade travels: Bulletin's lead
+ * slab was rendering an A+ at poster size with no hint that a third of the
+ * checks went unanswered, which is precisely the impression the third state
+ * exists to prevent. One sentence, one source, so a second surface cannot
+ * quietly say something softer.
+ */
+export function incompleteNoteFor(score: Pick<Score, "provisional" | "evidence_coverage_percent">): string {
+  if (!score.provisional) return "";
+  const unanswered = Math.round((100 - score.evidence_coverage_percent) * 10) / 10;
+  return `Not the whole picture — ${unanswered}% of the checks could not be answered here.`;
+}
+
 function cardFor(
   r: ScanRecord,
   trust: ReadonlyMap<string, TrustInfo> | undefined,
@@ -104,7 +118,6 @@ function cardFor(
   const key = trustKeyOf(r);
   const kind = resolveTrustKind(r, trust?.get(key), localTrust?.get(key));
   const answered = r.score.evidence_coverage_percent;
-  const unanswered = Math.round((100 - answered) * 10) / 10;
   return {
     slug: `${r.repo.owner}/${r.repo.name}`,
     path: `directory/${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}/`,
@@ -115,9 +128,7 @@ function cardFor(
     source: kind,
     sourceShort: SOURCE_PLAIN[kind].short,
     sourceLong: SOURCE_PLAIN[kind].long,
-    incompleteNote: r.score.provisional
-      ? `Not the whole picture — ${unanswered}% of the checks could not be answered here.`
-      : "",
+    incompleteNote: incompleteNoteFor(r.score),
     description: r.repo.description,
   };
 }

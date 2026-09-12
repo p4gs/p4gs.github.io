@@ -26,6 +26,27 @@ import type { ControlRecord, Grade, PhaseScore, Score } from "./schema";
  */
 export const PHASES = [1, 2, 3, 4, 5, 6] as const;
 
+/**
+ * What each phase is CALLED, beside the list of which phases exist — because
+ * the two drift apart the moment they live in different files. They had:
+ * PHASES gained phase 6 while four of the five designs kept a five-entry name
+ * map of their own, so ledger, console and chain rendered the distribution
+ * controls under a bare "Phase 6", and signal invented "Other checks" for a
+ * family that `checks.ts` and `reclassify.ts` both call distribution &
+ * publishing. A phase name is taxonomy, not design voice.
+ *
+ * A design may still abbreviate for a tight surface — that is what each
+ * design's own PHASE_SHORT is for — but the full name is spelled once.
+ */
+export const PHASE_NAMES: Readonly<Record<number, string>> = {
+  1: "Commit integrity",
+  2: "Dependencies",
+  3: "Build receipts",
+  4: "Code & build hardening",
+  5: "Ongoing posture",
+  6: "Distribution & publishing",
+};
+
 /** Grade boundaries (owner-specified academic scale). A+ requires exactly 100. */
 export function gradeFor(overallPercent: number): Exclude<Grade, "NA"> {
   if (overallPercent === 100) return "A+";

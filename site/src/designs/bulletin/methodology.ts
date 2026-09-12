@@ -76,9 +76,13 @@ export function renderMethodology(ctx: DesignCtx): string {
   not run is <strong>unverified — a third state</strong> ${define("unverified")}. It is
   shown hatched, and left out of the sums entirely. An unperformed check is never a
   verdict.</p>
-  <p class="honesty-body">Three things can produce a record, and they see different
-  amounts. That is the ${defineTerm("lane")}, stamped on every listing. It decides
-  nothing about the score. It tells you how far the scanner could see. Where a build
+  <p class="honesty-body" id="trust">Three things can produce a record, and they see
+  different amounts. That is the ${defineTerm("lane")}, stamped on every listing. It
+  decides nothing about the score. It tells you how far the scanner could see. An
+  <strong>external</strong> record was produced here, from outside the project; an
+  <strong>authenticated</strong> one by the repository's own CI, signed there, so the
+  signature proves which workflow made it; a <strong>local</strong> one by a maintainer
+  on their own machine, with a key the repository itself publishes. Where a build
   leaves a signed receipt for what it produced, that receipt is an
   ${defineTerm("attestation")}; it is made with ${defineTerm("keyless")}.</p>
 </section>

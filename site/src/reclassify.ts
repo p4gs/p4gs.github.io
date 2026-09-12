@@ -192,6 +192,16 @@ function mapDirect(raw: RawOutcome): ScanOutcome {
   }
 }
 
+/**
+ * How many checks the tool runs. Derived, never typed: four home pages each
+ * carried their own "54", so the day a control is added or retired the site
+ * quietly advertises a number the registry no longer holds — and nothing in
+ * the suite would notice, because a literal cannot drift from itself.
+ * `control-registry.test.ts` pins the registry to the tool's own list, so
+ * pinning this to the registry pins it to the tool.
+ */
+export const CONTROL_COUNT = Object.keys(CONTROL_REGISTRY).length;
+
 export function reclassify(input: ReclassifyInput): ControlRecord[] {
   const out: ControlRecord[] = [];
   for (const row of input.rows) {

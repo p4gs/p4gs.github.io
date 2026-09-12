@@ -2,7 +2,7 @@
  * Console page chrome — ctx-native: every render takes the DesignCtx and all
  * internal hrefs go through ctx.h(), so links stay inside this design's tree.
  */
-import { ACTION_REPO_URL, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import { ACTION_REPO_URL, METHODOLOGY_VERSION, REPO_URL, SITE_HOST_LABEL } from "../../config";
 import type { DesignCtx } from "../types";
 
 export function escapeHtml(s: string): string {
@@ -67,7 +67,7 @@ ${opts.body}
 </main>
 <footer class="site-footer">
   <div class="footer-in">
-    <span class="domain">sscsb.dev</span>
+    <span class="domain">${SITE_HOST_LABEL}</span>
     <span>Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>

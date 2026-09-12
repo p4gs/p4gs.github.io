@@ -33,7 +33,12 @@ export const CSS = `/* Signal — warm paper, hairline structure, one cool accen
   /* Ink — warm near-black, never pure #000. */
   --ink:        #1A1714;
   --ink-2:      #4A443D;
-  --ink-3:      #7A736A;
+  /* #7A736A was 4.18:1 on --paper-2 and 3.89:1 on --paper-3 — under AA for the
+     11px mono lane chips, and for all 38 places this token sets text. Darkened
+     to clear 4.5:1 on every surface in this palette (4.93 on the darkest,
+     --paper-3) while staying a clear third step below --ink-2, so external and
+     unsigned still read weaker than the verified lane. */
+  --ink-3:      #6A635A;
   --hairline:   rgba(26, 23, 20, 0.12);
   --hairline-2: rgba(26, 23, 20, 0.06);
 

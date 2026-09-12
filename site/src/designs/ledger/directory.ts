@@ -18,15 +18,16 @@ import {
 import type { ScanRecord, Score } from "../../schema";
 import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
 import {
-  localOverlayCount,
+  LANE_TITLE,
   LOCAL_RECORD_PUBLISHED,
   LOCAL_SIGNATURE_NAMESPACE,
   LOCAL_SIGNATURE_PUBLISHED,
+  localOverlayCount,
   resolveTrustKind,
   scanLaneOf,
+  type TrustInfo,
   trustKeyOf,
   trustKind,
-  type TrustInfo,
   type TrustKind,
 } from "../../trust";
 import { define, defineTerm } from "../../glossary";
@@ -52,24 +53,12 @@ export function scanLane(r: ScanRecord): "auth" | "external" {
   return scanLaneOf(r) === "action" ? "auth" : "external";
 }
 
-const LANE_LABEL: Readonly<Record<TrustKind, { text: string; title: string }>> = {
-  verified: {
-    text: "✓ verified",
-    title: "Authenticated scan from the repository's own CI; signature verified against its workflow identity",
-  },
-  "unsigned-action": {
-    text: "action · unsigned",
-    title: "Authenticated-lane record without a verified signature — an unverified claim",
-  },
-  local: {
-    text: "local · signed",
-    title:
-      "Workstation scan, signed by a key this repository commits in .sscsb/policy/allowed_signers. Attributable — but weaker than the action lane, which proves the repository's own CI ran the scan. Its local-environment verdicts count on their own; anything a repository scan could observe waits for an independent record to agree.",
-  },
-  external: {
-    text: "external",
-    title: "Outside-in scan by the directory; GitHub-side checks ran with public-only visibility",
-  },
+/** Visible label only — the title prose is `trust.ts` LANE_TITLE, one source. */
+const LANE_LABEL: Readonly<Record<TrustKind, string>> = {
+  verified: "✓ verified",
+  "unsigned-action": "action · unsigned",
+  local: "local · signed",
+  external: "external",
 };
 
 /**
@@ -84,8 +73,9 @@ export function laneBadge(
   local?: TrustInfo,
 ): string {
   const kind: TrustKind = r ? resolveTrustKind(r, t, local) : trustKind(t);
-  const l = LANE_LABEL[kind];
-  return `<span class="lane lane-${kind}" title="${escapeHtml(l.title)}">${escapeHtml(l.text)}</span>`;
+  return `<span class="lane lane-${kind}" title="${escapeHtml(
+    LANE_TITLE[kind],
+  )}">${escapeHtml(LANE_LABEL[kind])}</span>`;
 }
 
 /**

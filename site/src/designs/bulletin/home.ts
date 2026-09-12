@@ -18,6 +18,8 @@ import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
 import { figure, gradeSlab, phaseRules } from "./components";
 import { escapeHtml, page } from "./layout";
 import type { DesignCtx } from "../types";
+import { CONTROL_COUNT } from "../../reclassify";
+import { incompleteNoteFor } from "../../exemplars";
 
 const GRADE_ORDER: Readonly<Record<string, number>> = {
   "A+": 0, A: 1, B: 2, C: 3, D: 4, F: 5, NA: 6,
@@ -25,7 +27,7 @@ const GRADE_ORDER: Readonly<Record<string, number>> = {
 
 /** The band of figures. Numbers the reader can hold, captions in plain words. */
 const FIGURES = [
-  figure("54", "checks, run in six phases"),
+  figure(String(CONTROL_COUNT), "checks, each answered or left unanswered"),
   figure("3", "ways a scan can be run"),
   figure("A+", "means every answered check passed", true),
   figure("0", "unanswered checks are counted against anyone"),
@@ -58,6 +60,9 @@ function slab(r: ScanRecord | undefined, ctx: DesignCtx): string {
   const path = `directory/${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}/`;
   const passed =
     r.score.overall_percent === null ? "—" : `${r.score.overall_percent}%`;
+  // A grade set this large without its provisional line is the strongest claim
+  // on the page making the weakest one silently.
+  const incomplete = incompleteNoteFor(r.score);
   return `<aside class="poster-slab" aria-label="The lead listing">
   <p class="slab-kicker">On the board</p>
   <div class="slab-head">
@@ -69,6 +74,7 @@ function slab(r: ScanRecord | undefined, ctx: DesignCtx): string {
     <div><dt>Answered</dt><dd>${r.score.evidence_coverage_percent}%</dd></div>
   </dl>
   ${phaseRules(r.score.phases, { short: true })}
+  ${incomplete ? `<p class="slab-line">${escapeHtml(incomplete)}</p>` : ""}
   <p class="slab-foot">Scanned ${escapeHtml(r.scanned_at.slice(0, 10))} ·
   <a href="${ctx.h(path)}">read the full record</a></p>
 </aside>`;

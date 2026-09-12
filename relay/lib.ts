@@ -104,12 +104,23 @@ export function vetRepoMeta(meta: RepoMeta): string | null {
 // CORS
 // ---------------------------------------------------------------------------
 
-/** Reflect the Origin only when it is on the allowlist; otherwise no CORS headers. */
+/**
+ * Reflect the Origin only when it is on the allowlist — but `Vary: Origin`
+ * ALWAYS, allowed or not.
+ *
+ * The response body and headers genuinely depend on the request's Origin, so
+ * without this header a shared cache (or a CDN in front of the relay) is
+ * entitled to serve one origin's cached response to another. It used to be
+ * sent only on the allowed branch, which is the wrong way round: the dangerous
+ * case is a REFUSED response — no allow-origin header — being cached and then
+ * replayed to an allowed origin, silently breaking single-click intake for
+ * everyone until the entry expires.
+ */
 export function corsHeadersFor(origin: string | undefined): Record<string, string> {
   if (origin !== undefined && ALLOWED_ORIGINS.includes(origin)) {
     return { "access-control-allow-origin": origin, vary: "Origin" };
   }
-  return {};
+  return { vary: "Origin" };
 }
 
 // ---------------------------------------------------------------------------

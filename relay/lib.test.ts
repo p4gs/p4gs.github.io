@@ -88,11 +88,23 @@ describe("corsHeadersFor", () => {
     });
   }
 
-  test("unknown origins get nothing", () => {
-    expect(corsHeadersFor("https://evil.example")).toEqual({});
-    expect(corsHeadersFor("https://sscsb.dev.evil.example")).toEqual({});
-    expect(corsHeadersFor("http://localhost:3000")).toEqual({});
-    expect(corsHeadersFor(undefined)).toEqual({});
+  /**
+   * A refused origin gets no allow-origin header — and still gets `Vary:
+   * Origin`, because the response it is being handed DID depend on the origin
+   * it sent. Asserting the exact object is the point: it pins both halves, so
+   * neither "we leaked an allow-origin" nor "we dropped the Vary again" can
+   * pass here.
+   */
+  test("unknown origins get no allow-origin header, but still vary on Origin", () => {
+    for (const origin of [
+      "https://evil.example",
+      "https://sscsb.dev.evil.example",
+      "http://localhost:3000",
+      undefined,
+    ]) {
+      expect(corsHeadersFor(origin)).toEqual({ vary: "Origin" });
+      expect(corsHeadersFor(origin)["access-control-allow-origin"]).toBeUndefined();
+    }
   });
 
   /**

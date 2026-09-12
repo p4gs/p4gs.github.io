@@ -10,7 +10,7 @@
  * which matters here because the test suite renders every design in one
  * process.
  */
-import { ACTION_REPO_URL, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import { ACTION_REPO_URL, METHODOLOGY_VERSION, REPO_URL, SCHEMA_VERSION, SITE_HOST_LABEL } from "../../config";
 import type { DesignCtx } from "../types";
 
 export function escapeHtml(s: string): string {
@@ -82,8 +82,8 @@ ${opts.head ?? ""}
     <a class="wordmark" href="${ctx.h("")}"><span class="wm-mark">SSCSB</span></a>
     <p class="mast-strap">Supply-chain scans, on the record</p>
     <p class="mast-edition">
-      <span class="ed-k">Edition</span><span class="ed-v">0.3.0</span>
       <span class="ed-k">Method</span><span class="ed-v">v${METHODOLOGY_VERSION}</span>
+      <span class="ed-k">Schema</span><span class="ed-v">v${SCHEMA_VERSION}</span>
     </p>
     ${nav(ctx)}
   </div>
@@ -93,7 +93,7 @@ ${opts.body}
 </main>
 <footer class="colophon">
   <div class="colophon-in">
-    <span class="col-domain">tools.sensiblesecurity.xyz/sscsb</span>
+    <span class="col-domain">${SITE_HOST_LABEL}</span>
     <span class="col-meta">Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>

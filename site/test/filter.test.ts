@@ -114,7 +114,13 @@ function mount(opts: {
   api?: string;
   popup?: PopupMode;
   fetchImpl?: (url: string, init?: unknown) => Promise<unknown>;
-  /** The directory prefix the page carries; the shipped value by default. */
+  /**
+   * The directory prefix the page carries. The default here is deliberately
+   * NOT the shipped one — the site serves at the root of sscsb.dev, so the
+   * real value is `/directory/`. A non-default prefix is the harder case
+   * (filter.js must use whatever the page declares, never a baked-in path),
+   * which is why the stub keeps the old `/sscsb/directory/` shape.
+   */
   detailBase?: string;
   /** The URL of the document the script is running in. */
   pageUrl?: string;

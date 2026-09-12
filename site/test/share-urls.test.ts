@@ -19,9 +19,7 @@ import {
   METHODOLOGY_SHARE_URL,
   shareUrl,
 } from "../src/designs/share-urls";
-import { chain } from "../src/designs/chain/index";
-import { consoleDesign } from "../src/designs/console/index";
-import { ledger } from "../src/designs/ledger/index";
+import { DESIGNS } from "../src/designs/registry";
 import type { ScanRecord } from "../src/schema";
 import { ctxFor, rec } from "./fixtures";
 import { decodeEntities } from "./html-text";
@@ -53,16 +51,16 @@ describe("listingShareUrl", () => {
 
 /**
  * Driven through each design's PUBLIC render, not through the per-design
- * `nudgeIssueUrl` helpers: two of the three keep theirs module-private on
- * purpose ("designs never import each other"), and the rendered href is the
- * thing a maintainer actually clicks anyway.
+ * `nudgeIssueUrl` helpers: most designs keep theirs module-private on purpose
+ * ("designs never import each other"), and the rendered href is the thing a
+ * maintainer actually clicks anyway.
  *
- * The list is spelled out rather than taken from the registry because the
- * `manual` design is being retired in a separate change and still carries its
- * original hardcoded literals; widen this to DESIGNS once it is gone.
+ * Taken from the REGISTRY, never a hand-kept list: a list is a place for a new
+ * design to be missing from, and a design nobody asserts about is exactly
+ * where a re-hardcoded host survives a green run.
  */
 describe("the prefilled nudge every design puts on a repository's issue tracker", () => {
-  for (const design of [ledger, consoleDesign, chain]) {
+  for (const design of DESIGNS) {
     /**
      * Two layers of encoding sit between the assertion and the text: the body
      * is `encodeURIComponent`-ed into the query, and the whole href is then
@@ -129,4 +127,82 @@ describe("the prefilled nudge every design puts on a repository's issue tracker"
       for (const body of nudgeBodies("sscs-bootstrapper")) expect(body).not.toContain("_d/");
     });
   }
+});
+
+/**
+ * No page of any design may name the OLD host in text the site itself wrote.
+ *
+ * The nudge assertions above cover the prefilled issue bodies. They do not
+ * cover the chrome — and the chrome is where the other half of the migration
+ * defect lived: Signal and Bulletin both footered
+ * `tools.sensiblesecurity.xyz/sscsb` on every page they rendered, on a site
+ * that serves at the root of sscsb.dev, and no test looked at a footer.
+ *
+ * SCOPING, stated rather than implied. A scan record's `repo.description` is
+ * DATA — it is whatever the scanned repository wrote about itself, and it may
+ * legitimately mention any host, including this site's old one. Asserting over
+ * raw page HTML would therefore be asserting about other people's prose, and
+ * would fail on a real listing that happened to link the old directory.
+ *
+ * So the descriptions are removed from the markup by their exact text before
+ * the assertion runs, and what remains is the site's own voice: chrome,
+ * footers, nav, headings, honesty copy and nudge bodies. The removal is by
+ * content rather than by CSS class deliberately — five designs wrap a
+ * description in five different class names, and a per-design selector list is
+ * one more thing a sixth design can be missing from.
+ *
+ * The control test below proves the scoping is doing work rather than the
+ * string simply being absent: with the descriptions left IN, the same pages
+ * DO contain the old host, because the fixture puts it there.
+ */
+describe("no design writes the outgoing host into its own chrome", () => {
+  const OLD_HOST = "tools.sensiblesecurity.xyz";
+  /** Untrusted repository prose that legitimately names the old host. */
+  const DESCRIPTION = `Archived mirror of the directory at https://${OLD_HOST}/sscsb/ — see the notes there.`;
+
+  const poisoned = (name: string): ScanRecord => {
+    const base = rec(name);
+    return { ...base, repo: { ...base.repo, description: DESCRIPTION } };
+  };
+  const RECS = ["sscsb-action", "sscs-bootstrapper"].map(poisoned);
+
+  /** Every page a design renders, for the poisoned fixtures. */
+  const pagesOf = (design: (typeof DESIGNS)[number]): Array<[string, string]> => {
+    const ctx = ctxFor(design.id);
+    return [
+      ["home", design.renderHome(RECS, ctx)],
+      ["directory", design.renderDirectory(RECS, ctx)],
+      ["detail", design.renderRepoDetail(RECS[0]!, ctx)],
+      ["methodology", design.renderMethodology(ctx)],
+    ];
+  };
+
+  /** The page with the untrusted description text taken out, in every form it is emitted in. */
+  const siteVoice = (html: string): string =>
+    html.split(DESCRIPTION).join("").split(encodeURIComponent(DESCRIPTION)).join("");
+
+  for (const design of DESIGNS) {
+    test(`${design.id}: no page names ${OLD_HOST} outside record data`, () => {
+      for (const [page, html] of pagesOf(design)) {
+        expect({ design: design.id, page, mentionsOldHost: siteVoice(html).includes(OLD_HOST) })
+          .toEqual({ design: design.id, page, mentionsOldHost: false });
+      }
+    });
+  }
+
+  /**
+   * The assertion above passes only because the descriptions were removed —
+   * not because nothing on the page could ever contain the string. Without
+   * this, deleting the fixture's old-host description would leave a test that
+   * asserts nothing and still reads green.
+   */
+  test("the scoping is load-bearing: with descriptions left in, the old host IS present", () => {
+    for (const design of DESIGNS) {
+      const directory = pagesOf(design).find(([p]) => p === "directory")![1];
+      expect({ design: design.id, raw: directory.includes(OLD_HOST) }).toEqual({
+        design: design.id,
+        raw: true,
+      });
+    }
+  });
 });

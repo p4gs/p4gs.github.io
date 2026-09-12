@@ -29,13 +29,14 @@ import {
 import type { ScanRecord, Score } from "../../schema";
 import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
 import {
-  localOverlayCount,
+  LANE_TITLE,
   LOCAL_RECORD_PUBLISHED,
   LOCAL_SIGNATURE_NAMESPACE,
   LOCAL_SIGNATURE_PUBLISHED,
+  localOverlayCount,
   resolveTrustKind,
-  trustKeyOf,
   type TrustInfo,
+  trustKeyOf,
   type TrustKind,
 } from "../../trust";
 import {
@@ -73,13 +74,13 @@ function repoSlugPath(r: ScanRecord): string {
 function laneChip(kind: TrustKind): string {
   switch (kind) {
     case "verified":
-      return `<span class="lane lane-auth" title="Authenticated scan from the repository's own CI; signature verified against its workflow identity">${icon(CHECK_ICON_PATH, 12)}verified</span>`;
+      return `<span class="lane lane-auth" title="${escapeHtml(LANE_TITLE.verified)}">${icon(CHECK_ICON_PATH, 12)}verified</span>`;
     case "unsigned-action":
-      return `<span class="lane lane-unsigned" title="Authenticated-lane record without a verified signature — an unverified claim">authenticated · unsigned</span>`;
+      return `<span class="lane lane-unsigned" title="${escapeHtml(LANE_TITLE["unsigned-action"])}">authenticated · unsigned</span>`;
     case "local":
-      return `<span class="lane lane-local" title="Workstation scan signed by a key this repository commits in .sscsb/policy/allowed_signers — attributable, but a shorter chain than the authenticated lane, which proves the repository's own CI ran the scan. Its local-environment verdicts count on their own; anything a repository scan could observe waits for an independent record to agree.">local · signed</span>`;
+      return `<span class="lane lane-local" title="${escapeHtml(LANE_TITLE.local)}">local · signed</span>`;
     default:
-      return `<span class="lane lane-ext" title="Outside-in scan by the directory; GitHub-side checks ran with public-only visibility">external</span>`;
+      return `<span class="lane lane-ext" title="${escapeHtml(LANE_TITLE.external)}">external</span>`;
   }
 }
 
@@ -223,7 +224,7 @@ export function renderDirectory(
   <input type="search" id="dir-filter" placeholder="owner/repo"
     aria-label="Search the directory, or submit a repository to scan (owner/repo or GitHub URL)">
   <div class="card scan-card" id="dir-scan" hidden
-    data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
+    data-api="${escapeHtml(SCAN_API_URL)}" data-fallback="${escapeHtml(SUBMIT_URL)}">
     <p class="scan-copy"><strong>No record for this repository yet.</strong>
     Request an unauthenticated sscsb scan — a maintainer reviews every record
     before it enters the directory.</p>
