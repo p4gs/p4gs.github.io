@@ -30,7 +30,7 @@ import type { ListingFacts } from "../listing";
 import type { ScanRecord } from "../schema";
 import type { TrustInfo } from "../trust";
 
-export type DesignId = "ledger" | "console" | "chain";
+export type DesignId = "ledger" | "console" | "chain" | "bulletin";
 
 export interface DesignCtx {
   /** BASE_PATH for the default design; BASE_PATH + `_d/<id>/` otherwise. */
