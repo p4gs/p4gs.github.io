@@ -43,8 +43,12 @@ const STYLESHEETS: Array<[string, string]> = DESIGNS.map((d) => [
 ]);
 
 describe("nothing at the end of a page sits under the fixed switcher", () => {
-  test("all four designs are covered by this suite", () => {
-    expect(STYLESHEETS.length).toBe(4);
+  test("every registered design is covered by this suite", () => {
+    // A literal rather than `DESIGNS.length`: STYLESHEETS is derived from
+    // DESIGNS, so comparing the two would be tautologically true and would
+    // stop noticing anything. Bump it when a design is added — that is the
+    // moment to check the new one ships a stylesheet at all.
+    expect(STYLESHEETS.length).toBe(5);
   });
 
   for (const [id, css] of STYLESHEETS) {

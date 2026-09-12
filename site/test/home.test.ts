@@ -90,9 +90,11 @@ function prose(html: string): string {
 }
 
 describe("every design renders the new home page", () => {
-  test("all four designs are covered by this suite", () => {
-    expect(HOMES.length).toBe(4);
-    expect(HOMES.map(([id]) => id).sort()).toEqual(["chain", "console", "ledger", "manual"]);
+  test("every registered design is covered by this suite", () => {
+    expect(HOMES.length).toBe(5);
+    expect(HOMES.map(([id]) => id).sort()).toEqual([
+      "chain", "console", "ledger", "manual", "signal",
+    ]);
   });
 
   for (const [id, html] of HOMES) {
