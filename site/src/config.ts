@@ -1,9 +1,11 @@
 /**
- * Site-wide constants. BASE_PATH is the project-Pages prefix — every internal
- * href must start with it (enforced by the link-integrity test), because the
- * site serves at tools.sensiblesecurity.xyz/sscsb/, never at /.
+ * Site-wide constants. BASE_PATH is the path prefix every internal href must
+ * start with (enforced by the link-integrity test). The site serves at the
+ * ROOT of sscsb.dev, so the prefix is "/" — it is still spelled as a constant,
+ * and still used everywhere, because the alternate design trees hang off it
+ * and because a future move back under a subpath must stay a one-line change.
  */
-export const BASE_PATH = "/sscsb/";
+export const BASE_PATH = "/";
 
 /**
  * Where the site actually serves. Used for the canonical URL only — every
@@ -12,11 +14,11 @@ export const BASE_PATH = "/sscsb/";
  * its canonical at the DEFAULT design's equivalent page: a crawler indexing
  * this site sees one copy of each page, the Ledger one.
  */
-export const SITE_ORIGIN = "https://tools.sensiblesecurity.xyz";
+export const SITE_ORIGIN = "https://sscsb.dev";
 
 /**
  * The query parameter that opts out of the remembered-design redirect AND
- * forgets the remembered design. `/sscsb/?stay` is a shareable "always give me
+ * forgets the remembered design. `/?stay` is a shareable "always give me
  * the default design" link, and the switcher's default-design link carries it.
  */
 export const STAY_PARAM = "stay";

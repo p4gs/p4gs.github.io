@@ -99,7 +99,7 @@ ${opts.body}
 </main>
 <footer class="site-footer">
   <div class="footer-in">
-    <span class="mono">tools.sensiblesecurity.xyz/sscsb</span>
+    <span class="mono">sscsb.dev</span>
     <span>Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>

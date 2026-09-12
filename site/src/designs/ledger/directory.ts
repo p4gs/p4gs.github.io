@@ -1,6 +1,12 @@
 /** Directory listing + per-repo detail pages. */
 import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import { factSentences } from "../shared-facts";
+import {
+  listingShareUrl,
+  LOCAL_METHODOLOGY_SHARE_URL,
+  METHODOLOGY_SHARE_URL,
+  shareUrl,
+} from "../share-urls";
 import type { ListingFacts } from "../../listing";
 import {
   anchorCaveat,
@@ -282,12 +288,12 @@ export function nudgeIssueUrl(r: ScanRecord): string {
   const body = encodeURIComponent(
     [
       `This repository is listed in the SSCS Bootstrapper public directory with an external (unauthenticated) scan:`,
-      `https://tools.sensiblesecurity.xyz/sscsb/directory/${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}/`,
+      listingShareUrl(r.repo.owner, r.repo.name),
       ``,
       `External scans cannot see local-environment controls or private GitHub settings, so parts of the score show as unverified. Running the sscsb-action in this repo's own CI publishes an authenticated record instead:`,
       `${ACTION_REPO_URL}#quickstart`,
       ``,
-      `Scoring methodology: https://tools.sensiblesecurity.xyz/sscsb/methodology/`,
+      `Scoring methodology: ${METHODOLOGY_SHARE_URL}`,
     ].join("\n"),
   );
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;
@@ -300,7 +306,7 @@ export function localNudgeIssueUrl(r: ScanRecord, f: CoverageFacts): string {
   const body = encodeURIComponent(
     [
       `This repository's listing in the SSCS Bootstrapper public directory is marked provisional — evidence coverage is ${f.coverage}%:`,
-      `https://tools.sensiblesecurity.xyz/sscsb/directory/${slug}/`,
+      shareUrl(`directory/${slug}/`),
       ``,
       `${plural(f.localResolvable)} are local-environment checks: commit signing, AI trailers, dependency gates and similar controls that live on a maintainer's machine, so no repository scan can ever observe them. They are shown as unverified and excluded from every denominator.`,
       ``,
@@ -312,7 +318,7 @@ export function localNudgeIssueUrl(r: ScanRecord, f: CoverageFacts): string {
       ``,
       `It runs the scan locally, signs the record with the git signing key this repository already commits in .sscsb/policy/allowed_signers, and opens the submission. The directory verifies that signature against your own committed allowed_signers file before listing anything, and your record is then merged with every other evidence source we hold: where they agree that verdict stands, where they disagree the control is scored as a gap, and where a repository scan could observe a control your self-report waits for an independent record to agree with it. The local-environment controls are the ones nobody else can check, and there your signed word counts on its own.`,
       ``,
-      `Methodology: https://tools.sensiblesecurity.xyz/sscsb/methodology/#local`,
+      `Methodology: ${LOCAL_METHODOLOGY_SHARE_URL}`,
     ].join("\n"),
   );
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;

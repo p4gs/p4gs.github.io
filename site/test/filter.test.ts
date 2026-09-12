@@ -167,7 +167,7 @@ function mount(opts: {
   // resolve against" below.
   const location = {
     search: "",
-    href: opts.pageUrl ?? "https://tools.sensiblesecurity.xyz/sscsb/",
+    href: opts.pageUrl ?? "https://sscsb.dev/",
   };
   const opened: string[] = [];
   const mode: PopupMode = opts.popup ?? "blocked";
@@ -475,8 +475,8 @@ describe("the listing link is a path this site built, not a string it was handed
 
   /**
    * The contract this narrows, deliberately. `data-detail-base` is a PATH —
-   * every design emits one through `h()`, which produces `/sscsb/directory/` or
-   * `/sscsb/_d/<id>/directory/`. Keeping `:` out of the alphabet means no
+   * every design emits one through `h()`, which produces `/directory/` or
+   * `/_d/<id>/directory/`. Keeping `:` out of the alphabet means no
    * spelling of the attribute can name a scheme at all, which is a simpler
    * thing to be sure of than "a scheme, but only these two". A base that names
    * its own origin — even the right one — is refused rather than parsed.
@@ -484,18 +484,18 @@ describe("the listing link is a path this site built, not a string it was handed
   test("an absolute prefix is refused even when its origin is correct", () => {
     const h = mount({
       listed: LISTED,
-      detailBase: "https://tools.sensiblesecurity.xyz/sscsb/directory/",
+      detailBase: "https://sscsb.dev/directory/",
     });
     h.type("p4gs/sscs-bootstrapper");
     expect(h.found.hidden).toBe(true);
   });
 
   test("the prefix the designs actually emit for an alternate design works", () => {
-    const h = mount({ listed: LISTED, detailBase: "/sscsb/_d/console/directory/" });
+    const h = mount({ listed: LISTED, detailBase: "/_d/console/directory/" });
     h.type("p4gs/sscs-bootstrapper");
     expect(h.found.hidden).toBe(false);
     expect(h.foundLink.getAttribute("href")).toBe(
-      "/sscsb/_d/console/directory/p4gs--sscs-bootstrapper/",
+      "/_d/console/directory/p4gs--sscs-bootstrapper/",
     );
   });
 

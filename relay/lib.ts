@@ -23,7 +23,18 @@ export const SCAN_LABEL = "scan-request";
 /** Max open scan-request issues before new submissions are refused. */
 export const QUEUE_CAP = 25;
 
+/**
+ * Browser origins the relay reflects back via CORS.
+ *
+ * `https://tools.sensiblesecurity.xyz` is kept DELIBERATELY during the move to
+ * sscsb.dev: the old host keeps serving (and its pages keep calling this
+ * endpoint) until DNS and Pages are cut over, and a relay that dropped it the
+ * moment this merged would break single-click intake for everyone still on the
+ * old URL. Removing it is a separate, later step — once sscsb.dev is live and
+ * the old host no longer serves the directory.
+ */
 export const ALLOWED_ORIGINS: readonly string[] = [
+  "https://sscsb.dev",
   "https://tools.sensiblesecurity.xyz",
   "https://p4gs.github.io",
   "http://localhost:4173",
@@ -140,7 +151,7 @@ export function buildIssueBody(slug: string): string {
     "",
     "- [x] I understand the result may be published publicly with a letter grade",
     "",
-    "_Submitted via tools.sensiblesecurity.xyz_",
+    "_Submitted via sscsb.dev_",
   ].join("\n");
 }
 

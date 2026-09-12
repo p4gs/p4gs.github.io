@@ -15,15 +15,22 @@ import { describe, expect, test } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { build } from "../src/build";
+import { BASE_PATH } from "../src/config";
 
 const DIST = join(new URL("..", import.meta.url).pathname, "dist");
+/**
+ * Where BASE_PATH lands inside dist/ — "" at the domain root, "sscsb" when the
+ * site served under a subpath. Derived rather than spelled, so this test keeps
+ * asserting about the tree the build actually writes.
+ */
+const BASE_DIR = BASE_PATH.replace(/^\//, "");
 
 describe("a rebuild does not preserve what the build did not write", () => {
   test("a stale artifact — at the root and nested — is gone after a rebuild", async () => {
     // Two shapes: a top-level file, and one under the exact directory a
     // delisted repository's page would occupy.
     const rootStale = join(DIST, "__stale-from-an-older-build__.html");
-    const nestedDir = join(DIST, "sscsb", "directory", "delisted--repo");
+    const nestedDir = join(DIST, BASE_DIR, "directory", "delisted--repo");
     const nestedStale = join(nestedDir, "index.html");
     const nestedRecord = join(nestedDir, "scan-record.json");
 
@@ -45,8 +52,8 @@ describe("a rebuild does not preserve what the build did not write", () => {
     expect(pages).toBeGreaterThan(0);
     expect(designs).toBeGreaterThan(0);
     expect(await Bun.file(join(DIST, "index.html")).exists()).toBe(true);
-    expect(await Bun.file(join(DIST, "sscsb", "index.html")).exists()).toBe(true);
-    expect(await Bun.file(join(DIST, "sscsb", "directory", "index.html")).exists()).toBe(true);
+    expect(await Bun.file(join(DIST, BASE_DIR, "index.html")).exists()).toBe(true);
+    expect(await Bun.file(join(DIST, BASE_DIR, "directory", "index.html")).exists()).toBe(true);
     expect(repos).toBeGreaterThanOrEqual(0);
   });
 
