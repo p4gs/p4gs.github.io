@@ -60,6 +60,26 @@ const CARD_LEGEND: ReadonlyArray<{ type: string; label: string }> = [
   { type: "meta", label: "about the tool, never counted" },
 ];
 
+/**
+ * A middot-separated list where the separator belongs to the item that FOLLOWS
+ * it.
+ *
+ * Written as text, the mid-dot stays behind when the item after it wraps, so a
+ * rendered line ends on a stranded separator — the fault the craft judge found
+ * on the sheet's metadata line, the directory's stats line, the colophon, three
+ * overview panels and the explorer's Record card. As a ::before bound to its own
+ * item by a non-breaking space, the break opportunity is the space BEFORE the
+ * dot, so a wrap takes the dot along.
+ *
+ * Items are already escaped/marked up by the caller, as everywhere else here.
+ */
+export function sepList(items: readonly string[], cls = ""): string {
+  return `<span class="fy-sl${cls ? ` ${cls}` : ""}">${items
+    .filter((s) => s !== "")
+    .map((s) => `<span>${s}</span>`)
+    .join(" ")}</span>`;
+}
+
 /** Every control id in the registry, in registry order. */
 export function allControlIds(): string[] {
   return Object.keys(CONTROL_REGISTRY);
@@ -287,7 +307,7 @@ export function nodeChip(id: string, o: ChipOpts): string {
       label: `${id} — what this check asks`,
       eyebrow: CLASS_SHORT[meta.cls],
       body: tipBody,
-      links: `<a href="${o.href}">What every check asks &rarr;</a>`,
+      links: `<a href="${o.href}">What every check asks&nbsp;&rarr;</a>`,
     })}
   </div>`;
 }
@@ -371,9 +391,10 @@ export function nestedDiagram(o: NestedOpts): string {
         [n((w) => w === ABSENT), "not in this record"],
       ];
       const said = parts.filter(([c]) => c > 0).map(([c, l]) => `${c} ${l}`);
-      note = `${ids.length} ${
-        ids.length === 1 ? "check belongs" : "checks belong"
-      } to this phase${said.length ? ` &middot; ${said.join(" &middot; ")}` : ""}.`;
+      note = `${sepList([
+        `${ids.length} ${ids.length === 1 ? "check belongs" : "checks belong"} to this phase`,
+        ...said,
+      ])}.`;
     }
     const stack =
       localOnly.length === 0
@@ -471,9 +492,10 @@ export function overviewDiagram(h: (p: string) => string): string {
   const panel = (cls: EvidenceClass, extra = "") =>
     `      <div class="fy-ov-panel"${extra}>
         <h4>${escapeHtml(CLASS_TITLE[cls])}</h4>
-        <p><span class="fy-ov-count">${counted(cls)}</span> checks &middot; ${escapeHtml(
-          CLASS_TERSE[cls],
-        )}</p>
+        <p>${sepList([
+          `<span class="fy-ov-count">${counted(cls)}</span> checks`,
+          ...CLASS_TERSE[cls].split(" · ").map((s) => escapeHtml(s)),
+        ])}</p>
       </div>`;
   const sharedTotal = SHARED_CLASSES.reduce((n, c) => n + counted(c), 0);
   const scored = sharedTotal + counted("C");
@@ -509,8 +531,11 @@ ${SHARED_CLASSES.map((c) => panel(c)).join("\n")}
       <span class="fy-ov-marker">signed</span>
       <div class="fy-ov-panel" data-ov-panel="adds">
         <h4>A signature</h4>
-        <p>Which build produced the record &middot; burned in by the issuer &middot; not
-        asserted by the record</p>
+        <p>${sepList([
+          "Which build produced the record",
+          "burned in by the issuer",
+          "not asserted by the record",
+        ])}</p>
       </div>
     </div>
   </div>
@@ -528,7 +553,7 @@ ${shared}
 ${lanes}
   <figcaption class="fy-note">Two of the three can be checked by anyone. The third can only be
   asserted by the maintainer, and is weighted accordingly.
-  <a href="${h("methodology/#local")}">How that is checked &rarr;</a>
+  <a href="${h("methodology/#local")}">How that is checked&nbsp;&rarr;</a>
   <span class="fy-ov-foot">+ ${counted("M")} about the tool &mdash; never counted.
   ${scored} of ${CONTROL_COUNT} are scored.</span></figcaption>
 </figure>`;
@@ -1089,7 +1114,7 @@ export function attackList(h: (p: string) => string): string {
       ${incident}
       <p class="fy-attack-checks"><a href="${h(
         `methodology/#threat-${c.id.toLowerCase()}`,
-      )}">Read the whole group &rarr;</a></p>
+      )}">Read the whole group&nbsp;&rarr;</a></p>
     </div>
   </li>`;
   }).join("\n");
@@ -1223,7 +1248,10 @@ ${edges}
         <span class="fy-context-pattern" aria-hidden="true"></span>
         <span class="fy-context-pulse" aria-hidden="true"></span>
         <span class="fy-context-title">the record</span>
-        <span class="fy-context-sub">scan-record.json &middot; signed when the lane can sign it</span>
+        <span class="fy-context-sub">${sepList([
+          "scan-record.json",
+          "signed when the lane can sign it",
+        ])}</span>
         <span class="fy-context-note">One record. Every stage adds to it.</span>
       </div>
     </div>
@@ -1303,7 +1331,7 @@ export function explorer(h: (p: string) => string): string {
           eyebrow: CLASS_SHORT[meta.cls],
           body: `<p>${escapeHtml(questionFor(id))}</p>
       <p class="fy-tip-meta">${escapeHtml(CLASS_PLAIN[meta.cls])}</p>`,
-          links: `<a href="${h("methodology/#every-check")}">What every check asks &rarr;</a>`,
+          links: `<a href="${h("methodology/#every-check")}">What every check asks&nbsp;&rarr;</a>`,
         })}
       </div>`;
       })
@@ -1364,9 +1392,12 @@ ${panels}
         <div class="fy-flow-col">
           <div class="fy-flowcard fy-flowcard-record" data-flow="record">
             <span class="fy-flowcard-title">One listing</span>
-            <span class="fy-flowcard-line">A grade &middot; ${PHASES.length} phase bars &middot;
-            every check with its verdict. The words a listing uses:
-            ${VERDICT_STATES.map((s) => escapeHtml(s.word)).join(" &middot; ")}.</span>
+            <span class="fy-flowcard-line">${sepList([
+              "A grade",
+              `${PHASES.length} phase bars`,
+              "every check with its verdict",
+            ])} The words a listing uses:
+            ${sepList(VERDICT_STATES.map((s) => escapeHtml(s.word)))}.</span>
           </div>
         </div>
       </div>

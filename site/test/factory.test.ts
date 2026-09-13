@@ -575,8 +575,10 @@ describe("what the browser found, and what keeps it found", () => {
   test("the headline keeps its word boundary when the break is hidden", () => {
     // `repository<br>can` renders "repositorycan" at <=767, where the
     // stylesheet hides the break. Measured at 390 before the space went in.
-    expect(HOME).toContain("What each repository <br>can prove");
-    expect(HOME).not.toContain("repository<br>can");
+    // T7 · the break moved so the two lines are closer in length; the SPACE
+    // before it is the part that matters here and it moved with it.
+    expect(HOME).toContain("What each <br>repository can prove");
+    expect(HOME).not.toContain("each<br>repository");
     expect(CSS).toContain(".fy-headline br { display: none; }");
   });
 
@@ -1123,21 +1125,22 @@ describe("A6 · the nested diagram is an irregular composition, three deep", () 
     // "here" in the first place.
     expect(HOME).not.toContain("run here");
     expect(HOME).toContain("checks belong to this phase.");
-    expect(DETAIL).toContain("checks belong to this phase &middot;");
+    expect(DETAIL).toContain("checks belong to this phase</span>");
     // R2 · and the split is a PARTITION now: every chip in the region is in
     // exactly one part, so the parts sum to the chip count. The old split
     // counted answered and no-answer only, and left four of thirteen unsaid.
-    const notes = [...DETAIL.matchAll(/<p class="fy-region-note">([^<]*)<\/p>/g)].map((m) => m[1]!);
+    const notes = [...DETAIL.matchAll(/<p class="fy-region-note">([\s\S]*?)<\/p>/g)].map((m) => m[1]!);
     expect(notes.length).toBe(PHASES.length);
     for (const n of notes) {
-      const total = Number(/^(\d+) check/.exec(n)![1]);
-      const parts = [...n.matchAll(/&middot; (\d+) /g)].map((m) => Number(m[1]));
+      const spans = [...n.matchAll(/<span>([^<]*)<\/span>/g)].map((m) => m[1]!);
+      const total = Number(/^(\d+) check/.exec(spans[0]!)![1]);
+      const parts = spans.slice(1).map((t) => Number(/^(\d+) /.exec(t)![1]));
       expect(parts.reduce((a, b) => a + b, 0), `region note "${n}" must partition its chips`).toBe(
         total,
       );
     }
     // the states the partition is written in, all four of them
-    expect(DETAIL).toMatch(/&middot; \d+ answered/);
+    expect(DETAIL).toMatch(/<span>\d+ answered<\/span>/);
     expect(DETAIL).toContain("not in this record");
   });
 });
@@ -1199,7 +1202,10 @@ describe("A7 + D8 · the lanes diagram says what differs, and emphasises the rig
   });
 
   test("the panels are terse lists, and the L-brackets are there at desktop only", () => {
-    expect(fig).toContain("branch rules · repository settings · read live");
+    // T4 · every separator on these lists is now a ::before on the item after
+    // it, so the list is spans rather than one text run.
+    expect(fig).toContain("<span>branch rules</span> <span>repository settings</span>");
+    expect(fig).toContain("<span>read live</span>");
     expect(CSS).toMatch(/\.fy-ov-label::before \{[^}]*inset-inline-start: calc\(100% \+ 20px\)/);
     expect(CSS).toMatch(/\.fy-ov-label::after \{[^}]*inline-size: 20px; block-size: 1px/);
     expect(MOBILE).toContain(".fy-ov-label::before, .fy-ov-label::after { content: none; }");
@@ -1370,7 +1376,7 @@ describe("A10 + E1 + D9 · the loop's geometry, chrome and centre", () => {
     // have: an external scan is unsigned, and so is a CI run without id-token.
     for (const [name, html] of PAGES) expect(html, name).not.toContain("the signed record");
     expect(HOME).toContain('<span class="fy-context-title">the record</span>');
-    expect(HOME).toContain("scan-record.json &middot; signed when the lane can sign it");
+    expect(HOME).toContain("<span>scan-record.json</span> <span>signed when the lane can sign it</span>");
     expect(HOME).toContain("Five steps, and one record in the middle of them &mdash; signed");
   });
 
@@ -1441,7 +1447,7 @@ describe("A12 + A13 + E4 · the directory's controls, cards and standalone links
     for (const [, cell] of rows) {
       expect(cell).toMatch(/<a class="fy-repo-link" href="[^"]+">[^<]+<\/a>/);
       expect(cell).toContain('class="fy-record-link"');
-      expect(cell).toContain("View record &rarr;");
+      expect(cell).toContain("View record&nbsp;&rarr;");
     }
     // blue and underlined, like every other link on the site
     expect(CSS).toMatch(/\.fy-repo-link \{[^}]*color: var\(--fy-link\);\s*\n?\s*text-decoration: underline/);
@@ -1466,7 +1472,13 @@ describe("A12 + A13 + E4 · the directory's controls, cards and standalone links
   });
 
   test("E4 · standalone links reach the floor; inline ones keep their exception", () => {
-    expect(CSS).toContain(".fy-arrow-link, .fy-rm a, .fy-tip-links a {\n  display: inline-flex; align-items: center; min-block-size: 44px;\n}");
+    expect(CSS).toContain(".fy-arrow-link, .fy-tip-links a {\n  display: inline-flex; align-items: center; min-block-size: 44px;\n}");
+    // T4 · the metadata line's links get their 44px from an ABSOLUTE pseudo,
+    // not from inline-flex: E4 inflated a shared line box and dropped the
+    // links ~12px off the baseline of the text they sit inline with.
+    expect(CSS).toContain(".fy-rm a { position: relative; }");
+    expect(CSS).toMatch(/\.fy-rm a::after \{[^}]*position: absolute;[^}]*block-size: 44px;/);
+    expect(CSS).not.toMatch(/\.fy-rm a \{[^}]*min-block-size: 44px/);
     expect(countOf(HOME, 'class="fy-arrow-link"')).toBe(3);
     // the links inside running prose are deliberately NOT tagged — the WCAG
     // 2.5.8 inline exception covers them and inflating them breaks the line
@@ -1649,7 +1661,9 @@ describe("D3 · a local-lane verdict reads weaker at the row, not only in the he
 
   test("every evidence-table row it resolved carries the same mark", () => {
     expect(HONEST_DETAIL).toContain('<tr class="" data-lane="local">');
-    expect(HONEST_DETAIL).toContain('<a class="fy-row-lane" href="#sheet-lane">local</a>');
+    expect(HONEST_DETAIL).toContain(
+      '<a class="fy-row-lane fy-hit-pill" href="#sheet-lane">local</a>',
+    );
     expect(CSS).toContain('.fy-table tr[data-lane="local"] td[data-label="Verdict"] .fy-outcome { border-style: dashed; }');
   });
 
@@ -1657,7 +1671,7 @@ describe("D3 · a local-lane verdict reads weaker at the row, not only in the he
     // "+local 6" was six WHAT, resolved by whom, and which six — with the
     // sentence that answered it in a `title`.
     expect(HONEST_DETAIL).toContain(
-      `<a class="fy-lane fy-lane-overlay" href="#sheet-lane">+${LOCAL_TRUST.resolved.length} from a local signed record</a>`,
+      `<a class="fy-lane fy-lane-overlay fy-hit-pill" href="#sheet-lane">+${LOCAL_TRUST.resolved.length} from a local signed record</a>`,
     );
     expect(HONEST_DETAIL).not.toContain(">+local ");
   });
@@ -1713,7 +1727,7 @@ describe("D4 · the contradiction is in the hero, before any figure", () => {
 
   test('"not provisional" is qualified in the same breath', () => {
     expect(HONEST_DETAIL).toContain("The grade is not provisional — but the evidence sources did not agree.");
-    expect(HONEST_DETAIL).toContain('<a href="#merge">What the merge found &rarr;</a>');
+    expect(HONEST_DETAIL).toContain('<a href="#merge">What the merge found&nbsp;&rarr;</a>');
     // and a listing with no disagreement keeps the plain sentence
     const clean = factory.renderRepoDetail(
       { ...HONEST_RECORD, repo: { ...HONEST_RECORD.repo, name: "clean" } } as never,
@@ -1904,7 +1918,7 @@ describe("D11 + D13 + D14 + D16 · the rest of the honesty list", () => {
       RECORDS[0]!,
       ctxFor("factory", "directory", "directory/p4gs--sscsb-action/"),
     );
-    expect(old).toContain(`scored under methodology v${RECORDS[0]!.methodology_version} &rarr;`);
+    expect(old).toContain(`scored under methodology v${RECORDS[0]!.methodology_version}&nbsp;&rarr;`);
     expect(old).not.toContain("scored before v");
   });
 
@@ -2123,6 +2137,15 @@ describe("what the self-check found, and what keeps it found", () => {
   test("the local-lane row link reaches the tap floor when the card restacks", () => {
     // 51.2 x 32 at 390: the restack blockifies it out of the WCAG 2.5.8 inline
     // exception, which is exactly why it passed at 1440 and failed at 390.
-    expect(CSS).toMatch(/\.fy-row-lane \{[^}]*display: inline-flex; align-items: center; min-block-size: 44px;/);
+    // T5 · it reaches the floor as the ELEMENT while the DRAWN pill stays the
+    // height of the PASS pill beside it — it used to reach 44 by becoming a
+    // dashed ~46px circle, a shape that appears nowhere else on the site.
+    expect(CSS).toMatch(/:root \.fy-hit-pill \{[^}]*min-block-size: 44px;/);
+    expect(CSS).toMatch(/:root \.fy-hit-pill::before \{[^}]*block-size: 22px;/);
+    expect(CSS).not.toMatch(/\.fy-row-lane \{[^}]*min-block-size: 44px/);
+    // and the cell keeps them on one line box, so the 390 card restack cannot
+    // blockify the link out of the inline exception
+    expect(DETAIL).toContain('<span class="fy-verdict-cell">');
+    expect(CSS).toContain(".fy-verdict-cell { display: inline; }");
   });
 });

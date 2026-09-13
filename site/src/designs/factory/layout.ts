@@ -23,6 +23,7 @@ import {
   SITE_HOST_LABEL,
 } from "../../config";
 import type { DesignCtx } from "../types";
+import { sepList } from "./components";
 import { MOTION_SCRIPT } from "./motion";
 
 export function escapeHtml(s: string): string {
@@ -137,8 +138,12 @@ ${opts.body}
   <div class="fy-colophon-in">
     <p class="fy-col-line">
       <span class="fy-col-host">${SITE_HOST_LABEL}</span>
-      <span class="fy-col-meta">Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION} ·
-      record schema v${SCHEMA_VERSION}</span>
+      <span class="fy-col-meta">${sepList([
+        "Open source",
+        "Apache-2.0",
+        `methodology v${METHODOLOGY_VERSION}`,
+        `record schema v${SCHEMA_VERSION}`,
+      ])}</span>
     </p>
     <p class="fy-col-links">
       <a href="${ACTION_REPO_URL}">The Action</a>

@@ -1076,8 +1076,36 @@ export const PAGES_CSS = `
    WCAG 2.5.8 inline-exception does not cover any of them, and this site holds
    every other control to 44. Links INSIDE running prose keep the exception and
    are deliberately not touched. */
-.fy-arrow-link, .fy-rm a, .fy-tip-links a {
+.fy-arrow-link, .fy-tip-links a {
   display: inline-flex; align-items: center; min-block-size: 44px;
+}
+/* …BUT NOT BY INFLATING A SHARED LINE BOX. E4's inline-flex on the metadata
+   line's links is what put "scan run" and the repository URL ~12px below the
+   baseline of the text they sit inline with, and dropped "scan run" onto a line
+   of its own starting mid-column — the first thing the eye catches in the
+   sheet's first viewport, and exactly the fault round-1 m3 named on the
+   "scored before v2" pill, relocated. An absolutely positioned hit area is out
+   of flow, so the line box and the baseline are untouched. */
+.fy-rm a { position: relative; }
+.fy-rm a::after {
+  content: ""; position: absolute; inset-inline: -4px; inset-block-start: 50%;
+  block-size: 44px; transform: translateY(-50%);
+}
+/* THE SAME IDEA WHERE THE PILL'S SIZE IS THE POINT. The "local" marker in the
+   verdict column reached its 44px by growing into a dashed ~46px CIRCLE beside
+   a 20px PASS pill — a shape that appears nowhere else on the site, more than
+   twice its neighbour's height, and a second wrong copy of a component the
+   phase chips already draw correctly. Here the ELEMENT is the 44px target and
+   the drawn pill is a pseudo at its neighbour's height. */
+:root .fy-hit-pill {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 44px; border: 0; padding: 0 10px; background: 0 0;
+  text-decoration: none; white-space: nowrap;
+}
+:root .fy-hit-pill::before {
+  content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%;
+  block-size: 22px; transform: translateY(-50%);
+  border: 1px dashed currentcolor; border-radius: 999px;
 }
 
 /* ══ directory ═══════════════════════════════════════════════════════════ */
@@ -1214,7 +1242,7 @@ export const PAGES_CSS = `
 .fy-lane-unsigned { border-color: var(--fy-warn); color: var(--fy-warn); }
 .fy-lane-local { border-style: dashed; border-color: var(--fy-na); color: var(--fy-na); }
 .fy-lane-ext { border-color: var(--fy-line); color: var(--fy-muted); }
-.fy-lane-overlay { border-style: dashed; border-color: var(--fy-na); color: var(--fy-na); margin-inline-start: 6px; }
+.fy-lane-overlay { color: var(--fy-na); margin-inline-start: 6px; }
 /* The four lane chips explained ON THE PAGE. The sentence that says the local
    lane is weaker than the action lane is the single most important qualifier
    the directory carries, and it lived in a title attribute. */
@@ -1269,6 +1297,11 @@ export const PAGES_CSS = `
 .fy-key-label {
   font-family: var(--fy-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
 }
+/* THE SEPARATOR TRAVELS WITH THE ITEM AFTER IT. The non-breaking space is the
+   load-bearing half: the break opportunity is the ordinary space BEFORE the
+   dot, so a wrap moves the dot down with its own item instead of stranding it
+   at the end of the line above. */
+.fy-sl > span + span::before { content: "\\B7\\A0"; }
 .fy-swatch { inline-size: 14px; block-size: 14px; border-radius: 4px; display: inline-block; margin-inline-end: 8px; vertical-align: -2px; }
 .fy-swatch-pass { background: var(--fy-pass); }
 .fy-swatch-fail { background: var(--fy-fail); }
@@ -1278,11 +1311,30 @@ export const PAGES_CSS = `
 .fy-phase-name { display: inline-flex; align-items: baseline; gap: 6px; }
 
 /* ══ the repository sheet ════════════════════════════════════════════════ */
-.fy-repo-hero { display: flex; flex-wrap: wrap; gap: 24px 32px; align-items: flex-start; padding-block: 40px 24px; }
+/* ONE LEFT RAIL. The grade ring was a flex SIBLING of the title, so the title,
+   the lane badges, the contradiction notice, the metadata line and the
+   "scored under methodology v1" pill all sat 75px right of the rail that the
+   breadcrumb, the ring itself, the two figures, the legend and the P1-P6 labels
+   share — the eye read a straight edge down the page with one indented block
+   punched into its middle. Stacking the ring puts every one of them on 161, at
+   every width, with no margin-hang that runs out of margin below 1272px. */
+.fy-repo-hero {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 16px;
+  padding-block: 40px 24px;
+}
+.fy-repo-hero > div { inline-size: 100%; }
+/* The verdict cell keeps its pills on ONE line box, which is what keeps the
+   local marker inside the WCAG 2.5.8 inline exception when the table restacks
+   into cards at 390 and blockifies every direct child of a cell. */
+.fy-verdict-cell { display: inline; }
 .fy-repo-title { font-size: clamp(30px, 4vw, 52px); line-height: 1.08; letter-spacing: -0.03em; color: var(--fy-ink); word-break: break-word; }
 .fy-repo-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-block-start: 16px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
 .fy-rm { white-space: nowrap; }
-.fy-rm:not(:last-child)::after { content: " ·"; }
+/* THE SEPARATOR BELONGS TO THE ITEM THAT FOLLOWS IT. As a trailing ::after it
+   stayed behind when the item after it wrapped, so lines ended on a stranded
+   middot — "… methodology v1 ·" and "scan run ·" on the sheet, "coverage 90.9% ·"
+   on the directory. A leading ::before inside a nowrap item travels with it. */
+.fy-rm + .fy-rm::before { content: "· "; }
 .fy-rm-url { white-space: normal; overflow-wrap: anywhere; }
 /* A FLAG, NOT A WARNING. Amber is this page's "gap" colour: painting a listing
    scored under an older methodology in it says something went wrong, when what
@@ -1363,11 +1415,9 @@ export const PAGES_CSS = `
    card restack blockifies it out of the WCAG 2.5.8 inline exception. */
 .fy-row-lane {
   font-family: var(--fy-mono); font-size: 11px; letter-spacing: 0.04em;
-  border: 1px dashed var(--fy-na); border-radius: 999px; padding: 1px 7px;
-  color: var(--fy-na); margin-inline-start: 6px; text-decoration: none; white-space: nowrap;
-  display: inline-flex; align-items: center; min-block-size: 44px;
+  color: var(--fy-na); margin-inline-start: 6px;
 }
-.fy-row-lane:hover { color: var(--fy-ink); border-color: var(--fy-ink); }
+.fy-row-lane:hover { color: var(--fy-ink); }
 /* The contradiction badge, in the hero, before any figure — and in the same
    neutral register as the directory row that carries the same fact. A provenance
    mismatch is not a verdict; red is. */
@@ -1378,7 +1428,7 @@ export const PAGES_CSS = `
 }
 .fy-badge-conflict + .fy-badge-conflict { margin-block-start: 8px; }
 .fy-badge-conflict:hover { background: var(--fy-surface-2); }
-.fy-raw { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); margin-inline-start: 8px; }
+.fy-raw { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); margin-inline-start: 8px; white-space: nowrap; }
 .fy-oos { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); }
 .fy-row-oos { opacity: 0.62; }
 .fy-reason { display: block; font-size: 14px; line-height: 21px; color: var(--fy-quiet); }

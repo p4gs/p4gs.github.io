@@ -67,6 +67,7 @@ import {
   allControlIds,
   chapterNav,
   nestedDiagram,
+  sepList,
   tableWrap,
   VERDICT_WORD,
   verdictKey,
@@ -236,8 +237,8 @@ function localOverlayChip(lt: TrustInfo | undefined, href?: string): string {
   if (n === 0) return "";
   const label = `+${n} from a local signed record`;
   return href
-    ? `<a class="fy-lane fy-lane-overlay" href="${href}">${escapeHtml(label)}</a>`
-    : `<span class="fy-lane fy-lane-overlay">${escapeHtml(label)}</span>`;
+    ? `<a class="fy-lane fy-lane-overlay fy-hit-pill" href="${href}">${escapeHtml(label)}</a>`
+    : `<span class="fy-lane fy-lane-overlay fy-hit-pill">${escapeHtml(label)}</span>`;
 }
 
 /**
@@ -313,10 +314,12 @@ function absentIds(r: ScanRecord): string[] {
 function metaLine(r: ScanRecord, f: CoverageFacts): string {
   const overall = r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`;
   const v = floorVerdict(f);
+  // No separator baked into the item: sepList owns every one on this line, and
+  // a hand-written leading middot here is one the wrap can strand.
   const mark = v.over
-    ? ` &middot; <span class="fy-cov-mark fy-cov-over">${escapeHtml(v.mark)}</span>`
+    ? `<span class="fy-cov-mark fy-cov-over">${escapeHtml(v.mark)}</span>`
     : "";
-  const prov = r.score.provisional ? ` &middot; <em>provisional</em>` : "";
+  const prov = r.score.provisional ? `<em>provisional</em>` : "";
   // A PERCENTAGE WITH NO DENOMINATOR ON THE PAGE. The directory is the one place
   // the number appeared with nothing to read it against; a reader who has just
   // been told "54 checks" reads 90.9% against 54.
@@ -326,7 +329,13 @@ function metaLine(r: ScanRecord, f: CoverageFacts): string {
       c.in_scope &&
       (c.scan_outcome === "pass" || c.scan_outcome === "fail" || c.scan_outcome === "gap"),
   ).length;
-  return `${overall} passed &middot; coverage ${r.score.evidence_coverage_percent}% &middot; ${answered} of ${scoped} in scope${mark}${prov}`;
+  return sepList([
+    `${overall} passed`,
+    `coverage ${r.score.evidence_coverage_percent}%`,
+    `${answered} of ${scoped} in scope`,
+    mark,
+    prov,
+  ]);
 }
 
 function coverageVerdictLine(
@@ -351,15 +360,15 @@ function coverageVerdictLine(
         ? "The grade is not provisional — but the evidence sources did not agree. "
         : "The grade is not provisional. ";
     return `<p class="fy-cov-verdict">${mark}<span class="fy-cv-note">${escapeHtml(letter)}${
-      conflicted ? `<a href="#merge">What the merge found &rarr;</a> &middot; ` : ""
+      conflicted ? `<a href="#merge">What the merge found&nbsp;&rarr;</a> &middot; ` : ""
     }<a
-    href="${ctx.h("methodology/#grades")}">How coverage is scored &rarr;</a></span></p>`;
+    href="${ctx.h("methodology/#grades")}">How coverage is scored&nbsp;&rarr;</a></span></p>`;
   }
   const letter = f.belowNaFloor ? "There is no letter at all." : "The letter is provisional.";
   return `<p class="fy-cov-verdict">${mark}<span class="fy-cv-note">${escapeHtml(
     letter,
   )} ${escapeHtml(plural(f.unverified))} carry no verdict.
-  <a href="#coverage">What is missing, and the fix &rarr;</a></span></p>`;
+  <a href="#coverage">What is missing, and the fix&nbsp;&rarr;</a></span></p>`;
 }
 
 /** The row's coverage note, plus the caveat when the one-line fix would refuse. */
@@ -430,7 +439,7 @@ function mergeSummary(lf: ListingFacts, directory: Score): string {
           } ${pct(directory.overall_percent)}`,
     );
   }
-  return bits.map(escapeHtml).join(" &middot; ");
+  return sepList(bits.map(escapeHtml));
 }
 
 /**
@@ -598,7 +607,7 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
     <span class="fy-desc">${escapeHtml(r.repo.description)}</span>
     <span class="fy-meta-line">${metaLine(r, f)}</span>
     ${coverageNote(f)}${factNotes(lf, r.score)}
-    <a class="fy-record-link" href="${ctx.h(repoSlugPath(r))}">View record &rarr;</a></td>
+    <a class="fy-record-link" href="${ctx.h(repoSlugPath(r))}">View record&nbsp;&rarr;</a></td>
   <td data-label="Phases">${phaseBars(r.score.phases, { rows: rowsPerPhase(r) })}</td>
   <td data-label="Evidence source">${LANE_CHIP[kind]}${localOverlayChip(lt)}</td>
   <td data-label="Scanned">${escapeHtml(r.scanned_at.slice(0, 10))}</td>
@@ -982,11 +991,11 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   <td data-label="Control"><code>${escapeHtml(c.id)}</code>${
     c.in_scope || c.scan_outcome === "info" ? "" : ' <span class="fy-oos">out of scope</span>'
   }</td>
-  <td data-label="Verdict"><span class="fy-outcome fy-oc-${escapeHtml(
+  <td data-label="Verdict"><span class="fy-verdict-cell"><span class="fy-outcome fy-oc-${escapeHtml(
     c.scan_outcome,
   )}">${escapeHtml(label)}</span>${
-    local ? `<a class="fy-row-lane" href="#sheet-lane">local</a>` : ""
-  }${raw}</td>
+    local ? `<a class="fy-row-lane fy-hit-pill" href="#sheet-lane">local</a>` : ""
+  }${raw}</span></td>
   <td data-label="Detail">${reason}${msgs}</td>
 </tr>`;
   };
@@ -1055,7 +1064,7 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
 <div class="fy-wrapper">
 <section class="fy-repo-hero" id="sheet-record">
   ${gradeWithTag(r.score)}
-  <div style="flex:1 1 320px;min-width:0">
+  <div style="min-width:0">
     <h1 class="fy-repo-title">${escapeHtml(slug)}</h1>
     <!-- THE CONTRADICTION IS IN THE HERO, BEFORE ANY FIGURE. types.ts requires
          it "on the listing row AND on the detail page" precisely because it is
@@ -1080,7 +1089,7 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
         r.methodology_version < METHODOLOGY_VERSION
           ? `<a class="fy-stale" href="${ctx.h(
               "methodology/#changelog",
-            )}">scored under methodology v${r.methodology_version} &rarr;</a>`
+            )}">scored under methodology v${r.methodology_version}&nbsp;&rarr;</a>`
           : ""
       }
     </p>

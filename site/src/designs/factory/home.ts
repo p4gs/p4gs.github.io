@@ -100,7 +100,7 @@ function aperture(records: ScanRecord[], ctx: DesignCtx): string {
                "repositorycan". A trailing space is trimmed at the end of a
                wrapped line, so it costs nothing on desktop and is the whole word
                boundary on a phone. -->
-          <h1 class="fy-headline">What each repository <br>can prove</h1>
+          <h1 class="fy-headline">What each <br>repository can prove</h1>
           <!-- THE CAVEAT IS ABOVE THE FOLD, not only in the response panel. A
                reader who never scrolls past the first viewport still has to
                have met the claim the whole directory rests on. -->
@@ -320,19 +320,19 @@ function chapterYours(ctx: DesignCtx): string {
         <h4>Run it in your build</h4>
         <p>The scan runs in your own CI and signs the record there. The signature proves which
         build made it.</p>
-        <p><a class="fy-arrow-link" href="${ACTION_REPO_URL}#quickstart">Install the Action &rarr;</a></p>
+        <p><a class="fy-arrow-link" href="${ACTION_REPO_URL}#quickstart">Install the Action&nbsp;&rarr;</a></p>
       </div>
       <div class="fy-ov-panel">
         <h4>Run it on your machine</h4>
         <p>Some checks describe a developer's laptop. You are the only one who can answer those.
         Sign the result and send it in.</p>
-        <p><a class="fy-arrow-link" href="${ctx.h("methodology/#local")}">How that is checked &rarr;</a></p>
+        <p><a class="fy-arrow-link" href="${ctx.h("methodology/#local")}">How that is checked&nbsp;&rarr;</a></p>
       </div>
       <div class="fy-ov-panel">
         <h4>Ask for a scan</h4>
         <p>Anyone can ask for any public repository to be read from outside. A person reviews
         the result before it appears.</p>
-        <p><a class="fy-arrow-link" href="${ctx.h("directory/#dir-filter")}">Search, or request one &rarr;</a></p>
+        <p><a class="fy-arrow-link" href="${ctx.h("directory/#dir-filter")}">Search, or request one&nbsp;&rarr;</a></p>
       </div>
     </div>
   </div>
