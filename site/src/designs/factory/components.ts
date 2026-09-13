@@ -152,14 +152,62 @@ function icon(cls: EvidenceClass): string {
       stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[cls]}</svg>`;
 }
 
-/** How a verdict is named on a chip, when the chip is bound to one record. */
-const VERDICT_WORD: Readonly<Record<string, string>> = {
-  pass: "pass",
-  fail: "fail",
-  gap: "gap",
-  unverified: "no answer",
-  info: "info",
-};
+/**
+ * ONE VERDICT VOCABULARY, and every surface draws from it.
+ *
+ * It used to be four: the chip said `INFO`, the table said `Info`, the phase-bar
+ * legend said `no answer, never counted` and the explorer's Record card promised
+ * "no defence found" — a word the sheet never printed. `info` in particular was
+ * rendered 33 times on a sheet and defined in none of the three keys on the page,
+ * while the figure above it said the same thing in plain English ("out of
+ * scope"). The two never met.
+ *
+ * `absent` is the fifth state and it is not a verdict at all: it is the registry
+ * control this record holds NO ROW for. Ten of the 54 are in that position on
+ * every live listing, and they were being folded into "out of scope" — an
+ * assertion about a repository that nothing measured, in the flattering
+ * direction, because counting them as unanswered would put coverage under the
+ * floor. `threats.ts`: a control id with no entry is an error, never a guess.
+ */
+export const VERDICT_STATES: ReadonlyArray<{ key: string; word: string }> = [
+  { key: "pass", word: "pass" },
+  { key: "fail", word: "did not pass" },
+  { key: "gap", word: "gap" },
+  { key: "unverified", word: "no answer" },
+  { key: "info", word: "out of scope" },
+  { key: "absent", word: "not in this record" },
+];
+
+/** How a verdict is named, on a chip, in a table cell and in every key. */
+export const VERDICT_WORD: Readonly<Record<string, string>> = Object.fromEntries(
+  VERDICT_STATES.map((s) => [s.key, s.word]),
+);
+
+/** The state a registry control is in when the record holds no row for it. */
+export const ABSENT = "absent";
+
+/**
+ * The verdict key, drawn as the page actually draws each mark.
+ *
+ * Not swatches: the legend's hatched square was a legend for ITSELF — `--fy-hatch`
+ * was applied by exactly one rule, the swatch, and nothing on the page had been
+ * hatched since the pass bar stopped drawing the unanswered set inside its track.
+ * A reader who learned "hatched = no answer" and then scanned six full-green bars
+ * for hatching concluded nothing was unanswered. These are the real `.fy-outcome`
+ * pills, so the key cannot drift from the thing it explains.
+ */
+export function verdictKey(label = "Key"): string {
+  const items = VERDICT_STATES.map(
+    (s) =>
+      `<span class="fy-vkey"><span class="fy-outcome fy-oc-${s.key}">${escapeHtml(
+        s.word,
+      )}</span></span>`,
+  ).join("\n  ");
+  return `<p class="fy-key fy-verdict-key">
+  <span class="fy-key-label">${escapeHtml(label)}</span>
+  ${items}
+</p>`;
+}
 
 export interface ChipOpts {
   /** Prefix for the tip's dom id, so two diagrams on one page cannot collide. */
@@ -194,7 +242,11 @@ export function nodeChip(id: string, o: ChipOpts): string {
   const meta = CONTROL_REGISTRY[id]!;
   const tipId = `fy-tip-${o.scope}-${id}`;
   const row = o.verdicts?.get(id);
-  const verdict = row ? row.scan_outcome : null;
+  // A chip BOUND to a record always carries a word. Ten of the 54 rendered as a
+  // bare chip with no badge and no word — indistinguishable from a rendering
+  // failure, beside siblings that all carried one — because the record holds no
+  // row for them. That is a state, and it has a name.
+  const verdict = row ? row.scan_outcome : o.verdicts ? ABSENT : null;
   // Only a COUNTABLE verdict can have come from the local lane. Marking a
   // "no answer" chip as locally resolved would be two contradictory claims in
   // one chip, and a merge that produced that pairing is a data fault, not a
@@ -207,14 +259,18 @@ export function nodeChip(id: string, o: ChipOpts): string {
         local ? `<span class="fy-node-lane">local</span>` : ""
       }`
     : "";
-  const scoped = row && !row.in_scope ? " · not in scope for this listing" : "";
+  // `out of scope` IS the not-in-scope fact, said in the words the figure and
+  // the table already use, so the suffix would say it twice.
+  const scoped = row && !row.in_scope && verdict !== "info" ? " · not in scope for this listing" : "";
   const tipBody = `<p>${escapeHtml(questionFor(id))}</p>
       <p class="fy-tip-meta">${escapeHtml(CLASS_PLAIN[meta.cls])}${
-        verdict
-          ? ` This scan recorded <strong>${escapeHtml(
-              VERDICT_WORD[verdict] ?? verdict,
-            )}</strong>${escapeHtml(scoped)}.`
-          : ""
+        verdict === ABSENT
+          ? " This record holds no row for it at all, so this listing says nothing about it either way."
+          : verdict
+            ? ` This scan recorded <strong>${escapeHtml(
+                VERDICT_WORD[verdict] ?? verdict,
+              )}</strong>${escapeHtml(scoped)}.`
+            : ""
       }${
         local
           ? " That verdict comes from a record the maintainer signed on their own machine, and from no other source."
@@ -295,14 +351,29 @@ export function nestedDiagram(o: NestedOpts): string {
     // The answered split comes from the record, not from the taxonomy.
     let note = `${ids.length} ${ids.length === 1 ? "check belongs" : "checks belong"} to this phase.`;
     if (o.verdicts) {
-      const rows = ids.map((id) => o.verdicts!.get(id)).filter((r) => r !== undefined);
-      const answered = rows.filter(
-        (r) => r!.scan_outcome === "pass" || r!.scan_outcome === "fail" || r!.scan_outcome === "gap",
-      ).length;
-      const open = rows.filter((r) => r!.scan_outcome === "unverified").length;
+      // THE PARTS SUM TO THE CHIPS. The old split counted answered and no-answer
+      // and nothing else, so a 13-chip region printed "8 answered · 1 with no
+      // answer" and left four unaccounted — and a region whose controls the
+      // record simply does not hold read "6 checks belong to this phase · 0
+      // answered · 0 with no answer", which is an incoherent pair rather than a
+      // fact. The partition is the chip's own word, so the note and the chips
+      // cannot disagree.
+      const word = (id: string): string => {
+        const r = o.verdicts!.get(id);
+        if (!r) return ABSENT;
+        return r.scan_outcome;
+      };
+      const n = (pred: (w: string) => boolean) => ids.filter((id) => pred(word(id))).length;
+      const parts: Array<[number, string]> = [
+        [n((w) => w === "pass" || w === "fail" || w === "gap"), "answered"],
+        [n((w) => w === "unverified"), "no answer"],
+        [n((w) => w === "info"), "out of scope"],
+        [n((w) => w === ABSENT), "not in this record"],
+      ];
+      const said = parts.filter(([c]) => c > 0).map(([c, l]) => `${c} ${l}`);
       note = `${ids.length} ${
         ids.length === 1 ? "check belongs" : "checks belong"
-      } to this phase &middot; ${answered} answered &middot; ${open} with no answer.`;
+      } to this phase${said.length ? ` &middot; ${said.join(" &middot; ")}` : ""}.`;
     }
     const stack =
       localOnly.length === 0
@@ -1219,8 +1290,8 @@ ${panels}
           <div class="fy-flowcard fy-flowcard-record" data-flow="record">
             <span class="fy-flowcard-title">One listing</span>
             <span class="fy-flowcard-line">A grade &middot; ${PHASES.length} phase bars &middot;
-            every check with its verdict &mdash; passed, failed, no defence found, or no answer
-            at all.</span>
+            every check with its verdict. The words a listing uses:
+            ${VERDICT_STATES.map((s) => escapeHtml(s.word)).join(" &middot; ")}.</span>
           </div>
         </div>
       </div>

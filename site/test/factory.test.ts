@@ -1124,7 +1124,21 @@ describe("A6 · the nested diagram is an irregular composition, three deep", () 
     expect(HOME).not.toContain("run here");
     expect(HOME).toContain("checks belong to this phase.");
     expect(DETAIL).toContain("checks belong to this phase &middot;");
-    expect(DETAIL).toMatch(/\d+ answered &middot; \d+ with no answer\./);
+    // R2 · and the split is a PARTITION now: every chip in the region is in
+    // exactly one part, so the parts sum to the chip count. The old split
+    // counted answered and no-answer only, and left four of thirteen unsaid.
+    const notes = [...DETAIL.matchAll(/<p class="fy-region-note">([^<]*)<\/p>/g)].map((m) => m[1]!);
+    expect(notes.length).toBe(PHASES.length);
+    for (const n of notes) {
+      const total = Number(/^(\d+) check/.exec(n)![1]);
+      const parts = [...n.matchAll(/&middot; (\d+) /g)].map((m) => Number(m[1]));
+      expect(parts.reduce((a, b) => a + b, 0), `region note "${n}" must partition its chips`).toBe(
+        total,
+      );
+    }
+    // the states the partition is written in, all four of them
+    expect(DETAIL).toMatch(/&middot; \d+ answered/);
+    expect(DETAIL).toContain("not in this record");
   });
 });
 
@@ -1514,8 +1528,16 @@ describe("D2 + A14 · the pass bar's width equals its own number", () => {
       expect(html, `${name}: unanswered segment`).not.toContain("fy-seg-unv");
     }
     expect(CSS).not.toContain(".fy-seg-unv {");
-    // the hatch still exists — as a KEY swatch, which is a legend, not a bar
-    expect(CSS).toContain(".fy-swatch-unv { background-image: var(--fy-hatch)");
+    // R3 · and nothing is hatched at all now. The swatch was the last rule that
+    // applied `--fy-hatch`, which made it a legend for itself: a reader who
+    // learned "hatched = no answer" scanned six full-green bars for hatching and
+    // concluded nothing was unanswered.
+    expect(CSS).not.toContain(".fy-swatch-unv");
+    expect(CSS).toContain("--fy-hatch: none;");
+    expect(CSS).not.toContain("repeating-linear-gradient(135deg,\n    rgba(0, 0, 0");
+    for (const [name, html] of PAGES) {
+      expect(html, `${name}: hatched swatch`).not.toContain("fy-swatch-unv");
+    }
   });
 
   test("the aria-label's own words are printed on the visible layer", () => {
@@ -1535,7 +1557,7 @@ describe("D2 + A14 · the pass bar's width equals its own number", () => {
   test("one legend sits above the stack on the sheet, and not three on the directory", () => {
     expect(countOf(DETAIL, 'class="fy-phase-key"')).toBe(1);
     expect(DETAIL.indexOf('class="fy-phase-key"')).toBeLessThan(DETAIL.indexOf('class="fy-phaserow"'));
-    expect(DETAIL).toContain("no answer, never counted");
+    expect(DETAIL).toContain("no answer is never in the track, and never counted");
     expect(countOf(DIRECTORY, 'class="fy-phase-key"')).toBe(0);
   });
 });
@@ -1672,13 +1694,51 @@ describe("D10 · the denominators are on the page", () => {
     // answered; the true figure was 27 of 31 in scope, and the strings 31 and
     // 27 appeared zero times in the rendered page.
     expect(DETAIL).toMatch(/\d+ of the \d+ checks in scope for this\s*\n?\s*listing were answered\./);
-    expect(DETAIL).toMatch(/\d+ of the 54 standard checks are out of\s*\n?\s*scope here/);
     expect(DETAIL).toMatch(/\d+ of the \d+ checks that were\s*\n?\s*answered passed\./);
     expect(DETAIL).toContain('<a href="#sheet-controls">see the table</a>');
     // derived from the rows the table shows, not typed
-    const scoped = RECORDS[0]!.controls.filter((c) => c.in_scope).length;
+    const rec = RECORDS[0]!;
+    const scoped = rec.controls.filter((c) => c.in_scope).length;
     expect(DETAIL).toContain(`of the ${scoped} checks in scope`);
-    expect(DETAIL).toContain(`${CONTROL_COUNT - scoped} of the ${CONTROL_COUNT} standard checks`);
+    // R2 · THREE counts, and they sum to the registry. The old sentence folded
+    // "the record marks these out of scope" together with "the record holds no
+    // row for these at all" and asserted out-of-scope for both — the guess
+    // `threats.ts` forbids, in the flattering direction.
+    const held = new Set(rec.controls.map((c) => c.id));
+    const absent = Object.keys(CONTROL_REGISTRY).filter((id) => !held.has(id)).length;
+    const oos = rec.controls.filter((c) => !c.in_scope).length;
+    expect(scoped + oos + absent).toBe(CONTROL_COUNT);
+    const cap = /Of the (\d+) standard checks, (\d+) are\s*\n?\s*marked out of scope for this repository and (\d+) do not appear in this record at\s*\n?\s*all/.exec(
+      DETAIL,
+    );
+    expect(cap, "the coverage figure must name all three counts").not.toBeNull();
+    expect(Number(cap![1])).toBe(CONTROL_COUNT);
+    expect(Number(cap![2])).toBe(oos);
+    expect(Number(cap![3])).toBe(absent);
+    expect(scoped + Number(cap![2]) + Number(cap![3])).toBe(CONTROL_COUNT);
+    // and "see the table" is true: every absent id has a row there
+    for (const id of Object.keys(CONTROL_REGISTRY).filter((i) => !held.has(i))) {
+      expect(DETAIL, `${id} needs a row`).toContain(
+        `<tr class="fy-row-absent">\n  <td data-label="Control"><code>${id}</code></td>`,
+      );
+    }
+  });
+
+  test("R2 · a bound chip always carries a verdict word, and absent is one of them", () => {
+    const rec = RECORDS[0]!;
+    const held = new Set(rec.controls.map((c) => c.id));
+    for (const id of Object.keys(CONTROL_REGISTRY)) {
+      const want = held.has(id) ? rec.controls.find((c) => c.id === id)!.scan_outcome : "absent";
+      expect(DETAIL, `${id} chip verdict`).toContain(
+        `<button type="button" class="fy-node" data-verdict="${want}"`,
+      );
+    }
+    // no chip on the sheet is bound and wordless
+    const chips = [...DETAIL.matchAll(/<button type="button" class="fy-node"([^>]*)>/g)];
+    expect(chips.length).toBe(CONTROL_COUNT);
+    for (const c of chips) expect(c[1]!, `chip without a verdict: ${c[1]}`).toContain("data-verdict=");
+    // the home page's chips are bound to NO record, so they carry none at all
+    expect(HOME).not.toContain('class="fy-node" data-verdict=');
   });
 });
 

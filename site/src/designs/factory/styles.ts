@@ -61,8 +61,13 @@ export const CSS = `
   --fy-fail: #c0362c;
   --fy-warn: #a35b00;
   --fy-na: #6b6b6b;
-  --fy-hatch: repeating-linear-gradient(135deg,
-    rgba(0, 0, 0, 0.26) 0 3px, rgba(0, 0, 0, 0) 3px 7px);
+  /* NOTHING IS HATCHED. The hatch survived D2 as a legend swatch — and by then
+     it was a legend for itself: the token was applied by exactly one rule,
+     the swatch, because the pass bar had stopped drawing the unanswered set
+     inside its track. A reader who learned "hatched = no answer" then scanned
+     six full-green bars for hatching and concluded nothing was unanswered. The
+     token stays only so the shared bridge resolves; it paints nothing. */
+  --fy-hatch: none;
 
   --fy-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --fy-body: var(--fy-display);
@@ -606,6 +611,17 @@ main [id] { scroll-margin-top: 88px; }
 .fy-node[data-verdict="unverified"] .fy-node-verdict { color: var(--fy-na); border-style: dashed; }
 .fy-node[data-verdict="info"] { border-color: var(--fy-line); }
 .fy-node[data-verdict="info"] .fy-node-verdict { color: var(--fy-muted); border: 0; padding: 0; }
+/* THE FIFTH STATE, AND IT IS NOT A VERDICT. The record holds no row for this
+   control at all — so it gets the dotted register this page already spends on
+   "not a thing that was scored", a muted id, and the words. Ten of the 54 were
+   rendering as a bare chip with no badge beside siblings that all carried one,
+   which reads as data that failed to render. */
+.fy-node[data-verdict="absent"] { border-style: dotted; border-color: var(--fy-line); }
+.fy-node[data-verdict="absent"] .fy-node-icon { opacity: 0.45; }
+.fy-node[data-verdict="absent"] .fy-node-label { color: var(--fy-muted); }
+.fy-node[data-verdict="absent"] .fy-node-verdict {
+  color: var(--fy-muted); border-style: dotted; border-color: var(--fy-line);
+}
 /* THE LOCAL LANE, AT THE ROW. A green PASS here is the repository's owner
    asserting his own posture on his own laptop; the one beside it may be
    something an independent scan observed, and there was no way on the page to
@@ -1172,7 +1188,10 @@ export const PAGES_CSS = `
 .fy-swatch { inline-size: 14px; block-size: 14px; border-radius: 4px; display: inline-block; margin-inline-end: 8px; vertical-align: -2px; }
 .fy-swatch-pass { background: var(--fy-pass); }
 .fy-swatch-fail { background: var(--fy-fail); }
-.fy-swatch-unv { background-image: var(--fy-hatch); background-color: var(--fy-surface-2); }
+/* P1–P6 against the names they stand for, on the one page that prints the bars
+   without the names. They lived in a title, which a touch device never renders. */
+.fy-phase-names { gap: 8px 20px; }
+.fy-phase-name { display: inline-flex; align-items: baseline; gap: 6px; }
 
 /* ══ the repository sheet ════════════════════════════════════════════════ */
 .fy-repo-hero { display: flex; flex-wrap: wrap; gap: 24px 32px; align-items: flex-start; padding-block: 40px 24px; }
@@ -1244,6 +1263,15 @@ export const PAGES_CSS = `
    is not a verdict and a pill is what a verdict looks like on this page. */
 .fy-oc-unverified { color: var(--fy-na); border-style: dashed; }
 .fy-oc-info { color: var(--fy-muted); border: 0; padding: 0; text-transform: none; letter-spacing: 0; }
+.fy-oc-absent { color: var(--fy-muted); border-style: dotted; border-color: var(--fy-line); }
+.fy-row-absent { opacity: 0.62; }
+/* THE KEY DRAWS WHAT THE PAGE DRAWS. Six states, six real pills — a green one,
+   a red one, an amber dashed one, a grey dashed one, plain text, and a dotted
+   one — so a reader who learns the key is looking at the same components the
+   table and the chips use. The three coloured squares it replaced matched
+   nothing on either page, and one of them was a hatch nothing draws. */
+.fy-verdict-key { gap: 10px 18px; }
+.fy-vkey { display: inline-flex; align-items: center; }
 /* A row whose verdict came only from a maintainer's own machine says so, and
    the word is a link to the panel that says what that signature proves. */
 .fy-table tr[data-lane="local"] td[data-label="Verdict"] .fy-outcome { border-style: dashed; }
@@ -1568,8 +1596,11 @@ export const OVERRIDES = `
 :root .tx-chip-id { color: var(--fy-accent); }
 :root .tx-class { border-inline-start-width: 3px; border-radius: 8px; }
 :root .dir-found { border-width: 1px; border-radius: 8px; }
-:root .hp-unans-track { border-radius: 999px; overflow: hidden; }
-:root .hp-unans-fill { background-color: var(--fy-surface-2); }
+:root .hp-unans-track { border-radius: 999px; overflow: hidden; background-color: var(--fy-surface-2); }
+/* A FREQUENCY BAR, NOT A DEFICIT. It counts how many listings leave a check
+   unanswered, in a track of its own — so it is drawn solid and neutral rather
+   than hatched, and it is the last hatch in the design. */
+:root .hp-unans-fill { background-color: var(--fy-na); background-image: none; }
 :root .ex-row { border-inline-start-width: 3px; }
 /* The glosses lose the serif with the family; the shared layer keeps them
    italic and muted, which is §B3's to finish. */

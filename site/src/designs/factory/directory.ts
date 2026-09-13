@@ -29,8 +29,8 @@ import {
   plural,
   type CoverageFacts,
 } from "../../coverage";
-import { define, defineTerm } from "../../glossary";
-import { CONTROL_COUNT } from "../../reclassify";
+import { define } from "../../glossary";
+import { CONTROL_COUNT, CONTROL_REGISTRY } from "../../reclassify";
 import { lookupFacts, shortSha, type ListingFacts } from "../../listing";
 import { COVERAGE_FLOOR_NA, COVERAGE_FLOOR_PROVISIONAL, PHASE_NAMES } from "../../scoring";
 import type { ControlRecord, PhaseScore, ScanRecord, Score } from "../../schema";
@@ -62,7 +62,16 @@ import {
   shareUrl,
 } from "../share-urls";
 import type { DesignCtx } from "../types";
-import { chapterNav, nestedDiagram, tableWrap, type Chapter } from "./components";
+import {
+  ABSENT,
+  allControlIds,
+  chapterNav,
+  nestedDiagram,
+  tableWrap,
+  VERDICT_WORD,
+  verdictKey,
+  type Chapter,
+} from "./components";
 import { escapeHtml, page } from "./layout";
 
 /**
@@ -145,6 +154,44 @@ const LANE_CHIP: Readonly<Record<TrustKind, string>> = {
  */
 const LANE_ORDER: readonly TrustKind[] = ["verified", "unsigned-action", "local", "external"];
 
+/**
+ * The gloss on `no answer`, in Factory's own words.
+ *
+ * The shared glossary says `unverified — nobody could answer this check`, which
+ * is the identical construction the hero was corrected away from, and it is false
+ * on a sheet where eight of those checks were answered by the maintainer on their
+ * own machine with the signature verified two sections below. The shared entry
+ * still feeds the other five designs; overriding the wording here is what this
+ * design can do without editing a shared module.
+ */
+const UNVERIFIED_GLOSS =
+  "<strong>no answer</strong> &mdash; no lane available here could answer it, which is not the " +
+  "same as failing it.";
+
+/**
+ * P1–P6 against the names they stand for.
+ *
+ * The directory is the one page that prints the phase bars WITHOUT printing the
+ * phase names: the names lived in a `title`, which never renders at all on a
+ * touch device, so a phone reader met six bars, no names and no hover.
+ */
+function phaseKeyLine(): string {
+  const items = Object.keys(PHASE_NAMES)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(
+      (p) =>
+        `  <span class="fy-phase-name"><span class="fy-phase-id">P${p}</span>${escapeHtml(
+          PHASE_NAMES[p] ?? "",
+        )}</span>`,
+    )
+    .join("\n");
+  return `<p class="fy-key fy-phase-names">
+  <span class="fy-key-label">Phases</span>
+${items}
+</p>`;
+}
+
 function laneKey(): string {
   const rows = LANE_ORDER.map(
     (k) => `  <span class="fy-lane-row">${LANE_CHIP[k]}<span>${escapeHtml(
@@ -206,6 +253,20 @@ function floorVerdict(f: CoverageFacts): { mark: string; over: boolean } {
   return { mark: `clears the ${COVERAGE_FLOOR_PROVISIONAL}% floor`, over: true };
 }
 
+/** How many rows this record holds for each phase — 0 is a fact, not a blank. */
+function rowsPerPhase(r: ScanRecord): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const p of Object.keys(PHASE_NAMES).map(Number)) out.set(p, 0);
+  for (const c of r.controls) out.set(c.phase, (out.get(c.phase) ?? 0) + 1);
+  return out;
+}
+
+/** The registry controls this record holds no row for at all. */
+function absentIds(r: ScanRecord): string[] {
+  const held = new Set(r.controls.map((c) => c.id));
+  return allControlIds().filter((id) => !held.has(id));
+}
+
 function metaLine(r: ScanRecord, f: CoverageFacts): string {
   const overall = r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`;
   const v = floorVerdict(f);
@@ -213,7 +274,16 @@ function metaLine(r: ScanRecord, f: CoverageFacts): string {
     ? ` &middot; <span class="fy-cov-mark fy-cov-over">${escapeHtml(v.mark)}</span>`
     : "";
   const prov = r.score.provisional ? ` &middot; <em>provisional</em>` : "";
-  return `${overall} passed &middot; coverage ${r.score.evidence_coverage_percent}%${mark}${prov}`;
+  // A PERCENTAGE WITH NO DENOMINATOR ON THE PAGE. The directory is the one place
+  // the number appeared with nothing to read it against; a reader who has just
+  // been told "54 checks" reads 90.9% against 54.
+  const scoped = r.controls.filter((c) => c.in_scope).length;
+  const answered = r.controls.filter(
+    (c) =>
+      c.in_scope &&
+      (c.scan_outcome === "pass" || c.scan_outcome === "fail" || c.scan_outcome === "gap"),
+  ).length;
+  return `${overall} passed &middot; coverage ${r.score.evidence_coverage_percent}% &middot; ${answered} of ${scoped} in scope${mark}${prov}`;
 }
 
 function coverageVerdictLine(
@@ -382,12 +452,17 @@ function phaseLabel(p: PhaseScore): string {
  * answered set and nothing else, and the unanswered count is a separate line
  * underneath, in the aria-label's own words, on the visible layer.
  */
-function phaseBars(phases: readonly PhaseScore[], opts: { legend?: boolean } = {}): string {
+function phaseBars(
+  phases: readonly PhaseScore[],
+  opts: { legend?: boolean; rows?: ReadonlyMap<number, number> } = {},
+): string {
+  // The bar's own two segments, drawn as the track draws them — and the same
+  // six words the chips and the table use, so a reader meets one vocabulary.
   const legend = opts.legend
     ? `<span class="fy-phase-key" aria-hidden="true">
       <span><span class="fy-swatch fy-swatch-pass"></span>pass</span>
       <span><span class="fy-swatch fy-swatch-fail"></span>did not pass</span>
-      <span><span class="fy-swatch fy-swatch-unv"></span>no answer, never counted</span>
+      <span>no answer is never in the track, and never counted</span>
     </span>\n`
     : "";
   const rows = phases
@@ -403,24 +478,35 @@ function phaseBars(phases: readonly PhaseScore[], opts: { legend?: boolean } = {
       const seg = (cls: string, n: number) =>
         n === 0 ? "" : `<span class="${cls}" style="width:${w(n)}%"></span>`;
       const empty = answered === 0 && p.unverified === 0;
+      // AN EMPTY BAR HAS TWO CAUSES AND THEY ARE NOT THE SAME FACT. "no checks
+      // in scope" is a decision this record made about this repository; "no rows
+      // in this record" is the record saying nothing at all. P6 asserted the
+      // first while the table one section below said the second, for the same
+      // phase — and the phase a package consumer cares about most is the one
+      // reported on the weakest evidence.
+      const held = opts.rows?.get(p.phase);
+      const emptyWord = held === 0 ? "no rows in this record" : "no checks in scope";
+      // …and it is said ONCE. The mono track slot and the sans note under it
+      // printed the same sentence in two registers, one directly above the other.
       const track = empty
-        ? `<span class="fy-phase-none">no checks in scope</span>`
+        ? `<span class="fy-phase-none">${emptyWord}</span>`
         : answered === 0
           ? `<span class="fy-phase-none">nothing answered</span>`
           : `<span class="fy-phase-track">${seg("fy-seg-pass", p.pass)}${seg("fy-seg-fail", failGap)}</span>`;
       const note = empty
-        ? "no checks in scope for this listing"
+        ? ""
         : answered === 0
           ? `${plural(p.unverified)} with no answer (not counted)`
           : `${phaseLabel(p)} of ${answered} answered${
               p.unverified > 0 ? ` &middot; ${p.unverified} no answer (not counted)` : ""
             }`;
-      const aria = `${name}: ${note.replaceAll("&middot;", ",")}`;
+      const aria = `${name}: ${(note || emptyWord).replaceAll("&middot;", ",")}`;
       return `<span class="fy-phaserow" role="img" aria-label="${escapeHtml(aria)}">
       <span class="fy-phase-id" aria-hidden="true" title="${escapeHtml(name)}">P${p.phase}</span>
       ${track}
-      <span class="fy-phase-pct" aria-hidden="true">${phaseLabel(p)}</span>
-      <span class="fy-phase-note" aria-hidden="true">${note}</span>
+      <span class="fy-phase-pct" aria-hidden="true">${phaseLabel(p)}</span>${
+        note ? `\n      <span class="fy-phase-note" aria-hidden="true">${note}</span>` : ""
+      }
     </span>`;
     })
     .join("\n");
@@ -465,7 +551,7 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
     <span class="fy-meta-line">${metaLine(r, f)}</span>
     ${coverageNote(f)}${factNotes(lf, r.score)}
     <a class="fy-record-link" href="${ctx.h(repoSlugPath(r))}">View record &rarr;</a></td>
-  <td data-label="Phases">${phaseBars(r.score.phases)}</td>
+  <td data-label="Phases">${phaseBars(r.score.phases, { rows: rowsPerPhase(r) })}</td>
   <td data-label="Evidence source">${LANE_CHIP[kind]}${localOverlayChip(lt)}</td>
   <td data-label="Scanned">${escapeHtml(r.scanned_at.slice(0, 10))}</td>
 </tr>`;
@@ -536,12 +622,9 @@ ${tableWrap(table, "The directory listing")}
   <button type="button" class="fy-clear" id="dir-clear">Clear the filters</button>
 </p>
 <section id="directory-key" aria-label="What the columns mean">
-<p class="fy-key">
-  <span class="fy-key-label">Key</span>
-  <span><span class="fy-swatch fy-swatch-pass"></span>pass</span>
-  <span><span class="fy-swatch fy-swatch-fail"></span>fail / gap</span>
-  <span><span class="fy-swatch fy-swatch-unv"></span>${defineTerm("unverified")}</span>
-</p>
+${verdictKey()}
+<p class="fy-note">${UNVERIFIED_GLOSS}</p>
+${phaseKeyLine()}
 ${laneKey()}
 ${directoryTermsNote(ctx.h)}
 </section>
@@ -567,9 +650,12 @@ export function redactHome(s: string): string {
   return s.replace(/(^|[\s"'`(\[<=:])\/(?:Users|home)\/[^/\s"'`)\]>]+\//g, "$1~/");
 }
 
-const OUTCOME_LABEL: Readonly<Record<string, string>> = {
-  pass: "Pass", fail: "Fail", gap: "Gap", unverified: "Unverified", info: "Info",
-};
+/**
+ * The table says what the chip says. `Info` and `Unverified` were internal
+ * tokens standing where the figure above already used plain English, so one
+ * page named the same state two ways and neither name was in any key.
+ */
+const OUTCOME_LABEL = VERDICT_WORD;
 
 /** Prefilled new-issue link ON THE TARGET REPO suggesting the Action. */
 function nudgeIssueUrl(r: ScanRecord): string {
@@ -787,7 +873,15 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
     (c) => c.scan_outcome === "pass" || c.scan_outcome === "fail" || c.scan_outcome === "gap",
   );
   const passedRows = scoped.filter((c) => c.scan_outcome === "pass");
-  const outOfStandard = CONTROL_COUNT - scoped.length;
+  // THREE COUNTS, EACH FROM THE ROWS THAT SUPPORT IT. `CONTROL_COUNT - scoped`
+  // folded two different facts into one number and called the whole thing "out
+  // of scope": the 11 the record marks out of scope, and the 10 the record holds
+  // no row for at all. Asserting out-of-scope for the second group is the guess
+  // `threats.ts` forbids, and it runs in the flattering direction — those ten sit
+  // outside the coverage denominator, and counting them as unanswered would put
+  // coverage under the floor, so "clears the 75% floor" rested on the guess.
+  const absent = absentIds(r);
+  const outOfScopeRows = r.controls.filter((c) => !c.in_scope);
 
   const byPhase = new Map<number, ControlRecord[]>();
   for (const c of r.controls) {
@@ -825,7 +919,7 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
       (c.scan_outcome === "pass" || c.scan_outcome === "fail" || c.scan_outcome === "gap");
     return `<tr class="${c.in_scope ? "" : "fy-row-oos"}"${local ? ' data-lane="local"' : ""}>
   <td data-label="Control"><code>${escapeHtml(c.id)}</code>${
-    c.in_scope ? "" : ' <span class="fy-oos">out of scope</span>'
+    c.in_scope || c.scan_outcome === "info" ? "" : ' <span class="fy-oos">out of scope</span>'
   }</td>
   <td data-label="Verdict"><span class="fy-outcome fy-oc-${escapeHtml(
     c.scan_outcome,
@@ -836,15 +930,40 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
 </tr>`;
   };
 
+  // A REGISTRY CONTROL WITH NO ROW GETS A ROW SAYING SO. "see the table" pointed
+  // at a table those ten checks were absent from, which is the one place a reader
+  // would go to find out what happened to them.
+  const absentRow = (id: string): string => `<tr class="fy-row-absent">
+  <td data-label="Control"><code>${escapeHtml(id)}</code></td>
+  <td data-label="Verdict"><span class="fy-outcome fy-oc-${ABSENT}">${escapeHtml(
+    VERDICT_WORD[ABSENT]!,
+  )}</span></td>
+  <td data-label="Detail"><span class="fy-reason">The record holds no row for this check, and
+  says nothing about it either way.</span></td>
+</tr>`;
+
   const controlRows = phaseNumbers
     .map((p) => {
       const list = byPhase.get(p) ?? [];
+      const missing = absent.filter((id) => CONTROL_REGISTRY[id]!.phase === p);
+      const counts = [
+        list.length > 0 ? escapeHtml(plural(list.length, "check")) : "",
+        missing.length > 0 ? `${missing.length} not in this record` : "",
+      ].filter((s) => s !== "");
       const band = `<tr class="fy-phaseband" id="phase-${p}"><td colspan="3">Phase ${p} — ${escapeHtml(
         PHASE_NAMES[p] ?? "",
       )}<span class="fy-ph-count">${
-        list.length === 0 ? "no checks in this record" : escapeHtml(plural(list.length, "check"))
+        counts.length === 0 ? "no checks in this record" : counts.join(" &middot; ")
       }</span></td></tr>`;
-      return [band, ...list.map(controlRow)].join("\n");
+      const absentBand =
+        missing.length === 0
+          ? []
+          : [
+              `<tr class="fy-phaseband fy-band-absent"><td colspan="3">Not in this record<span class="fy-ph-count">${
+                missing.length
+              } of the ${CONTROL_COUNT}</span></td></tr>`,
+            ];
+      return [band, ...list.map(controlRow), ...absentBand, ...missing.map(absentRow)].join("\n");
     })
     .join("\n");
 
@@ -916,8 +1035,9 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
   <div>
     <p class="fy-fig-num">${r.score.evidence_coverage_percent}%</p>
     <p class="fy-fig-cap">${answeredRows.length} of the ${scoped.length} checks in scope for this
-    listing were answered. ${outOfStandard} of the ${CONTROL_COUNT} standard checks are out of
-    scope here &mdash; <a href="#sheet-controls">see the table</a>.</p>
+    listing were answered. Of the ${CONTROL_COUNT} standard checks, ${outOfScopeRows.length} are
+    marked out of scope for this repository and ${absent.length} do not appear in this record at
+    all &mdash; <a href="#sheet-controls">see the table</a>.</p>
     ${coverageVerdictLine(r, facts, ctx, lf)}
   </div>
 </section>
@@ -928,6 +1048,7 @@ ${
 }
 <div id="sheet-phases" style="padding-block:16px 40px">${phaseBars(r.score.phases, {
     legend: true,
+    rows: rowsPerPhase(r),
   })}</div>
 </div>
 
@@ -957,16 +1078,17 @@ ${coveragePanel(r, facts, ctx)}
   <p class="fy-body">Raw sscsb verdicts and every reclassification are shown. Being
   transparent about what was and was not verifiable is the product. The checks run in
   ${phaseNumbers.length} phases, named on the band above each group.</p>
-  <p class="fy-key">
-    <span class="fy-key-label">Key</span>
-    <span><span class="fy-swatch fy-swatch-pass"></span>pass</span>
-    <span><span class="fy-swatch fy-swatch-fail"></span>fail / gap</span>
-    <span><span class="fy-swatch fy-swatch-unv"></span>${defineTerm("unverified")}</span>
-  </p>
+  ${verdictKey()}
+  <p class="fy-note">${UNVERIFIED_GLOSS}</p>
   <p class="fy-ctl-bar"><span class="fy-key-label">Jump to phase</span>
   ${jump}
-  ${outOfScope > 0 ? `<span>${outOfScope} out-of-scope checks are greyed.</span>` : ""}
   </p>
+  ${
+    outOfScope > 0
+      ? `<p class="fy-note">${outOfScope} out-of-scope checks are greyed, and ${absent.length} of
+  the ${CONTROL_COUNT} appear in no row of this record at all.</p>`
+      : ""
+  }
 </section>
 </div>
 
