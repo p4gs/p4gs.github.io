@@ -29,7 +29,10 @@ const GRADE_ORDER: Readonly<Record<string, number>> = {
 const FIGURES = [
   figure(String(CONTROL_COUNT), "checks, each answered or left unanswered"),
   figure("3", "ways a scan can be run"),
-  figure("A+", "means every answered check passed", true),
+  // NOT hot. The design's own grade scale makes A+ ink and reserves the accent
+  // for F, so a red A+ here and an ink A+ on the slab beside it read as two
+  // different states — and it spends the one accent on a definition.
+  figure("A+", "means every answered check passed"),
   figure("0", "unanswered checks are counted against anyone"),
 ].join("\n  ");
 
@@ -86,9 +89,10 @@ export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
 <section class="poster">
   <div class="poster-lead">
     <p class="kicker">The public record</p>
-    <!-- The space after <br> is load-bearing: the phone stylesheet hides the
-         break, and without it the two clauses render as "not runis not". -->
-    <h1 class="banner">A check that could not run<br> is not a pass.</h1>
+    <!-- No hard break: a 13ch measure plus text-wrap:balance breaks this where
+         the clause breaks at every width. The <br> set it as a two-word second
+         line at desk width and orphaned "PASS." on a phone. -->
+    <h1 class="banner">A check that could not run is not a pass.</h1>
     <p class="standfirst">Every listing here says what the scan saw, what it could not
     see, and who ran it. A check nobody could answer is shown, and counted for nobody.</p>
     ${searchControl(ctx.h, records, {
@@ -114,6 +118,7 @@ ${exemplarPanels(ctx.h, records, ctx.trust, ctx.localTrust)}
 ${threatStrip(ctx.h)}
 
 <section class="lanes" aria-labelledby="lanes-h">
+  <p class="kicker">Who runs it</p>
   <h2 class="section-head" id="lanes-h">Three ways a scan gets run</h2>
   <div class="lane-cols">
     <div class="lane-col">

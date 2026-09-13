@@ -65,8 +65,8 @@ export function renderMethodology(ctx: DesignCtx): string {
   <p class="standfirst">This directory measures <strong>sscsb-control adoption</strong>.
   It is not a general security audit. The rules below are versioned, and every listing
   names the version that scored it.</p>
-  ${index}
 </section>
+${index}
 
 <section class="honesty">
   <p class="honesty-head">The honesty rule</p>
