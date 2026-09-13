@@ -1824,9 +1824,13 @@ describe("D6 + D7 · the chart plots the fact, and the lanes figure is ranked", 
   test("the caption describes what is drawn, with a key for the two fills", () => {
     expect(chart).toContain("answerable from outside");
     expect(chart).toContain("only on a maintainer&rsquo;s own machine");
-    expect(chart).toContain("Each bar is split by where an answer could come from.");
+    expect(chart).toContain("split by\n    where an answer could come from");
     expect(countOf(chart, "fy-chart-swatch")).toBe(2);
     expect(chart).not.toContain("stand out. Most of what defends them");
+    // T2 · h2 + ONE body block. The third caption-size paragraph is a register
+    // the reference's own beats do not have; the key is a legend, not a tier.
+    expect(chart).not.toContain("fy-chart-caption");
+    expect(countOf(chart, "fy-beat-body")).toBe(1);
   });
 
   test("the lanes figure is an OPEN ranked path, with exactly two segments", () => {

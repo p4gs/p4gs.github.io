@@ -101,6 +101,13 @@ a { color: var(--fy-link); }
 a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible,
 [tabindex]:focus-visible { outline: 2px solid var(--fy-ring); outline-offset: 3px; }
 h1, h2, h3, h4 { font-weight: 400; margin: 0; text-wrap: balance; }
+/* NOTHING IS BOLD. It is the reference's single most-cited choice — a 126.7px
+   display line at weight 400 with nothing on the page heavier — and this tree
+   had no rule enforcing it, so 94 of 94 strong elements rendered at 700 and
+   the honesty-rule paragraph carried five bold runs in eight lines. At 390 the
+   bold lead wraps across two lines, which makes it the first thing the eye
+   lands on. Emphasis here is size, colour, or a new line. */
+strong, b { font-weight: 500; }
 p { margin: 0; }
 code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-vh {
@@ -272,10 +279,17 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   max-inline-size: 62ch;
 }
 .fy-beat-centred .fy-beat-body { margin-inline: auto; }
+/* THE REFERENCE'S PULL-QUOTE: centred sans at ~24px with an em-dash attribution
+   and no rule. The left rule plus indent took ~60px off a 344px measure at 390,
+   giving a nine-line ragged block set inside a six-line paragraph. */
 .fy-pullquote {
-  font-size: 22px; line-height: 1.5;
-  color: var(--fy-dark-ink); margin-block: 28px 0; max-inline-size: 60ch;
-  padding-inline-start: 20px; border-inline-start: 1px solid var(--fy-dark-rule);
+  font-size: 24px; line-height: 1.4; text-align: center;
+  color: var(--fy-dark-ink); margin: 40px auto 0; max-inline-size: 44ch;
+  padding: 0; border: 0; text-wrap: balance;
+}
+.fy-quote-by {
+  display: block; margin-block-start: 16px; font-size: 14px; line-height: 21px;
+  color: var(--fy-dark-quiet);
 }
 
 /* the stat figures */
@@ -347,8 +361,10 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
    that means emphasis on a diagram three sections up. */
 .fy-bar { fill: var(--fy-dark-bar); }
 .fy-bar-local { fill: url(#fy-chart-hatch); }
-.fy-chart-caption { margin-block-start: 20px; font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet); }
-.fy-chart-key { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-block-end: 10px; }
+.fy-chart-key {
+  display: flex; flex-wrap: wrap; gap: 4px 20px; margin-block-start: 20px;
+  font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet);
+}
 .fy-chart-swatch {
   inline-size: 12px; block-size: 12px; border-radius: 2px; display: inline-block;
   margin-inline-end: 8px; vertical-align: -1px;
@@ -431,6 +447,11 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-attack-name { font-size: 17px; flex: 1 1 auto; }
 .fy-attack-mark { font-family: var(--fy-mono); font-size: 13px; color: var(--fy-dark-quiet); flex: 0 0 auto; }
 .fy-attack-trigger[aria-expanded="true"] .fy-attack-mark { color: var(--fy-accent); }
+.fy-chevron {
+  flex: 0 0 auto; color: var(--fy-dark-quiet); transform: rotate(0deg);
+  align-self: center;
+}
+.fy-attack-trigger[aria-expanded="true"] .fy-chevron { transform: rotate(180deg); color: var(--fy-accent); }
 .fy-attack-panel { padding-block: 0 24px; display: grid; gap: 12px; }
 .fy-attack-line { font-size: 17px; line-height: 1.6; color: var(--fy-dark-body); }
 .fy-attack-checks { font-size: 14px; line-height: 1.7; color: var(--fy-dark-quiet); overflow-wrap: anywhere; }
@@ -1740,6 +1761,10 @@ export const OVERRIDES = `
 :root .hp-panel-title { font-weight: 400; letter-spacing: -0.02em; }
 :root .hp-panel-eyebrow { color: var(--fy-muted); letter-spacing: 0.12em; }
 :root .hp-grade { border-width: 2px; font-weight: 400; }
+/* The shared layer's six 600/700 weights, brought down to this tree's ceiling.
+   A component layer that ships its own emphasis scale will keep shipping it. */
+:root .hp-card-name, :root .hp-waiting-link, :root .hp-more,
+:root .ex-name, :root .tx-chip-id { font-weight: 500; }
 :root .tx-chip-id { color: var(--fy-accent); }
 :root .tx-class { border-inline-start-width: 3px; border-radius: 8px; }
 :root .dir-found { border-width: 1px; border-radius: 8px; }
@@ -1805,6 +1830,23 @@ export const OVERRIDES = `
 .fy-dark .method-table td { border-block-end-color: var(--fy-dark-rule); color: var(--fy-dark-body); }
 .fy-dark .method-table thead th { color: var(--fy-dark-quiet); border-block-end-color: rgba(255, 255, 255, 0.3); }
 .fy-dark .tx-details summary { color: var(--fy-dark-body); }
+/* A DISCLOSURE THAT LOOKS LIKE ONE. The shared layer sets display:inline-flex
+   on every summary for its 44px tap floor, and inline-flex suppresses
+   the ::marker pseudo in this engine — so nine collapsed sections rendered as
+   subheadings with nothing beside them, cursor:auto, no marker, no hover
+   cue. On a phone, where there is no hover and no cursor, that is the only
+   signal there was. The design already ships correct rules for the
+   .fy-merge and .fy-table summaries; only this family was missed. */
+:root .tx-details > summary { cursor: pointer; }
+:root .tx-details > summary::-webkit-details-marker { display: none; }
+:root .tx-details > summary::before {
+  content: ""; inline-size: 7px; block-size: 7px; flex: 0 0 auto;
+  margin-inline-end: 10px; margin-block-start: -3px;
+  border-inline-end: 1.5px solid currentcolor; border-block-end: 1.5px solid currentcolor;
+  transform: rotate(45deg);
+}
+:root .tx-details[open] > summary::before { transform: rotate(-135deg); margin-block-start: 3px; }
+:root .tx-details > summary:hover { color: var(--fy-dark-ink); }
 .fy-dark .fy-method-section { scroll-margin-top: 88px; }
 
 /* The switcher sits in the colophon, in the flow. Bulletin measured a fixed

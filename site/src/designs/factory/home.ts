@@ -157,7 +157,13 @@ function blackBlock(records: ScanRecord[], ctx: DesignCtx): string {
       <h2 id="evidence-h">A check that could not run is never a pass.</h2>
       <p class="fy-beat-body">Every listing says what the scan saw, what it could not see,
       and who ran it. The second list is the one nobody usually publishes.</p>
-      <blockquote class="fy-pullquote">${escapeHtml(EXPOSURE_CAVEAT)}</blockquote>
+      <!-- The attribution names where the sentence is published, not a person:
+           it is the taxonomy module's own caveat, rendered on four of this
+           site's pages, and inventing a speaker for it would be a fact the page
+           cannot support. -->
+      <blockquote class="fy-pullquote">${escapeHtml(EXPOSURE_CAVEAT)}
+      <span class="fy-quote-by">&mdash; the rule every list of defences on this site is
+      published under</span></blockquote>
       <div class="fy-metrics">
         ${metric(String(CONTROL_COUNT), "checks in the standard set")}
         ${

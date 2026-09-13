@@ -641,14 +641,19 @@ ${ids}
   </figure>
   <div class="fy-chart-copy">
     <h2>Nine ways in, and how many checks answer each.</h2>
+    <!-- ONE BODY BLOCK, then the key. The beat used to run a heading, a body
+         paragraph and a third caption-size paragraph — a tier the reference's
+         own beats do not have. The caption's sentence belongs to the body; the
+         key is a legend, not a third register. -->
     <p class="fy-beat-body">The groups are drawn from the public catalogues of what has
-    actually gone wrong. Every bar is the number of checks mapped to that group. A tall bar
-    is not safety. It is how many questions we know to ask.</p>
-    <p class="fy-chart-caption"><span class="fy-chart-key">
+    actually gone wrong. Every bar is the number of checks mapped to that group, split by
+    where an answer could come from. A tall bar is not safety. It is how many questions we
+    know to ask, and where the hatched part is most of a bar, an outside scan leaves most of
+    that group&rsquo;s questions open.</p>
+    <p class="fy-chart-key">
       <span><span class="fy-chart-swatch" data-fill="outside"></span>answerable from outside</span>
       <span><span class="fy-chart-swatch" data-fill="local"></span>only on a maintainer&rsquo;s own machine</span>
-    </span>Each bar is split by where an answer could come from. Where the hatched part is most
-    of the bar, an outside scan leaves most of that group&rsquo;s questions open.</p>
+    </p>
   </div>
 </div>`;
 }
@@ -1067,7 +1072,15 @@ export function attackList(h: (p: string) => string): string {
       aria-controls="${panelId}" aria-expanded="false">
       <span class="fy-attack-id">${c.id}</span>
       <span class="fy-attack-name">${escapeHtml(c.name)}</span>
-      <span class="fy-attack-mark" aria-hidden="true">${ids.length} checks</span>
+      <span class="fy-attack-mark">${ids.length} checks</span>
+      <!-- THE ONLY AFFORDANCE THESE ROWS HAD WAS A COLOUR CHANGE ON OPEN, which
+           is no affordance at all: the lead above them says "Open one to see
+           which checks defend it" over nine rows that look inert, and a phone
+           has no hover and no cursor to fall back on. A chevron in the count
+           gutter, rotated by the state the button already announces. -->
+      <svg class="fy-chevron" viewBox="0 0 16 16" width="16" height="16" fill="none"
+        stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+        stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4"></path></svg>
     </button>
     <div class="fy-attack-panel" id="${panelId}" hidden>
       <p class="fy-attack-line">${escapeHtml(c.line)}</p>
