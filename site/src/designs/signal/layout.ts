@@ -254,8 +254,8 @@ const RAIL_SCRIPT = `<script>(function(){
  * The design switcher's tap affordance — Signal's own chrome behaviour.
  *
  * The switcher is the validation harness's, shared by five designs, and each
- * design may place and shape it. With a FINE pointer Signal already collapses
- * it to the current design and expands it on hover or keyboard focus: ~85px of
+ * design may place and shape it. With a FINE pointer Signal used to collapse
+ * it to the current design and expand it on hover or keyboard focus: ~85px of
  * the corner instead of ~314px. With a COARSE pointer there is no hover, so
  * round 2 left every link expanded — and measured at a true 390px viewport
  * that 314px bar covered 93% of the home page's hero caption at scrollY 0, on
@@ -268,10 +268,21 @@ const RAIL_SCRIPT = `<script>(function(){
  * instead of reloading the page the reader is already on; the second tap (or a
  * tap anywhere else) closes it. Nothing is hidden from a keyboard: the links
  * keep their tab order and `:focus-within` still expands the strip.
+ *
+ * R5-D1 STANDS THIS DOWN, and the guard is a MEASUREMENT of the live element
+ * rather than a media query or a deleted script. Signal's stylesheet now
+ * places the switcher in normal flow (styles.ts, R5-D1), because shrinking a
+ * floating control never stopped it landing on text — it only changed which
+ * text. In flow there is nothing to collapse and every link is already
+ * reachable, so a first tap that called preventDefault() would be a dead tap
+ * on a visible link. Asking the element what its own `position` is keeps the
+ * two files honest with each other: if a later change ever floats it again,
+ * the affordance that arrangement needs comes back on its own.
  */
 const SWITCHER_TAP_SCRIPT = `<script>(function(){
   var nav=document.querySelector(".design-switcher");
   if(!nav||!window.matchMedia)return;
+  if(getComputedStyle(nav).position!=="fixed")return;
   var coarse=window.matchMedia("(hover: none), (pointer: coarse)");
   var here=nav.querySelector('a[aria-current="true"]');
   if(!here)return;

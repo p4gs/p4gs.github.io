@@ -112,6 +112,26 @@ code {
   font-size: 0.84em; background: var(--paper-2); color: var(--ink);
   padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere;
 }
+/* ── R5-D6: an identifier is one token ───────────────────────────────────
+   'overflow-wrap: anywhere' was applied to every inline chip at every width,
+   and above 768px it buys nothing while costing correctness: measured on the
+   methodology page at 1440, TWENTY-TWO chips sheared mid-identifier with the
+   chip's own background split across two lines — binary-/artifacts,
+   dependency-/pinning, slsa-/provenance, sbom-/attestation,
+   best-/practices-badge, publish-/targets among them. 'commit-/signing' is not
+   a line break, it is a different string, and a reader copying it gets a
+   control id that does not exist. The narrow widths already fix this per
+   container (see the 767px block below, which is where 'anywhere' is actually
+   earning its keep — one chip CAN exceed a 316px column); at 768 and up there
+   is room, so the token stays whole.
+
+   ':not(pre) >' is load-bearing, not decoration. 'white-space' is inherited
+   and pre.code's content lives inside its own <code>, so an unscoped
+   'white-space: nowrap' here would collapse the formula and ssh-keygen blocks
+   onto one line. */
+@media (min-width: 768px) {
+  :not(pre) > code { white-space: nowrap; overflow-wrap: normal; }
+}
 /* D20 — four of these drew a 1264px bordered box around 211-842px of text,
    so 'The formula' left roughly 1000px of empty fill to the right of its
    content. The narrative cards were capped in round 2; the code blocks were
@@ -542,7 +562,35 @@ main {
   overflow: hidden;
 }
 .meter-fill { display: block; block-size: 100%; background: var(--ink-3); }
-.meter-score .meter-fill { background: var(--accent); }
+/* ── R5-D5: the brand accent was being spent to mean "passed" ────────────
+   This bar is the PASSED proportion — it sat two columns left of the green
+   filled-disc pass glyph in the same row, drawn in #2B5FD9, while the coverage
+   meter beside it was neutral. Two adjacent percentage meters in two hues with
+   no encoded difference in meaning, and the loudest colour on the repo page
+   doing status-adjacent work. The whole reason this design's accent is a blue
+   OUTSIDE the status range (see index.ts) is that it may never read as a
+   verdict; a rule that hands it the pass figure undoes that in the one place a
+   skimmer actually looks.
+
+   Two hues, two meanings, and they now match the glyphs beside them: the score
+   bar is the PASS hue, the coverage bar stays neutral ink because coverage is
+   a magnitude, not a verdict. The pass hue is honest at any value — the filled
+   portion IS the portion that passed — and the grade pill beside it still
+   carries the band.
+
+   THE REST OF THE ACCENT, AUDITED (this rule was the only unexamined one):
+     a:hover, :focus-visible, .btn:hover, .btn-outline:hover, .dir-check
+     input:checked, .dir-controls select:hover, .hp-chip:hover, .hp-card:hover,
+     .hp-search-input:focus-visible, .tx-chip:hover, .ctl-fix:hover — all
+     INTERACTIVE.
+     .sg-mark svg (wordmark), .sg-pipe-n / .sg-rail-n (chapter numerals),
+     .tx-chip-id (threat-class identifier) — all BRAND/IDENTIFIER.
+     .lane-verified, .panel-act, .panel-flag, .cmp-covered — PROVENANCE and
+     SCOPE, which are deliberately not the status axis: a lane marker and a
+     "this tool covers it" mark must not borrow green/amber/red, and each of
+     those already carries its rationale beside it.
+   None of them encodes pass / fail / gap / unverified. This one did. */
+.meter-score .meter-fill { background: var(--pass); }
 .meter-coverage .meter-fill { background: var(--ink-3); }
 .meter-empty { opacity: 0.5; }
 
@@ -1666,10 +1714,13 @@ body.pg-methodology main { max-inline-size: 1000px; }
 /* ── D44: one reason, once ───────────────────────────────────────────────
    Six rows of a 42-row control grid carried the identical 200-character
    sentence, two full lines of body copy each, so the eye could not tell which
-   rows differed. It is stated once per family, and the rows that share it
-   carry its opening clause as a mono tag. */
+   rows differed. D44 stated it once per FAMILY, which is how the same sentence
+   ended up hoisted to a chip in one family and printed IN FULL in another;
+   R5-D3 moved the count to the page, so it is stated once, at the top of the
+   grid where the reader meets it, and every row that rests on it carries its
+   opening clause as a mono tag — one treatment, no second branch. */
 .family-note {
-  margin: 8px 0 12px; padding: 10px 12px;
+  margin: 6px 0 20px; padding: 10px 12px;
   background: var(--paper-2); border-radius: 8px;
   font-size: var(--t-xs); line-height: 1.55; color: var(--ink-2);
   max-inline-size: 78ch;
@@ -1775,6 +1826,32 @@ body.pg-methodology main { max-inline-size: 1000px; }
     background-attachment: local, scroll;
   }
   .directory thead th { position: static; }
+}
+
+/* ── R5-D4: the status column is a COLUMN on a phone ─────────────────────
+   The chip was the last item of a wrapping flex line, so where it landed
+   depended on how long the control's identifier happened to be. Measured over
+   44 rows at 390: level with the name on secrets, commit-signing,
+   branch-protection, actions-audit, ai-trailers and ai-dep-gate; 28px BELOW it
+   on signing-model and gittuf; 52px below on agent-signing — and when it drops
+   it is alone on its line with a 177-222px void beside it, which is round 1's
+   "void beside the chip" wearing the fix for defects 20/22 as a hat. Three
+   different y-offsets in the one column a reader scans means the column cannot
+   be scanned at all.
+
+   A grid cell instead of a flex item. The chip is pinned to row 1, column 2 at
+   every row regardless of the name's length; the name wraps inside column 1
+   rather than pushing the chip off the line, so there is no void to leave and
+   nothing to reserve a whole row for. One y, one x, 44 times. */
+@media (max-width: 767px) {
+  .ctl-head {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start; column-gap: 10px; row-gap: 2px;
+  }
+  .ctl-head > .ctl-id { grid-column: 1; grid-row: 1; }
+  .ctl-head > .chip {
+    grid-column: 2; grid-row: 1; justify-self: end; margin-inline-start: 0;
+  }
 }
 
 /* ── R4-D19 / R4-D24: the control row spends its width ───────────────────
@@ -1983,10 +2060,128 @@ code, .repo-meta a {
   .repo-meta code { font-size: 12px; }
 }
 
-/* ── R4-D26: the harness switcher takes less of a 390px screen ─────────── */
+/* ── R5-D1: the trial switcher reserves its space instead of floating ────
+   It was position:fixed, and a fixed control on a 390px viewport cannot be
+   proven clear of running text: measured at 11 evenly-spaced scroll positions
+   per page it covered text at 4 of 11 on the home page, 7 of 11 on the repo
+   page and 7 of 11 on the methodology page — worst case 100% of the word
+   'PASS' in a status chip on the repo page at scrollY 3817, which is a DATA
+   VALUE, not decoration. It is not only a phone fault: at 1440 the directory
+   still took a hit at 1 of 11. Rounds 1-4 each shrank it and each time it kept
+   landing on the last 30-55px of a line, because the only thing that changes
+   with size is WHICH text it covers.
+
+   The body's --switcher-clearance padding only ever protected the END of the
+   document, which is where the control is NOT a problem. So Signal stops
+   floating it. The switcher is harness chrome, not product chrome, and it now
+   sits in normal flow under the footer where the page reserves real space for
+   it — the one arrangement that is clear of text at every scroll position, at
+   every width, by construction rather than by luck. The cost is honest and
+   stated: reaching it means scrolling to the end of the page. Covering the
+   product's own data was the worse trade.
+
+   Everything the collapse machinery bought (a 73x52 pill instead of a 370px
+   slab) is moot in flow, so the strip is simply expanded: all five links, one
+   row, full tap height. layout.ts's tap-to-open script stands itself down when
+   the switcher is not fixed, so no link eats a dead first tap.
+
+   ZEROING --switcher-clearance IS NOT UNDOING THE SHARED FLOOR. That padding
+   exists for one reason — a FIXED switcher covers the footer at the end of the
+   document, and the footer is outside <main>, so only <body> could reserve for
+   it. An in-flow switcher occupies real space after the footer, which is the
+   thing the clearance was approximating; leaving it would append 132px of dead
+   paper below a strip that already reserves its own height. The floor's
+   purpose is met more strongly, not weakened. The other two shared floors —
+   16px form controls and the 44px tap target on every switcher link — are
+   untouched, and the link rule below deliberately sets padding only, so the
+   shared 'min-block-size: var(--tap)' still applies. */
+body { padding-block-end: 0; }
+.design-switcher {
+  position: static; z-index: auto;
+  inset: auto; max-inline-size: none; inline-size: auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+  overflow: visible; border-radius: 0;
+  margin: 0; padding: 16px var(--gutter) 30px;
+  background: var(--paper-2); backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 0; border-block-start: 1px solid var(--hairline-2); box-shadow: none;
+}
+.design-switcher::after { content: none; display: none; }
+.design-switcher .ds-label,
+.design-switcher a:not([aria-current="true"]) {
+  max-inline-size: none; opacity: 1; overflow: visible; transition: none;
+}
+.design-switcher .ds-label { padding-inline: 0 6px; }
+.design-switcher a, .design-switcher a:not([aria-current="true"]) {
+  padding: 6px 12px; font-size: var(--t-xs);
+}
+
+/* ── R4-D26: the harness switcher takes less of a 390px screen ───────────
+   Superseded in part by R5-D1 below, which takes it out of position:fixed
+   entirely — the inset nudges it used to carry are meaningless in flow and are
+   gone. What survives is the part that was never about floating: at 560px and
+   under, five links plus a label have to fit a 390px row, so they set tighter.
+   Deliberately NOT a font-size cut below the shared floor — these are links,
+   not body copy, and they keep their 44px target. */
 @media (max-width: 560px) {
-  .design-switcher { inset-inline-end: 8px; inset-block-end: 8px; padding: 3px 5px; }
-  .design-switcher a { font-size: 11px; padding-inline: 8px; }
+  .design-switcher a, .design-switcher a:not([aria-current="true"]) {
+    font-size: 12px; padding-inline: 9px;
+  }
+  /* Measured at 390, not estimated: the five links measure 326.9px and the
+     content box is 350px, so they fit — but only once the label stops sharing
+     their row (it took 350 on its own) and the inter-item gap comes down from
+     6px to 4px. At 6px the run came to 350.9px, missed by NINE TENTHS of a
+     pixel, and "Bulletin" wrapped alone onto a third line under four siblings.
+     326.9 + 4x4 = 342.9, with 7px to spare for a font that measures slightly
+     differently. The label now titles the group instead of crowding it. */
+  .design-switcher { gap: 4px; }
+  .design-switcher .ds-label { flex-basis: 100%; padding-block-end: 2px; }
+}
+
+/* ── R5-D6 (the punctuation half): a run of chips is a list, not a sentence ──
+   Every identifier list was joined with a literal ", " in the markup, and
+   'code' carries 5px of padding-inline-end INSIDE its own fill — so the comma
+   landed 5px clear of the last glyph, on the far side of the chip's edge, and
+   148 of them on the methodology page read as "best-practices-badge ,
+   compliance-map , osps-baseline ,". A chip already has an edge; the comma was
+   a second separator drawn outside the first one.
+
+   The separator is the layout now: the chips are the items of a wrapping
+   inline flex line, with the gap doing what the comma was doing badly.
+   Baseline alignment on both the box and its items keeps the run sitting on
+   the same line as the prose that introduces it. */
+.chip-list {
+  display: inline-flex; flex-wrap: wrap; gap: 4px 5px;
+  align-items: baseline; vertical-align: baseline; max-inline-size: 100%;
+}
+
+/* ── R5-D2: 'reported' is a provenance tag, not a status ─────────────────
+   Two faults in one 637px element. (a) '.tx-incident' is a single-column grid,
+   and a grid item BLOCKIFIES — so the shared rule's 'display: inline-block'
+   computed to 'block' and a 62px word was drawn as a full-column outlined bar
+   with the incident's prose flowing underneath it, reading as an empty,
+   mis-styled input field mid-paragraph. That is round 1's defect 34 exactly,
+   fixed on the home page and still alive here. (b) It was drawn in --degraded,
+   the amber this register reserves for "looked for, not found" — the one hue
+   rule this design guards hardest — to mark an EDITORIAL fact: that this site
+   has not opened the primary document for the polyfill.io incident.
+
+   It hugs its word and gives the status hue back. The distinction survives
+   without borrowing a verdict colour: paper fill, hairline edge, muted ink and
+   an italic that reads as an editor's note rather than a machine's finding.
+   And it sits on the date's line instead of a row of its own, because a
+   provenance qualifier belongs with the fact it qualifies. */
+.tx-incident {
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px; align-items: baseline;
+}
+.tx-incident > a, .tx-incident > .tx-incident-what { grid-column: 1 / -1; }
+.tx-incident > .tx-incident-when { grid-column: 1; }
+.tx-incident > .tx-reported { grid-column: 2; }
+.tx-reported {
+  display: inline-block; inline-size: fit-content; justify-self: start;
+  border-radius: 999px; padding: 0 9px;
+  border-color: var(--hairline); color: var(--ink-3); background: var(--paper-3);
+  font-style: italic; margin-inline-start: 0;
 }
 
 /* ── R4-D10 / D22 / D27: the item that left the pill is in the footer ──── */

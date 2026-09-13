@@ -21,7 +21,7 @@ import { CONTROL_CLASSES } from "../../reclassify";
 import { compareSection } from "../compare-shared";
 import { changelogItems, EVIDENCE_CLASS_RULES, scanProtocolIntro } from "../methodology-shared";
 import { threatsSection } from "../threats-shared";
-import { gradePill, legend } from "./components";
+import { chipList, chipRuns, gradePill, legend } from "./components";
 import { chapterRail, href, page } from "./layout";
 
 const GRADE_PILL_ROW = (["A+", "A", "B", "C", "D", "F", "NA"] as const)
@@ -76,10 +76,11 @@ function openIncidents(html: string): string {
 export function renderMethodology(): string {
   const classTable = Object.entries(EVIDENCE_CLASS_RULES)
     .map(([key, d]) => {
-      const members = Object.entries(CONTROL_CLASSES)
-        .filter(([, cls]) => cls === key)
-        .map(([id]) => `<code>${id}</code>`)
-        .join(", ");
+      const members = chipList(
+        Object.entries(CONTROL_CLASSES)
+          .filter(([, cls]) => cls === key)
+          .map(([id]) => id),
+      );
       return `<tr><td data-label="Class"><strong>${d.name}</strong></td><td data-label="Controls">${members}</td><td data-label="Rule">${d.rule}</td></tr>`;
     })
     .join("\n");
@@ -139,7 +140,7 @@ ${chapterRail([
   </ol>
 </section>
 
-${openIncidents(threatsSection(href))}
+${chipRuns(openIncidents(threatsSection(href)))}
 ${compareSection(href).replaceAll(SHARED_NONE_SPAN, NONE_LABEL)}
 
 <section class="method-section prose" id="evidence-classes">

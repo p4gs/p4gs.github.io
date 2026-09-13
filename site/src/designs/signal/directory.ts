@@ -51,6 +51,8 @@ import {
 import { factSentences } from "../shared-facts";
 import { exposurePanel } from "../threats-shared";
 import {
+  chipList,
+  chipRuns,
   countMark,
   gradeBadge,
   legend,
@@ -449,30 +451,92 @@ export function nudgeIssueUrl(r: ScanRecord): string {
 }
 
 /**
- * A reason sentence long enough, and repeated often enough inside one family,
- * that printing it on every row stops the column being readable.
+ * A reason sentence long enough, and repeated often enough on one PAGE, that
+ * printing it on every row stops the column being readable.
  *
- * Measured on p4gs/sscsb-action: one 200-character sentence ("resolved by a
+ * Measured on p4gs/sscsb-action: one 223-character sentence ("resolved by a
  * signed local scan: this control lives in the development environment, so a
  * workstation record signed by a key this repository commits in
  * .sscsb/policy/allowed_signers is the only evidence that can exist for it")
- * appeared six times across a 42-row control grid, two full lines of body copy
+ * appeared six times across a 44-row control grid, two full lines of body copy
  * each. Scanning down the column the eye cannot tell which rows differ — the
  * same failure the nine identical attack-group disclaimers had.
  *
- * Both thresholds matter. THREE occurrences, because two is a coincidence and
- * hoisting it would cost a reader a lookup for nothing. EIGHTY characters,
- * because the short reasons repeat too ("optional control not enabled by this
- * repository", 3x in two families) and a six-word reason is cheaper to read in
- * place than to chase upwards.
+ * R5-D3 — AND THE SCOPE IS THE PAGE, NOT THE FAMILY. Rounds 1-4 counted
+ * repeats inside one phase, so the same sentence could clear the threshold in
+ * one family and miss it in another: on that listing it hoisted 4 rows into
+ * chips in one family and printed the other 2 in FULL in a second family,
+ * verbatim, under a note that had already said it. Seven renderings of one
+ * fact on one card, in two competing treatments side by side — which reads
+ * more templated than printing it six times would have, not less. A reader
+ * should not have to notice that seven sentences are the same sentence.
+ *
+ * Counting across the whole record fixes it at the root: the fact is stated
+ * ONCE, at the top of "Every check" where the reader meets the grid, and every
+ * row that rests on it carries the same compact chip — its opening clause,
+ * with the full sentence on the chip's title. One statement, one treatment, no
+ * third branch. Hoisting can now only ever REMOVE a duplicate, never relocate
+ * one, because there is a single set for the page.
+ *
+ * Both thresholds matter, and neither moved. THREE occurrences, because two is
+ * a coincidence and hoisting it would cost a reader a lookup for nothing.
+ * EIGHTY characters, because the short reasons repeat too ("optional control
+ * not enabled by this repository", 3x) and a six-word reason is cheaper to
+ * read in place than to chase upwards.
  */
 const HOIST_MIN_REPEATS = 3;
 const HOIST_MIN_CHARS = 80;
 
-/** What a hoisted row shows instead: the reason's own opening clause. */
+/**
+ * What a hoisted row shows instead: the reason's own opening clause.
+ *
+ * R5-D3 made the fallback NAME something. With the notes hoisted to the page
+ * there can be more than one at the top of the grid — on p4gs/sscsb-action
+ * there are two — and "see the note above" identifies neither of them, so five
+ * rows pointed vaguely at a pair of paragraphs. A clause trimmed on a word
+ * boundary is specific enough to match a row to its note at a glance and still
+ * short enough to stay a chip. Semicolons count as clause ends too: the second
+ * reason's first colon-clause is 74 characters, all of it one thought.
+ *
+ * 34 characters is measured, not picked: at 390 a 44-character budget set the
+ * chip on TWO lines inside a 272px column while the untruncated tag beside it
+ * ("resolved by a signed local scan", 31 characters) sat on one, so the two
+ * pointers read as different objects. 34 keeps both to a single line.
+ */
 function reasonTag(reason: string): string {
-  const head = reason.split(/[:—]/)[0]!.trim();
-  return head.length > 0 && head.length <= 48 ? head : "see the note above";
+  const head = reason.split(/[:—;]/)[0]!.trim();
+  if (head.length > 0 && head.length <= 48) return head;
+  let out = "";
+  for (const w of head.split(/\s+/)) {
+    if ((out ? out.length + 1 : 0) + w.length > 34) break;
+    out = out ? `${out} ${w}` : w;
+  }
+  return out ? `${out}\u2026` : "see the note above";
+}
+
+/**
+ * The hoisted reasons, stated once, where the reader meets the control grid.
+ *
+ * It carries its own count, so the note is a fact about the page ("6 controls
+ * below rest on this") rather than a disclaimer floating above a list. The
+ * rows then inherit it: `controlRow` renders the compact chip for exactly
+ * these strings and nothing else.
+ *
+ * The chip deliberately carries NO title= copy of the sentence. A tooltip is
+ * still a rendering — five more copies of the same 223 characters in the
+ * markup, reachable only by a mouse — and "say it once" has to mean once.
+ */
+function sharedNotes(
+  controls: readonly ScanRecord["controls"][number][],
+  shared: readonly string[],
+): string {
+  return shared
+    .map((reason) => {
+      const n = controls.filter((c) => c.reason === reason).length;
+      return `<p class="family-note"><span class="family-note-n">${n} controls below</span>
+  ${escapeHtml(reason)}</p>`;
+    })
+    .join("\n  ");
 }
 
 function sharedReasons(controls: readonly ScanRecord["controls"][number][]): string[] {
@@ -544,7 +608,12 @@ function controlRow(
 }
 
 /** One phase, as a nested container: family header, then its control rows. */
-function phaseGroup(r: ScanRecord, phase: number, fixHref = ""): string {
+function phaseGroup(
+  r: ScanRecord,
+  phase: number,
+  fixHref = "",
+  hoisted: ReadonlySet<string> = new Set(),
+): string {
   const controls = r.controls.filter((c) => c.phase === phase);
   // A family with nothing in scope rendered as a full card reading
   // "0 pass · 0 fail · 0 gap · 0 unanswered" beside a "no evidence" chip —
@@ -576,15 +645,6 @@ function phaseGroup(r: ScanRecord, phase: number, fixHref = ""): string {
       ? `<span class="family-count-sub">${p.unverified} unanswered</span>`
       : "";
   const allFailing = !!p && p.percent !== null && p.percent === 0 && p.fail + p.gap > 0;
-  const shared = sharedReasons(controls);
-  const hoisted = new Set(shared);
-  const notes = shared
-    .map((r) => {
-      const n = controls.filter((c) => c.reason === r).length;
-      return `<p class="family-note"><span class="family-note-n">${n} controls here</span>
-    ${escapeHtml(r)}</p>`;
-    })
-    .join("\n  ");
   return `<section class="family${allFailing ? " family-failing" : ""}" id="phase-${phase}">
   <header class="family-head">
     <h2 class="family-title">${escapeHtml(PHASE_NAMES[phase] ?? `Phase ${phase}`)}</h2>
@@ -593,7 +653,6 @@ function phaseGroup(r: ScanRecord, phase: number, fixHref = ""): string {
     )}${chipSub}</span>
   </header>
   <p class="family-meta">${escapeHtml(counts)}</p>
-  ${notes}
   <ul class="ctl-list">
 ${controls.map((c) => controlRow(c, hoisted, fixHref)).join("\n")}
   </ul>
@@ -705,7 +764,7 @@ function localCard(r: ScanRecord, lt: TrustInfo, primary: boolean): string {
   control outside the local-environment class stays <strong>unverified</strong>, and a
   workstation record cannot supply one.</p>`
     : `<p class="body-copy">It settled <strong>${plural(n)}</strong>${
-        n ? `: ${lt.resolved.map((c) => `<code>${escapeHtml(c)}</code>`).join(", ")}` : ""
+        n ? `: ${chipList(lt.resolved)}` : ""
       }. Every other class comes from the repository-observable record above. A local
   scan never overturns one, and never widens the scope it is measured against.</p>`;
   return `<section class="panel panel-lane" id="${primary ? "provenance" : "provenance-local"}">
@@ -856,8 +915,15 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
       : lt && kind !== "local"
         ? "#provenance-local"
         : "#provenance";
+  // ONE SET FOR THE PAGE (R5-D3). Counted across every control the listing
+  // holds, not per family, so a sentence that repeats across two families is
+  // hoisted in both rather than hoisted in one and reprinted in full in the
+  // other. The note is emitted once below; every row that rests on it carries
+  // the chip.
+  const shared = sharedReasons(r.controls);
+  const hoisted = new Set(shared);
   const phases = [1, 2, 3, 4, 5, 6]
-    .map((p) => phaseGroup(r, p, fixHref))
+    .map((p) => phaseGroup(r, p, fixHref, hoisted))
     .filter(Boolean)
     .join("\n");
   const body = `
@@ -924,12 +990,13 @@ ${chapterRail([
   { id: "provenance", label: "Who ran it" },
 ])}
 
-${compactExposureStates(exposurePanel(href, r))}
+${chipRuns(compactExposureStates(exposurePanel(href, r)))}
 
 <section id="controls" class="controls-section">
   <h2 class="section-title">Every check, with its raw verdict</h2>
   <p class="body-copy">Raw sscsb verdicts and every reclassification are shown.
   Transparency about what was and wasn't verifiable is the product.</p>
+  ${sharedNotes(r.controls, shared)}
 ${phases}
 </section>
 

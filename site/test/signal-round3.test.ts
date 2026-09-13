@@ -174,8 +174,8 @@ describe("the attack-group state label is shortened, never dropped", () => {
   });
 });
 
-describe("a long reason repeated across a family is stated once", () => {
-  test("three or more long repeats hoist into a family note and leave a tag", () => {
+describe("a long reason repeated on a page is stated once", () => {
+  test("three or more long repeats hoist into a note and leave a tag", () => {
     const r = record([
       ctl("c1", 1, "unverified", LONG),
       ctl("c2", 1, "unverified", LONG),
@@ -184,7 +184,9 @@ describe("a long reason repeated across a family is stated once", () => {
     ]);
     const html = signal.renderRepoDetail(r, ctx);
     expect(html).toContain(`class="family-note"`);
-    expect((html.match(/3 controls here/g) ?? []).length).toBe(1);
+    // "below", not "here": R5-D3 moved the note out of the family header and
+    // up to the top of the grid, so it now sits ABOVE every row it describes.
+    expect((html.match(/3 controls below/g) ?? []).length).toBe(1);
     // The sentence is on the page once — in the note — not once per row.
     expect((html.match(new RegExp(LONG.slice(0, 60).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length)
       .toBe(1);
@@ -214,7 +216,20 @@ describe("a long reason repeated across a family is stated once", () => {
     expect((html.match(new RegExp(SHORT, "g")) ?? []).length).toBe(4);
   });
 
-  test("the hoist is per family — a shared reason in another phase is its own count", () => {
+  /**
+   * R5-D3 REPLACES THE PER-FAMILY RULE THIS TEST USED TO ASSERT, and the old
+   * assertion is kept above the new one as the thing that must never come
+   * back. Counting repeats per FAMILY meant this exact record — three rows in
+   * phase 1, two more in phase 2, one sentence — hoisted the phase-1 three
+   * into a note and printed the phase-2 two IN FULL, verbatim, under a note
+   * that had already said it. Seven renderings of one fact on one card in two
+   * competing treatments. Measured live on p4gs/sscsb-action at 1440.
+   *
+   * The scope is the page now, so this record is 1 note + 5 chips, and the
+   * strongest form of the claim is asserted directly: the sentence's own text
+   * appears EXACTLY ONCE in the whole document.
+   */
+  test("the hoist is per PAGE — the same reason in another phase is the same reason", () => {
     const r = record([
       ctl("c1", 1, "unverified", LONG),
       ctl("c2", 1, "unverified", LONG),
@@ -224,7 +239,15 @@ describe("a long reason repeated across a family is stated once", () => {
     ]);
     const html = signal.renderRepoDetail(r, ctx);
     expect((html.match(/class="family-note"/g) ?? []).length).toBe(1);
-    expect((html.match(/class="ctl-src"/g) ?? []).length).toBe(3);
+    expect((html.match(/5 controls below/g) ?? []).length).toBe(1);
+    expect((html.match(/class="ctl-src"/g) ?? []).length).toBe(5);
+    // The strongest form of the claim: the sentence appears exactly once in
+    // the whole document — not once per family, and not on a tooltip five
+    // times over.
+    const needle = LONG.slice(0, 60).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect((html.match(new RegExp(needle, "g")) ?? []).length).toBe(1);
+    // And no row falls back to the long form.
+    expect(html).not.toContain(`<p class="ctl-reason">${LONG}`);
   });
 });
 

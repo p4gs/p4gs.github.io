@@ -77,6 +77,62 @@ export function mark(state: MarkState, size = 16): string {
   }
 }
 
+/**
+ * A run of identifier chips, rendered as a LIST rather than as a sentence.
+ *
+ * Every identifier list on this site used to be joined with a literal ", ",
+ * and `code` carries 5px of padding-inline-end INSIDE its own fill — so the
+ * comma landed 5px clear of the last glyph, on the far side of the chip's own
+ * edge. Measured on the methodology page at 1440, 148 of them read as
+ * "best-practices-badge , compliance-map , osps-baseline ,". A chip already
+ * has an edge; the comma was a second separator drawn outside the first.
+ *
+ * The separator is the layout instead (`.chip-list` in styles.ts). Nothing is
+ * lost to a screen reader — each identifier is still its own `code` element —
+ * and nothing can break BETWEEN a chip and its punctuation any more, because
+ * there is no punctuation left to strand.
+ */
+export function chipList(ids: readonly string[]): string {
+  if (ids.length === 0) return "";
+  return `<span class="chip-list">${ids
+    .map((id) => `<code>${escapeHtml(id)}</code>`)
+    .join("")}</span>`;
+}
+
+/**
+ * The same fix, applied to identifier runs in markup this design does not own.
+ *
+ * `threats-shared.ts` is rendered by all five designs, so Signal cannot change
+ * how it joins its chips — and it is where most of the comma gaps live: the
+ * "Checks that defend it" line on nine threat classes, the exposure panel's
+ * Broken / Not found / No answer lists, and the posture-disclosure line whose
+ * rendering a judge quoted verbatim ("best-practices-badge , compliance-map ,
+ * osps-baseline ,"). This rewrites a run of TWO OR MORE adjacent `code` chips
+ * joined by nothing but commas into the same `.chip-list` the design's own
+ * renderers emit.
+ *
+ * WHAT IT CANNOT TOUCH, by construction. The run has to be chips and
+ * separators and nothing else, so a comma doing grammatical work in a sentence
+ * survives: "Run `sscsb init`, then `sscsb verify`" has a "then" in the gap,
+ * "`unverified` or `info`, outside every denominator" has an "or" — neither is
+ * a run. Verified against the built pages: six comma-after-chip sites remain
+ * on the methodology page and every one of them is prose.
+ *
+ * The right fix is upstream — have `threats-shared.ts` emit these through a
+ * separator-free wrapper the way this design's own renderers now do. This is
+ * the local workaround until it does, and `signal-round5.test.ts` asserts it
+ * actually MATCHED, because a `.replace` that stops matching returns its input
+ * unchanged and nothing here would throw.
+ */
+const CHIP_RUN = /(?:<code>[^<]*<\/code>)(?:,\s*<code>[^<]*<\/code>)+/g;
+
+export function chipRuns(html: string): string {
+  return html.replace(
+    CHIP_RUN,
+    (run) => `<span class="chip-list">${run.replace(/,\s*(?=<code>)/g, "")}</span>`,
+  );
+}
+
 /** Glyph plus word — the form every verdict takes where there is room for it. */
 export function statusChip(state: MarkState, label?: string): string {
   return `<span class="chip chip-${state}" title="${escapeHtml(MARK_TITLE[state])}">${mark(
