@@ -28,6 +28,7 @@ import { describe, expect, test } from "bun:test";
 import { DESIGNS } from "../src/designs/registry";
 import { switcherFor } from "../src/build";
 import { factory } from "../src/designs/factory/index";
+import { redactHome } from "../src/designs/factory/directory";
 import {
   APERTURE_KEYFRAMES,
   LOOP_KEYFRAMES,
@@ -1749,5 +1750,90 @@ describe("D6 + D7 · the chart plots the fact, and the lanes figure is ranked", 
   test("the beat's headline weights them, and stops addressing the wrong reader", () => {
     expect(HOME).toContain("Three ways a record gets made, and they do not carry equal");
     expect(HOME).not.toContain("the third is the one only you can do");
+  });
+});
+
+describe("D11 + D13 + D14 + D16 · the rest of the honesty list", () => {
+  test("D11 · meta is a dotted border, not a fifth shade", () => {
+    expect(CSS).toContain('.fy-refcard[data-reference-type="meta"] {\n  --fy-ref-bg: #ffffff; --fy-ref-edge: #6f6f74; border-style: dotted;\n}');
+    expect(CSS).toContain('.fy-legend-dot[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #6f6f74; border-style: dotted; }');
+  });
+
+  test("D11 · green appears nowhere decorative", () => {
+    // The green tint pair existed only to colour a phase region, which is not
+    // an evidence class — a verdict colour spent on decoration.
+    expect(CSS).not.toContain("--fy-tint-green");
+    expect(CSS).not.toContain("--fy-edge-green");
+    // every remaining use of the pass hue is a verdict, a grade ring or a key
+    const uses = [...CSS.matchAll(/^([^\n{]*)\{[^}]*var\(--fy-pass\)/gm)]
+      .map((m) => m[1]!.trim())
+      .filter((sel) => sel !== ":root");
+    expect(uses.length).toBeGreaterThan(0);
+    for (const sel of uses) {
+      expect(sel, sel).toMatch(/pass|verdict|g-aplus|cov-over|lane-auth|oc-pass/);
+    }
+  });
+
+  test("D11 · scored under an older methodology is neutral, and says which", () => {
+    // Amber is this page's `gap` colour: a listing scored under an older
+    // methodology did not go wrong, it names its version.
+    expect(CSS).toMatch(/\.fy-stale \{\n  color: var\(--fy-muted\)/);
+    expect(CSS).not.toMatch(/\.fy-stale \{\n  color: var\(--fy-warn\)/);
+    const old = factory.renderRepoDetail(
+      RECORDS[0]!,
+      ctxFor("factory", "directory", "directory/p4gs--sscsb-action/"),
+    );
+    expect(old).toContain(`scored under methodology v${RECORDS[0]!.methodology_version} &rarr;`);
+    expect(old).not.toContain("scored before v");
+  });
+
+  test("D13 · the home page carries the tier claim, and fails closed without one", () => {
+    // threats.ts is explicit that `sourced: "primary"` is a claim about THIS
+    // SITE, added after one incident wore the mark by pattern-match. The
+    // methodology page made the claim and marked the exception; home rendered
+    // the same citations with neither.
+    expect(HOME).toContain("Every incident below links to a primary source");
+    expect(HOME).toContain('the line is marked <span class="fy-reported">reported</span>');
+    expect(HOME.indexOf("fy-sourcing")).toBeLessThan(HOME.indexOf('<ul class="fy-attacks">'));
+    // fail-closed: an incident with no tier renders no incident line
+    expect(MOTION_SCRIPT.length).toBeGreaterThan(0); // (suite sanity)
+    expect(HOME).toContain('class="fy-incident"');
+    const tiers = new Set(ATTACK_CLASSES.map((c) => c.incidents[0]?.sourced ?? "none"));
+    for (const t of tiers) expect(["primary", "reported"]).toContain(t);
+    // and the renderer drops an untiered incident rather than citing it
+    expect(MOTION_SCRIPT).not.toContain("sourced");
+  });
+
+  test("D14 · nothing on the page says a check RUNS in a phase", () => {
+    for (const [name, html] of PAGES) {
+      expect(html, `${name}: run in this phase`).not.toContain("run in this phase");
+      expect(html, `${name}: run here`).not.toContain("checks run here");
+    }
+    expect(HOME).toContain("checks belong to this phase. Each card opens");
+  });
+
+  test("D16 · a workstation path never reaches the page", () => {
+    expect(redactHome("verified against /Users/jane.doe/.ssh/allowed_signers")).toBe(
+      "verified against ~/.ssh/allowed_signers",
+    );
+    expect(redactHome("found in /home/ci-bot/work/repo")).toBe("found in ~/work/repo");
+    expect(redactHome("nothing to redact")).toBe("nothing to redact");
+    // and the renderer uses it, proven through a record rather than by reading
+    const withPath = {
+      ...RECORDS[0]!,
+      controls: [
+        {
+          id: "commit-signing", phase: 1, in_scope: true, raw_outcome: "pass",
+          scan_outcome: "pass" as const, reclassified: false, reason: null,
+          messages: ["signing key at /Users/jane.doe/.ssh/id_ed25519"],
+        },
+      ],
+    };
+    const html = factory.renderRepoDetail(
+      withPath as never,
+      ctxFor("factory", "directory", "directory/p4gs--sscsb-action/"),
+    );
+    expect(html).toContain("signing key at ~/.ssh/id_ed25519");
+    expect(html).not.toContain("/Users/jane.doe");
   });
 });

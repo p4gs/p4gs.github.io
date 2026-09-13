@@ -51,7 +51,6 @@ export const CSS = `
   /* diagram tints, each with its own border */
   --fy-tint-blue: #f0f7fe;      --fy-edge-blue: #a4cdfb;
   --fy-tint-violet: #f5f1fd;    --fy-edge-violet: #c9b1f6;
-  --fy-tint-green: #edf8f1;     --fy-edge-green: #9fddb1;
   --fy-tint-grey: #f7f7f8;      --fy-edge-grey: #d0d0d4;
   --fy-dash: #a1a1a1;
 
@@ -360,7 +359,11 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-legend-no { font-family: var(--fy-mono); font-size: 12px; color: var(--fy-accent); }
 
 /* the attack list */
-.fy-attacks { list-style: none; margin: 40px auto 0; padding: 0; max-inline-size: 800px; text-align: start; }
+.fy-sourcing {
+  max-inline-size: 800px; margin: 40px auto 0; text-align: start;
+  font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet);
+}
+.fy-attacks { list-style: none; margin: 20px auto 0; padding: 0; max-inline-size: 800px; text-align: start; }
 .fy-attack { border-block-start: 1px solid var(--fy-dark-rule); }
 .fy-attack:last-child { border-block-end: 1px solid var(--fy-dark-rule); }
 .fy-attack-trigger {
@@ -888,7 +891,12 @@ main [id] { scroll-margin-top: 88px; }
 .fy-refcard[data-reference-type="observed"] { --fy-ref-bg: #e8f3fe; --fy-ref-edge: var(--fy-edge-blue); }
 .fy-refcard[data-reference-type="artifact"] { --fy-ref-bg: var(--fy-surface); --fy-ref-edge: var(--fy-edge-grey); }
 .fy-refcard[data-reference-type="local"] { --fy-ref-bg: #ede5fc; --fy-ref-edge: var(--fy-edge-violet); }
-.fy-refcard[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }
+/* "About the tool, never counted" is not a fifth kind of evidence — it is the
+   absence of one, and a dotted border is how this page says "not a thing that
+   was scored" everywhere else. */
+.fy-refcard[data-reference-type="meta"] {
+  --fy-ref-bg: #ffffff; --fy-ref-edge: #6f6f74; border-style: dotted;
+}
 .fy-refcard:hover, .fy-refcard:focus-visible, .fy-refcard[aria-expanded="true"] {
   border-color: color-mix(in srgb, var(--fy-ref-edge) 72%, var(--fy-ref-ink));
   background-color: color-mix(in srgb, var(--fy-ref-bg) 96%, var(--fy-ref-ink));
@@ -910,7 +918,7 @@ main [id] { scroll-margin-top: 88px; }
 .fy-legend-dot[data-reference-type="observed"] { --fy-ref-bg: #a4cdfb; --fy-ref-edge: var(--fy-edge-blue); }
 .fy-legend-dot[data-reference-type="artifact"] { --fy-ref-bg: var(--fy-surface); --fy-ref-edge: #9a9a9a; }
 .fy-legend-dot[data-reference-type="local"] { --fy-ref-bg: #c9b1f6; --fy-ref-edge: var(--fy-edge-violet); }
-.fy-legend-dot[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }
+.fy-legend-dot[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #6f6f74; border-style: dotted; }
 .fy-legend-frame {
   inline-size: 12px; block-size: 12px; border-radius: 2px; display: inline-block;
   margin-inline-end: 8px; vertical-align: -2px; border: 1px dotted var(--fy-dash);
@@ -1151,15 +1159,17 @@ export const PAGES_CSS = `
 .fy-rm { white-space: nowrap; }
 .fy-rm:not(:last-child)::after { content: " ·"; }
 .fy-rm-url { white-space: normal; overflow-wrap: anywhere; }
-/* A flag, not a button. It needs the 44px target because it is a link, but at
-   full warn-weight it out-shouted the whole meta line it sits in. */
+/* A FLAG, NOT A WARNING. Amber is this page's "gap" colour: painting a listing
+   scored under an older methodology in it says something went wrong, when what
+   happened is that the rules were versioned and this record names its version.
+   Neutral grey, and it needs the 44px target because it is a link. */
 .fy-stale {
-  color: var(--fy-warn); text-decoration: none; font-size: 13px;
-  border: 1px solid color-mix(in srgb, var(--fy-warn) 40%, transparent);
+  color: var(--fy-muted); text-decoration: none; font-size: 13px;
+  border: 1px solid var(--fy-line);
   border-radius: 999px; padding: 0 12px; display: inline-flex; align-items: center;
   min-block-size: 44px;
 }
-.fy-stale:hover { border-color: var(--fy-warn); }
+.fy-stale:hover { border-color: var(--fy-muted); color: var(--fy-ink); }
 .fy-figs { display: grid; gap: 32px 56px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding-block: 24px 40px; }
 .fy-fig-num { font-size: 48px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--fy-ink); }
 .fy-fig-cap { margin-block-start: 12px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }

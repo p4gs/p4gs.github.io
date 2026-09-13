@@ -911,14 +911,24 @@ export function attackList(h: (p: string) => string): string {
     // narrative read as a 37-word one — and `test/prose.test.ts` measures the
     // rendered page, not the source. The label and the link sit in their own
     // paragraph so the account stays the length it actually is.
-    const incident = inc
+    // FAIL CLOSED. `sourced` is a claim about THIS SITE — that someone here
+    // opened the CVE record, the government alert or the project's own
+    // write-up — and one incident once wore `primary` by pattern-match rather
+    // than because anybody fetched it. An incident whose tier is missing or
+    // unrecognised does not render at all; the alternative is a page that cites
+    // journalism as fact the first time a class's lead incident is `reported`,
+    // silently, with no slot on the page for the mark that would say so.
+    const tiered = inc && (inc.sourced === "primary" || inc.sourced === "reported") ? inc : null;
+    const incident = tiered
       ? `<div class="fy-incident">
         <p><span class="fy-attack-label">When it happened</span>
-        <a href="${escapeHtml(inc.url)}">${escapeHtml(inc.title)}</a>
-        <span class="fy-incident-when">${escapeHtml(inc.when)}</span>${
-          inc.sourced === "reported" ? `<span class="fy-reported">reported</span>` : ""
+        <a href="${escapeHtml(tiered.url)}">${escapeHtml(tiered.title)}</a>
+        <span class="fy-incident-when">${escapeHtml(tiered.when)}</span>${
+          tiered.sourced === "reported"
+            ? `<span class="fy-reported">reported</span>`
+            : ""
         }</p>
-        <p>${escapeHtml(inc.what)}</p>
+        <p>${escapeHtml(tiered.what)}</p>
       </div>`
       : "";
     return `  <li class="fy-attack">
@@ -939,7 +949,10 @@ export function attackList(h: (p: string) => string): string {
     </div>
   </li>`;
   }).join("\n");
-  return `<ul class="fy-attacks">
+  return `<p class="fy-sourcing">Every incident below links to a primary source &mdash; a CVE
+  record, a government alert, or the affected project&rsquo;s own write-up. Where this site has
+  not opened that document, the line is marked <span class="fy-reported">reported</span>.</p>
+<ul class="fy-attacks">
 ${items}
 </ul>`;
 }
@@ -1147,8 +1160,8 @@ export function explorer(h: (p: string) => string): string {
     return `  <div class="fy-panel-port" id="fy-panel-${phase}" tabindex="0" role="group"
     aria-label="${escapeHtml(PHASE_NAMES[phase] ?? `Phase ${phase}`)}">
     <p class="fy-panel-note">${ids.length} ${
-      ids.length === 1 ? "check" : "checks"
-    } run in this phase. Each card opens the question that check answers.</p>
+      ids.length === 1 ? "check belongs" : "checks belong"
+    } to this phase. Each card opens the question that check answers.</p>
     <div class="fy-cards">
 ${cards}
     </div>

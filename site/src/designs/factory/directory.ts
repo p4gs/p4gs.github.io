@@ -532,6 +532,21 @@ ${directoryTermsNote(ctx.h)}
 
 /* ══ the repository sheet ════════════════════════════════════════════════ */
 
+/**
+ * D16 · A maintainer's home directory is not evidence, and it is not ours to
+ * publish.
+ *
+ * Local-lane evidence messages carry absolute workstation paths
+ * (`/Users/<name>/.ssh/…`) straight onto a public page — a real name, and the
+ * shape of a machine nobody asked to have described. The scanner's own output
+ * wants fixing upstream and a sweep of the other five designs is Remaining Work
+ * in the ISA; this is the render-time floor, so no Factory page ships one while
+ * that is pending.
+ */
+export function redactHome(s: string): string {
+  return s.replace(/(^|[\s"'`(\[<=:])\/(?:Users|home)\/[^/\s"'`)\]>]+\//g, "$1~/");
+}
+
 const OUTCOME_LABEL: Readonly<Record<string, string>> = {
   pass: "Pass", fail: "Fail", gap: "Gap", unverified: "Unverified", info: "Info",
 };
@@ -779,7 +794,7 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
     const reason = c.reason ? `<span class="fy-reason">${escapeHtml(c.reason)}</span>` : "";
     const msgs = c.messages.length
       ? `<details><summary>evidence (${c.messages.length})</summary><ul>${c.messages
-          .map((m) => `<li>${escapeHtml(m)}</li>`)
+          .map((m) => `<li>${escapeHtml(redactHome(m))}</li>`)
           .join("")}</ul></details>`
       : "";
     // A local-lane row is the repository's owner asserting his own posture on
@@ -865,7 +880,7 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
         r.methodology_version < METHODOLOGY_VERSION
           ? `<a class="fy-stale" href="${ctx.h(
               "methodology/#changelog",
-            )}" title="Scored before methodology v${METHODOLOGY_VERSION}">scored before v${METHODOLOGY_VERSION}</a>`
+            )}">scored under methodology v${r.methodology_version} &rarr;</a>`
           : ""
       }
     </p>
