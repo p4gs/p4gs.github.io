@@ -1,5 +1,5 @@
 /** Shared page chrome. All hrefs are prefix-scoped by construction. */
-import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL } from "../../config";
+import { ACTION_REPO_URL, BASE_PATH, METHODOLOGY_VERSION, REPO_URL, SITE_HOST_LABEL } from "../../config";
 import { lookupFacts, type ListingFacts } from "../../listing";
 import type { DesignCtx } from "../types";
 
@@ -98,7 +98,7 @@ ${opts.body}
 </main>
 <footer class="site-footer">
   <div class="footer-in">
-    <span class="domain">tools.sensiblesecurity.xyz/sscsb</span>
+    <span class="domain">${SITE_HOST_LABEL}</span>
     <span>Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
   </div>
 </footer>

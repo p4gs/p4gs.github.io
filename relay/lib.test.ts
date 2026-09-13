@@ -88,11 +88,37 @@ describe("corsHeadersFor", () => {
     });
   }
 
-  test("unknown origins get nothing", () => {
-    expect(corsHeadersFor("https://evil.example")).toEqual({});
-    expect(corsHeadersFor("https://tools.sensiblesecurity.xyz.evil.example")).toEqual({});
-    expect(corsHeadersFor("http://localhost:3000")).toEqual({});
-    expect(corsHeadersFor(undefined)).toEqual({});
+  /**
+   * A refused origin gets no allow-origin header — and still gets `Vary:
+   * Origin`, because the response it is being handed DID depend on the origin
+   * it sent. Asserting the exact object is the point: it pins both halves, so
+   * neither "we leaked an allow-origin" nor "we dropped the Vary again" can
+   * pass here.
+   */
+  test("unknown origins get no allow-origin header, but still vary on Origin", () => {
+    for (const origin of [
+      "https://evil.example",
+      "https://sscsb.dev.evil.example",
+      "http://localhost:3000",
+      undefined,
+    ]) {
+      expect(corsHeadersFor(origin)).toEqual({ vary: "Origin" });
+      expect(corsHeadersFor(origin)["access-control-allow-origin"]).toBeUndefined();
+    }
+  });
+
+  /**
+   * The domain move runs through BOTH hosts. The new one has to work the
+   * moment it is live, and the old one has to keep working until it stops
+   * serving — a relay that allowed only one of them would break single-click
+   * intake for every visitor on the other. Dropping the old origin is a
+   * deliberate later step, and this test is what makes that step deliberate.
+   */
+  test("both the new and the outgoing site origin are allowed during the move", () => {
+    for (const origin of ["https://sscsb.dev", "https://tools.sensiblesecurity.xyz"]) {
+      expect(ALLOWED_ORIGINS).toContain(origin);
+      expect(corsHeadersFor(origin)["access-control-allow-origin"]).toBe(origin);
+    }
   });
 });
 
@@ -139,7 +165,7 @@ describe("mintAppJwt", () => {
 
 test("buildIssueBody matches the scan-request form output", () => {
   expect(buildIssueBody("octo/cat")).toBe(
-    "### Repository URL\n\nhttps://github.com/octo/cat\n\n### Confirmation\n\n- [x] I understand the result may be published publicly with a letter grade\n\n_Submitted via tools.sensiblesecurity.xyz_",
+    "### Repository URL\n\nhttps://github.com/octo/cat\n\n### Confirmation\n\n- [x] I understand the result may be published publicly with a letter grade\n\n_Submitted via sscsb.dev_",
   );
 });
 
@@ -209,7 +235,7 @@ function githubStub(opts: StubOptions = {}): { fetchImpl: typeof fetch; calls: S
 }
 
 const ENV = { SCAN_INTAKE_APP_ID: "12345", SCAN_INTAKE_APP_KEY: TEST_KEY_PEM };
-const GOOD_ORIGIN = "https://tools.sensiblesecurity.xyz";
+const GOOD_ORIGIN = "https://sscsb.dev";
 
 function post(repo: unknown, origin: string | undefined = GOOD_ORIGIN) {
   return { method: "POST", origin, body: { repo } };

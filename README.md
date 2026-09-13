@@ -1,12 +1,16 @@
-# tools.sensiblesecurity.xyz
+# sscsb.dev
 
-Router + site repo for Sensible Security's open-source tools.
+Site repo for [SSCS Bootstrapper](https://github.com/p4gs/sscs-bootstrapper).
 
-- **`/`** — tools landing page
-- **`/sscsb/`** — [SSCS Bootstrapper](https://github.com/p4gs/sscs-bootstrapper)
-  homepage + the public scan directory (submit any public repo for an
-  external sscsb scan, or publish an authenticated one with
+- **`/`** — SSCS Bootstrapper homepage + the public scan directory (submit any
+  public repo for an external sscsb scan, or publish an authenticated one with
   [sscsb-action](https://github.com/p4gs/sscsb-action))
+- **`/directory/`** — the scan directory
+- **`/methodology/`** — how a grade is computed
+
+The site moved from `tools.sensiblesecurity.xyz/sscsb/` to the root of
+`sscsb.dev`; the umbrella tools landing page that used to sit at `/` retired
+with the move.
 
 The site is a bun + TypeScript static build (`site/`), deployed by
 `.github/workflows/pages.yml`. The deploy is this repo's release: the build
@@ -17,7 +21,7 @@ three trails before the verified bytes reach Pages. Re-verify any deploy from
 its run artifacts: `gh attestation verify site.tar.gz --repo p4gs/p4gs.github.io`.
 Scan records live in `site/data/repos/`;
 every record lands via a maintainer-reviewed PR. Scoring is documented at
-[/sscsb/methodology/](https://tools.sensiblesecurity.xyz/sscsb/methodology/).
+[/methodology/](https://sscsb.dev/methodology/).
 
 Authenticated records that arrive **signed** (sscsb-action with `id-token:
 write`) are verified at ingest against the producing repository's workflow
@@ -25,7 +29,7 @@ identity — `OWNER/REPO/.github/workflows/sscsb-scan.yml` on its live default
 branch — and listed as ✓ verified, with the Sigstore bundle published beside
 the record (`site/data/trust/`) so anyone can re-verify. Unsigned
 authenticated records are listed as unverified claims. Trust model:
-[/sscsb/methodology/#trust](https://tools.sensiblesecurity.xyz/sscsb/methodology/#trust).
+[/methodology/#trust](https://sscsb.dev/methodology/#trust).
 
 Repositories that run `sscsb-scan.yml` can skip the cross-repo submission
 token entirely: add `owner/repo` to `site/data/registry.json` by PR and

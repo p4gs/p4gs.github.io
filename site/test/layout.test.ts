@@ -43,8 +43,12 @@ const STYLESHEETS: Array<[string, string]> = DESIGNS.map((d) => [
 ]);
 
 describe("nothing at the end of a page sits under the fixed switcher", () => {
-  test("all four designs are covered by this suite", () => {
-    expect(STYLESHEETS.length).toBe(4);
+  // A canary, not an invariant. The literal is here so that ADDING a design
+  // forces someone to come and look at this suite, rather than quietly leaving
+  // the new one unmeasured. Bump it when the registry grows; never soften it
+  // to `DESIGNS.length`, which would pass whatever the registry held.
+  test("all five designs are covered by this suite", () => {
+    expect(STYLESHEETS.length).toBe(5);
   });
 
   for (const [id, css] of STYLESHEETS) {

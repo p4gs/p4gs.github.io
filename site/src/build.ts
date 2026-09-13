@@ -34,7 +34,6 @@ import { join } from "node:path";
 import { BASE_PATH, SITE_ORIGIN, STAY_PARAM } from "./config";
 import { DEFAULT_DESIGN, DESIGNS } from "./designs/registry";
 import { repoSlugPath } from "./designs/ledger/directory";
-import { renderLanding } from "./designs/ledger/landing";
 import type { Design, DesignCtx } from "./designs/types";
 import type { ListingFacts } from "./listing";
 import { mergeEvidence, type EvidenceSource } from "./reclassify";
@@ -55,6 +54,14 @@ const DATA = join(ROOT, "data", "repos");
 const LOCAL = join(ROOT, "data", "local");
 const TRUST = join(ROOT, "data", "trust");
 const DIST = join(ROOT, "dist");
+/**
+ * Where BASE_PATH lands inside `dist/`. The published tree mirrors what the
+ * domain serves, so a site at "/" writes its pages at the root of dist/ and a
+ * site at "/sscsb/" writes them under dist/sscsb/. This was a bare "sscsb"
+ * literal, which meant BASE_PATH and the output tree could disagree silently —
+ * exactly what moving to the domain root would have broken.
+ */
+const BASE_DIR = BASE_PATH.replace(/^\//, "");
 const PUBLIC = join(ROOT, "public");
 
 interface Loaded {
@@ -253,7 +260,7 @@ function prefixFor(d: Design): string {
  * LOAD: `if (here !== def) localStorage.setItem(KEY, here)`. So merely viewing
  * one alternate page once — following a link, opening a shared URL, landing
  * from a search result — silently made that design permanent, and every later
- * visit to the canonical `/sscsb/` redirected away from the default the site
+ * visit to the canonical BASE_PATH redirected away from the default the site
  * had chosen. A visit is not a choice. Only a click on the switcher is, so
  * only a click writes.
  *
@@ -387,25 +394,25 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       facts,
     });
 
-    await write(join("sscsb", tree, "style.css"), design.css ?? defaultCss);
-    await write(join("sscsb", tree, "filter.js"), filterJs);
+    await write(join(BASE_DIR, tree, "style.css"), design.css ?? defaultCss);
+    await write(join(BASE_DIR, tree, "filter.js"), filterJs);
     await write(
-      join("sscsb", tree, "index.html"),
+      join(BASE_DIR, tree, "index.html"),
       design.renderHome(records, ctxFor("home", "")),
     );
     await write(
-      join("sscsb", tree, "directory/index.html"),
+      join(BASE_DIR, tree, "directory/index.html"),
       design.renderDirectory(records, ctxFor("directory", "directory/")),
     );
     await write(
-      join("sscsb", tree, "methodology/index.html"),
+      join(BASE_DIR, tree, "methodology/index.html"),
       design.renderMethodology(ctxFor("methodology", "methodology/")),
     );
     pages += 3;
     for (const { baseFile, localFile, record: r } of listings) {
       const sub = repoSlugPath(r);
       await write(
-        join("sscsb", tree, sub, "index.html"),
+        join(BASE_DIR, tree, sub, "index.html"),
         design.renderRepoDetail(r, ctxFor("directory", sub)),
       );
       pages += 1;
@@ -413,7 +420,7 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
       // would no longer match its signature) and, when signed, the signature
       // beside each, so anyone can re-run `cosign verify-blob` (action lane) or
       // `ssh-keygen -Y verify` (local lane) against what the site shows.
-      const dir = join(DIST, "sscsb", tree, sub);
+      const dir = join(DIST, BASE_DIR, tree, sub);
       if (baseFile) await cp(join(DATA, baseFile), join(dir, "scan-record.json"));
       const t = trust.get(trustKeyOf(r));
       if (t?.bundle) {
@@ -429,9 +436,11 @@ export async function build(): Promise<{ pages: number; repos: number; designs: 
     }
   }
 
-  // Domain-root landing: single, default-design chrome, no switcher.
-  await write("index.html", renderLanding(records.length));
-  pages += 1;
+  // No domain-root landing page: the site owns its own domain now, so `/` is
+  // the SSCSB home the design loop already wrote. The umbrella "Sensible
+  // Security Tools" registry page that used to sit here belonged to a domain
+  // hosting several tools under paths; at BASE_PATH "/" it would simply have
+  // overwritten the home.
   const cname = join(ROOT, "..", "CNAME");
   if (await Bun.file(cname).exists()) await cp(cname, join(DIST, "CNAME"));
 

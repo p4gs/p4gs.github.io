@@ -23,7 +23,18 @@ export const SCAN_LABEL = "scan-request";
 /** Max open scan-request issues before new submissions are refused. */
 export const QUEUE_CAP = 25;
 
+/**
+ * Browser origins the relay reflects back via CORS.
+ *
+ * `https://tools.sensiblesecurity.xyz` is kept DELIBERATELY during the move to
+ * sscsb.dev: the old host keeps serving (and its pages keep calling this
+ * endpoint) until DNS and Pages are cut over, and a relay that dropped it the
+ * moment this merged would break single-click intake for everyone still on the
+ * old URL. Removing it is a separate, later step — once sscsb.dev is live and
+ * the old host no longer serves the directory.
+ */
 export const ALLOWED_ORIGINS: readonly string[] = [
+  "https://sscsb.dev",
   "https://tools.sensiblesecurity.xyz",
   "https://p4gs.github.io",
   "http://localhost:4173",
@@ -93,12 +104,23 @@ export function vetRepoMeta(meta: RepoMeta): string | null {
 // CORS
 // ---------------------------------------------------------------------------
 
-/** Reflect the Origin only when it is on the allowlist; otherwise no CORS headers. */
+/**
+ * Reflect the Origin only when it is on the allowlist — but `Vary: Origin`
+ * ALWAYS, allowed or not.
+ *
+ * The response body and headers genuinely depend on the request's Origin, so
+ * without this header a shared cache (or a CDN in front of the relay) is
+ * entitled to serve one origin's cached response to another. It used to be
+ * sent only on the allowed branch, which is the wrong way round: the dangerous
+ * case is a REFUSED response — no allow-origin header — being cached and then
+ * replayed to an allowed origin, silently breaking single-click intake for
+ * everyone until the entry expires.
+ */
 export function corsHeadersFor(origin: string | undefined): Record<string, string> {
   if (origin !== undefined && ALLOWED_ORIGINS.includes(origin)) {
     return { "access-control-allow-origin": origin, vary: "Origin" };
   }
-  return {};
+  return { vary: "Origin" };
 }
 
 // ---------------------------------------------------------------------------
@@ -140,7 +162,7 @@ export function buildIssueBody(slug: string): string {
     "",
     "- [x] I understand the result may be published publicly with a letter grade",
     "",
-    "_Submitted via tools.sensiblesecurity.xyz_",
+    "_Submitted via sscsb.dev_",
   ].join("\n");
 }
 
