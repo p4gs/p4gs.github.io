@@ -47,6 +47,39 @@ const CHAPTERS: readonly Chapter[] = [
   { id: "ch-yours", no: "04", label: "Scan your own" },
 ];
 
+/**
+ * The hero's search control, with the "already listed" chips taken off it.
+ *
+ * The opening panel holds ONE control on the page axis — kicker, headline, one
+ * context line, one pill input, the arrow — because that is the reference's
+ * grammar and because the chips were measured doing real damage: at 1440 they
+ * wrapped to a second row and pushed the panel 13px over one viewport (which
+ * moves the whole aperture range down the page), and at 390 they descended as a
+ * three-step staircase, flush left under a centred headline.
+ *
+ * The chips are not lost. Every repository they linked is on the directory, and
+ * chapter 01's three exemplar panels read the same listings off the same data.
+ * Stripping them from the shared control's OUTPUT rather than re-implementing
+ * the control keeps `home-shared.ts` the single source of the ids `filter.js`
+ * binds — `#dir-filter`, `#dir-found`, `#dir-scan`, `#dir-index` — which is the
+ * one part of this markup a design may not get creative with.
+ */
+function heroSearch(h: (p: string) => string, records: ScanRecord[]): string {
+  const full = searchControl(h, records, {
+    label: "Find a repository — or ask for one to be scanned",
+    placeholder: "owner/repo",
+    scanCopy:
+      "Not listed yet. Ask for a scan — a person reviews every result before it appears.",
+  });
+  const stripped = full.replace(/\n?\s*<p class="hp-chips">[\s\S]*?<\/p>/, "");
+  // Fail loudly rather than silently shipping the chips if the shared control's
+  // markup moves under us. Only meaningful when there is a listing to chip.
+  if (records.length > 0 && stripped === full) {
+    throw new Error("factory: the hero search control no longer carries an hp-chips block");
+  }
+  return stripped;
+}
+
 /** The hero. One viewport of white, one of black, and the doors between them. */
 function aperture(records: ScanRecord[], ctx: DesignCtx): string {
   return `<section class="fy-aperture" aria-label="What this directory is">
@@ -63,12 +96,7 @@ function aperture(records: ScanRecord[], ctx: DesignCtx): string {
                boundary on a phone. -->
           <h1 class="fy-headline">What each repository <br>can prove</h1>
           <p class="fy-context">Every listing here is a public record of one scan of one commit.</p>
-          ${searchControl(ctx.h, records, {
-            label: "Find a repository — or ask for one to be scanned",
-            placeholder: "owner/repo",
-            scanCopy:
-              "Not listed yet. Ask for a scan — a person reviews every result before it appears.",
-          })}
+          ${heroSearch(ctx.h, records)}
           <p class="fy-controls"><a class="fy-continue" href="#evidence" aria-label="Read on">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"

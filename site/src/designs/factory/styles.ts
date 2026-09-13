@@ -137,17 +137,23 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-nav a:hover { background: var(--fy-surface-2); }
 .fy-nav a.is-here { background: var(--fy-surface-2); }
 
-/* The one fixed element on the page, and it is 40px in a corner nothing else
-   uses. Drawn in mid-grey on no ground at all, so it reads on the white
-   chapters AND on the black opening block — a fixed element cannot ask what
-   is underneath it. */
+/* The one fixed element on the page, and only at desktop widths.
+   It used to be drawn on no ground at all so it could sit over either the white
+   chapters or the black block — which is exactly what made it bleed: a
+   transparent disc over 14px type reads as a smudge on the type, not as a
+   control. It is a PLATE now: opaque white, a hairline, and the reference's own
+   1px shadow, so whatever is under it stays under it. On a phone it is removed
+   entirely (see the ≤767 block) — the in-page field, the pill rail and the
+   colophon's ↑ Top already carry search there, and 44px of fixed chrome in the
+   corner of a 390px screen is the most expensive square on the page. */
 .fy-find {
   position: fixed; inset-block-start: 12px; inset-inline-end: 24px; z-index: 40;
   inline-size: 44px; block-size: 44px; border-radius: 999px;
-  display: grid; place-items: center; color: #8a8a8a; background: 0 0;
-  border: 1px solid rgba(128, 128, 128, 0.42); text-decoration: none;
+  display: grid; place-items: center; color: #5d5d5d; background: #ffffff;
+  border: 1px solid #dedede; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  text-decoration: none;
 }
-.fy-find:hover { background: rgba(128, 128, 128, 0.16); color: #4d4d4d; }
+.fy-find:hover { background: var(--fy-surface-2); color: var(--fy-ink); }
 
 /* ══ chrome: the colophon ════════════════════════════════════════════════ */
 .fy-colophon { border-block-start: 1px solid var(--fy-hair); margin-block-start: 96px; }
@@ -177,20 +183,42 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center;
 }
-.fy-opening-in { inline-size: min(100%, var(--fy-media)); }
+/* The opening panel's own container is the 1120 wrap, not the 1376 media frame:
+   the display line is set to fit INSIDE it, and a headline that hangs past its
+   own container reads as a rendering fault rather than as scale. */
+.fy-opening-in { inline-size: min(100%, var(--fy-wrap)); }
 .fy-kicker {
   font-family: var(--fy-mono); font-size: 13px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--fy-muted); margin-block-end: 24px;
+  text-wrap: balance;
 }
+/* THE PADDING IS AN OPTICAL SHIM, NOT SPACING. Measured at 1440, the two
+   headline lines centred on 722.0 / 722.5 while the kicker, the context line and
+   the arrow centred on 718.5–719.5: a centred line centres its ADVANCE-WIDTH
+   box, and this face's sidebearings put the glyphs ~3px right of it. Six pixels
+   of trailing padding moves the text back without moving the element, so the
+   box centres a probe reads stay identical. */
 .fy-headline {
-  font-size: clamp(47px, 8.8vw, 148px); font-weight: 400; line-height: 1.02;
+  font-size: clamp(41px, 8.2vw, 138px); font-weight: 400; line-height: 1.02;
   letter-spacing: -0.04em; color: var(--fy-ink);
+  text-wrap: balance; padding-inline-end: 6px;
 }
 .fy-context {
   margin-block-start: 28px; font-size: 18.4px; line-height: 30.4px;
   color: var(--fy-quiet); max-inline-size: 56ch; margin-inline: auto;
 }
-.fy-opening .hp-search { margin-block: 28px 0; text-align: start; max-inline-size: 720px; margin-inline: auto; }
+/* ONE quiet pill on the page axis. The label stays in the DOM for anything that
+   reads the input by its accessible name, and leaves the page: a hero that has
+   to caption its own search box is not the reference's hero. */
+.fy-opening .hp-search { margin-block: 28px 0; text-align: start; max-inline-size: 520px; margin-inline: auto; }
+.fy-opening .hp-search-label {
+  position: absolute; inline-size: 1px; block-size: 1px; padding: 0; border: 0;
+  margin: 0; min-block-size: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.fy-opening .hp-search-input {
+  border-radius: 999px; border: 1px solid var(--fy-hair); padding: 12px 20px;
+  background: var(--fy-ground); text-align: center;
+}
 .fy-controls { min-block-size: 48px; margin-block-start: 28px; display: flex; justify-content: center; }
 .fy-continue {
   inline-size: 48px; block-size: 48px; padding: 0; border: 0; border-radius: 50%;
@@ -579,10 +607,22 @@ main [id] { scroll-margin-top: 88px; }
 
 /* ══ the segmented explorer ══════════════════════════════════════════════ */
 .fy-explorer { padding-block-start: 40px; }
+/* TWO PILLS, TWO ROWS. The chapter nav pins at top 12 and is 48 tall, so this
+   one pins at 12 + 48 + 12 = 72 and the pair stack as the reference's own frame
+   shows them (reference/df-1440-reference-arch.png). Before this they
+   interpenetrated: the segmented control scrolled under the nav and the phase
+   names were sliced in half by a bar the reader had just used to get here.
+   z-index sits BELOW the nav's 20, because when they do overlap the nav wins. */
 .fy-segmented {
   display: flex; gap: 0; padding: 4px; border-radius: 999px; background: var(--fy-surface-2);
   inline-size: fit-content; max-inline-size: 100%; margin-inline: auto;
   overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  position: sticky; inset-block-start: 72px; z-index: 15;
+}
+/* Keyboard focus must never scroll a control under the pinned nav either. The
+   targets with ids are covered by main [id]; these are the ones without. */
+.fy-segmented, .fy-seg-option, .fy-refcard, .fy-node, .fy-attack, .fy-attack-trigger {
+  scroll-margin-top: 88px;
 }
 .fy-segmented::-webkit-scrollbar { display: none; }
 .fy-seg-option { position: relative; display: flex; flex: 0 0 auto; cursor: pointer; }
@@ -914,14 +954,23 @@ export const RESPONSIVE_CSS = `
   :root {
     --fy-gutter: 24px; --fy-media-gutter: 20px; --fy-header-h: 54px; --fy-beat: 64px;
   }
-  .fy-header-in { padding-inline-end: 48px; }
+  .fy-header-in { padding-inline-end: 24px; }
   .fy-wordmark { font-size: 14px; }
   .fy-nav a { padding: 8px 10px; font-size: 13px; }
-  .fy-find { inset-block-start: 5px; inset-inline-end: 6px; inline-size: 44px; block-size: 44px; }
+  /* GONE on a phone, not shrunk. A 44px fixed disc in the corner of a 390px
+     screen sits over the one column the whole page is set in, and every route
+     it offers is already on the page: the field in the hero, the pill rail, and
+     ↑ Top in the colophon. */
+  .fy-find { display: none; }
 
   .fy-opening { padding: 40px var(--fy-gutter); min-block-size: max(500px, calc(100svh - var(--fy-header-h))); }
-  .fy-headline { font-size: clamp(41px, 8.2vw, 65px); }
+  /* The brief's measured mobile display line: 41px, line-height 41.82 (1.02),
+     letter-spacing -1.64 (-0.04em). Both fall out of the ratios above at 41px,
+     and both are asserted so a change to either ratio is caught. */
+  .fy-headline { font-size: clamp(41px, 8.2vw, 65px); padding-inline-end: 0; }
   .fy-headline br { display: none; }
+  .fy-opening .hp-search { max-inline-size: none; }
+  .fy-segmented { position: static; inset-block-start: auto; }
   .fy-context { margin-block-start: 18px; font-size: 16px; line-height: 26px; }
   .fy-opening .hp-search { margin-block-start: 20px; }
   .fy-controls { margin-block-start: 16px; }

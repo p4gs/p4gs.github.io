@@ -679,3 +679,120 @@ describe("nothing of the reference's own comes along", () => {
     }
   });
 });
+
+/* ══ round 1 — the structural and honesty fixes ══════════════════════════ */
+
+/**
+ * Round 1 of the judge panel, the code review and the independent measurement
+ * pass produced a prioritised list; §A (structural), §D (honesty) and §E
+ * (measured) are pinned here, item by item, in the list's own order.
+ *
+ * Where an item is a behaviour claim the assertion is two-sided: the new form
+ * is required AND the old one is required to be gone, because most of these
+ * shipped once and every one of them shipped silently.
+ */
+const MOBILE = blockAfter(CSS, "@media (max-width: 767px)");
+
+describe("A1 · the hero is one axis, one control, no chips", () => {
+  const opening = HOME.slice(
+    HOME.indexOf('<div class="fy-opening">'),
+    HOME.indexOf('<div class="fy-response">'),
+  );
+
+  test("the opening panel carries no chips at all", () => {
+    expect(opening.length).toBeGreaterThan(400);
+    expect(opening).not.toContain("hp-chips");
+    expect(opening).not.toContain("hp-chip");
+    // The three repository links the chips carried are gone from the panel.
+    // dir-found is the hidden result slot filter.js writes into, not a chip.
+    expect(opening).not.toContain(CTX.h("directory/p4gs--sscsb-action/"));
+    // and the shared control it is built from still ships them, so the strip
+    // is doing work rather than describing a control that changed underneath it
+    expect(HOME).toContain('id="dir-filter"');
+  });
+
+  test("the search control is INSIDE the opening panel, with its label hidden", () => {
+    expect(opening).toContain('class="hp-search"');
+    expect(opening).toContain('id="dir-filter"');
+    expect(opening).toContain('placeholder="owner/repo"');
+    // present for anything that reads the input by its accessible name…
+    expect(opening).toContain('class="hp-search-label" for="dir-filter"');
+    // …and off the page
+    expect(CSS).toContain(".fy-opening .hp-search-label {");
+    expect(CSS).toContain("clip-path: inset(50%); white-space: nowrap;\n}");
+  });
+
+  test("it is a pill on a hairline, capped at 520px, centred on the page axis", () => {
+    expect(CSS).toContain(
+      ".fy-opening .hp-search { margin-block: 28px 0; text-align: start; max-inline-size: 520px; margin-inline: auto; }",
+    );
+    expect(CSS).toContain("border-radius: 999px; border: 1px solid var(--fy-hair); padding: 12px 20px;");
+    // the 720px the chips forced is gone
+    expect(CSS).not.toContain("max-inline-size: 720px");
+  });
+
+  test("the display line is set to fit its own 1120 container", () => {
+    // Measured at 1440: line 1 spanned 1182px inside a 1120 container and hung
+    // 29px past it on each side. Two halves — the container is the wrap, and
+    // the type scale is cut so the longest line fits inside it.
+    expect(CSS).toContain(".fy-opening-in { inline-size: min(100%, var(--fy-wrap)); }");
+    expect(CSS).not.toContain(".fy-opening-in { inline-size: min(100%, var(--fy-media)); }");
+    expect(CSS).toContain("font-size: clamp(41px, 8.2vw, 138px)");
+  });
+
+  test("the display line and the kicker both balance, and the line is optically centred", () => {
+    expect(CSS).toMatch(/\.fy-headline \{[^}]*text-wrap: balance; padding-inline-end: 6px;/);
+    expect(CSS).toMatch(/\.fy-kicker \{[^}]*text-wrap: balance;/);
+    // padding, not margin: the element box must not move, or the probe that
+    // compares the five centres would be measuring the shim instead.
+    expect(CSS).not.toMatch(/\.fy-headline \{[^}]*margin-inline-end/);
+  });
+
+  test("the mobile display line is the brief's 41 / 41.82 / -1.64", () => {
+    // 41 x 1.02 = 41.82 and 41 x -0.04em = -1.64px, so the two ratios ARE the
+    // measured values at this size — asserted together, because a change to
+    // either ratio silently moves both.
+    expect(MOBILE).toContain(".fy-headline { font-size: clamp(41px, 8.2vw, 65px)");
+    expect(CSS).toMatch(/\.fy-headline \{[^}]*line-height: 1\.02;[^}]*letter-spacing: -0\.04em/);
+  });
+});
+
+describe("A2 · the fixed search affordance is a plate at desktop and gone on phones", () => {
+  test("at desktop it is opaque, hairlined and shadowed — never a transparent disc", () => {
+    expect(CSS).toContain("place-items: center; color: #5d5d5d; background: #ffffff;");
+    expect(CSS).toContain("border: 1px solid #dedede; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);");
+    // the ground it used to have none of
+    expect(CSS).not.toContain("border: 1px solid rgba(128, 128, 128, 0.42)");
+  });
+
+  test("at <=767 it is removed, not shrunk", () => {
+    expect(MOBILE).toContain(".fy-find { display: none; }");
+    expect(MOBILE).not.toContain(".fy-find { inset-block-start: 5px");
+  });
+
+  test("the header keeps 44px of clearance only where the affordance exists", () => {
+    expect(CSS).toContain("padding-inline-end: 56px;");
+    expect(MOBILE).toContain(".fy-header-in { padding-inline-end: 24px; }");
+  });
+});
+
+describe("A3 · the two pills stack instead of interpenetrating", () => {
+  test("the segmented control pins one clear row under the chapter nav", () => {
+    // 12 (the nav's own top) + 48 (its height) + 12 (the same gap again) = 72.
+    expect(CSS).toMatch(/\.fy-segmented \{[^}]*position: sticky; inset-block-start: 72px; z-index: 15;/);
+    expect(CSS).toContain("position: sticky; inset-block-start: 12px;");
+    // below the nav, so an overlap resolves the only way it may
+    expect(CSS).toContain("z-index: 20; inline-size: fit-content;");
+  });
+
+  test("at <=767 it does not pin at all", () => {
+    expect(MOBILE).toContain(".fy-segmented { position: static; inset-block-start: auto; }");
+  });
+
+  test("every focusable diagram control clears the nav when focus scrolls to it", () => {
+    expect(CSS).toContain(
+      ".fy-segmented, .fy-seg-option, .fy-refcard, .fy-node, .fy-attack, .fy-attack-trigger {\n  scroll-margin-top: 88px;\n}",
+    );
+    expect(CSS).toContain("main [id] { scroll-margin-top: 88px; }");
+  });
+});
