@@ -95,7 +95,11 @@ function aperture(records: ScanRecord[], ctx: DesignCtx): string {
                wrapped line, so it costs nothing on desktop and is the whole word
                boundary on a phone. -->
           <h1 class="fy-headline">What each repository <br>can prove</h1>
-          <p class="fy-context">Every listing here is a public record of one scan of one commit.</p>
+          <!-- THE CAVEAT IS ABOVE THE FOLD, not only in the response panel. A
+               reader who never scrolls past the first viewport still has to
+               have met the claim the whole directory rests on. -->
+          <p class="fy-context">Every listing here is a public record of one scan of one
+          commit &mdash; what it could prove, and what it could not.</p>
           ${heroSearch(ctx.h, records)}
           <p class="fy-controls"><a class="fy-continue" href="#evidence" aria-label="Read on">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -104,14 +108,19 @@ function aperture(records: ScanRecord[], ctx: DesignCtx): string {
           </a></p>
         </div>
       </div>
+      <!-- The response half used to say no one at all could answer the rest,
+           and this site is the thing that disproves it: a class-C check is
+           answerable by exactly one party, and the local lane exists so that
+           party can answer it. The doors close on what an OUTSIDE scan can see,
+           and the true sentence on the far side of them names who is left. -->
       <div class="fy-response">
         <div class="fy-response-left">
-          <p class="fy-response-headline">&mdash; and what nobody could check.</p>
+          <p class="fy-response-headline">&mdash; and what only its maintainer could.</p>
           <p class="fy-response-line">An unperformed check is never a verdict. It is shown,
           and never counted.</p>
         </div>
         <div class="fy-response-right" aria-hidden="true">
-          <p class="fy-response-headline">&mdash; and what nobody could check.</p>
+          <p class="fy-response-headline">&mdash; and what only its maintainer could.</p>
           <p class="fy-response-line">An unperformed check is never a verdict. It is shown,
           and never counted.</p>
         </div>

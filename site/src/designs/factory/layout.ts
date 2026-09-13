@@ -45,19 +45,19 @@ export function canonicalLink(ctx: DesignCtx): string {
 }
 
 /**
- * Inter (display AND body — the reference's display weight is 400 and nothing
- * on it is bold), Source Serif 4 for the one editorial pull-quote per page,
- * JetBrains Mono for ids, numerals and data.
+ * TWO FAMILIES, and that is the whole typographic vocabulary: Inter for display
+ * AND body — the reference's display weight is 400 and nothing on it is bold —
+ * and JetBrains Mono for ids, numerals and data.
  *
- * THE ITALIC AXIS IS NOT OPTIONAL. The pull-quote is set in italic serif, and
- * `document.fonts.check("italic 400 16px …")` answers true for a SYNTHESIZED
- * italic, so it is not evidence that the real cut loaded. Asking for
- * `ital,wght` is what loads it; Bulletin measured identical advance widths at
- * 40px when it did not, which is the signature of a slanted upright.
+ * SOURCE SERIF 4 IS GONE. It existed for one editorial pull-quote per page and
+ * for the inline term glosses — a third family, with an italic axis, requested
+ * on every page of the site so that two paragraphs could be set in it. The
+ * reference sets its own pull-quote in the sans, and two families is the whole
+ * typographic vocabulary this design gets.
  */
 export const FONTS_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap">`;
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">`;
 
 /**
  * The header nav. Two destinations only, because the header is 64px tall and

@@ -525,14 +525,20 @@ describe("every page is inside its own tree, and says which copy is canonical", 
     }
   });
 
-  test("the three font families are all requested, italics included", () => {
+  test("TWO font families are requested, and no third", () => {
     expect(factory.head).toContain("family=Inter:wght@400;500");
     expect(factory.head).toContain("family=JetBrains+Mono:wght@400;500");
-    // ital,wght — `document.fonts.check("italic …")` answers true for a
-    // SYNTHESIZED italic, so asking for the axis is the only thing that loads
-    // the real cut.
-    expect(factory.head).toContain("family=Source+Serif+4:ital,");
-    expect(factory.head).toContain("1,8..60,400");
+    // Source Serif 4 existed for one pull-quote per page and the inline term
+    // glosses — a third family, with an italic axis, requested on every page of
+    // the site to set two paragraphs. Two-sided: gone from the head AND gone
+    // from every rule that read it, or the CSS would silently fall back to
+    // Georgia and the page would still look "designed".
+    expect(factory.head).not.toContain("Source+Serif");
+    expect(CSS).not.toContain("Source Serif");
+    expect(CSS).not.toContain("--fy-serif");
+    const families = [...factory.head.matchAll(/family=([A-Za-z+0-9]+)[:&]/g)].map((m) => m[1]!);
+    expect(families).toEqual(["Inter", "JetBrains+Mono"]);
+    for (const [name, html] of PAGES) expect(html, name).not.toContain("Source+Serif");
   });
 
   test("the switcher is in the colophon, in document flow", () => {
@@ -1437,5 +1443,37 @@ describe("A12 + A13 + E4 · the directory's controls, cards and standalone links
     // 2.5.8 inline exception covers them and inflating them breaks the line
     const loopLead = HOME.slice(HOME.indexOf("Nobody has to wait for us"), HOME.indexOf("Nobody has to wait for us") + 300);
     expect(loopLead).not.toContain("fy-arrow-link");
+  });
+});
+
+describe("D1 · the aperture's honesty half is true, and the caveat is above the fold", () => {
+  test("the response names who is left, instead of denying the site's own third lane", () => {
+    // "— and what nobody could check." is FALSE, and this site is the thing
+    // that disproves it: a class-C check is answerable by exactly one party,
+    // and the local lane exists so that party can answer it.
+    expect(countOf(HOME, "&mdash; and what only its maintainer could.")).toBe(2);
+    expect(HOME).not.toContain("nobody could check");
+    // The directory and the sheet still render the SHARED plain gloss of
+    // `unverified` ("nobody could check this", glossary.ts) — shared copy, out
+    // of this design's scope, and recorded rather than reworded here.
+    expect(METHODOLOGY).not.toContain("nobody could check");
+    // the supporting line is unchanged, and it is the one that carries the rule
+    expect(HOME).toContain("An unperformed check is never a verdict. It is shown,");
+    // both halves of the aperture say the same thing, or the seam lies mid-close
+    const left = HOME.slice(HOME.indexOf('class="fy-response-left"'), HOME.indexOf('class="fy-response-right"'));
+    const right = HOME.slice(HOME.indexOf('class="fy-response-right"'));
+    expect(left).toContain("&mdash; and what only its maintainer could.");
+    expect(right).toContain("&mdash; and what only its maintainer could.");
+  });
+
+  test("the opening panel carries the caveat, so a reader who never scrolls meets it", () => {
+    const opening = HOME.slice(
+      HOME.indexOf('<div class="fy-opening">'),
+      HOME.indexOf('<div class="fy-response">'),
+    );
+    expect(opening).toContain("what it could prove, and what it could not");
+    expect(opening).not.toContain(
+      "<p class=\"fy-context\">Every listing here is a public record of one scan of one commit.</p>",
+    );
   });
 });

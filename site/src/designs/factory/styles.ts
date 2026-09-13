@@ -67,7 +67,6 @@ export const CSS = `
 
   --fy-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --fy-body: var(--fy-display);
-  --fy-serif: "Source Serif 4", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --fy-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --fy-gutter: 56px;
@@ -270,7 +269,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 }
 .fy-beat-centred .fy-beat-body { margin-inline: auto; }
 .fy-pullquote {
-  font-family: var(--fy-serif); font-style: italic; font-size: 22px; line-height: 1.5;
+  font-size: 22px; line-height: 1.5;
   color: var(--fy-dark-ink); margin-block: 28px 0; max-inline-size: 60ch;
   padding-inline-start: 20px; border-inline-start: 1px solid var(--fy-dark-rule);
 }
@@ -1441,7 +1440,9 @@ export const OVERRIDES = `
 :root .hp-unans-track { border-radius: 999px; overflow: hidden; }
 :root .hp-unans-fill { background-color: var(--fy-surface-2); }
 :root .ex-row { border-inline-start-width: 3px; }
-:root .term-def { font-family: var(--fy-serif); font-style: italic; }
+/* The glosses lose the serif with the family; the shared layer keeps them
+   italic and muted, which is §B3's to finish. */
+:root .term-def { font-family: var(--fy-body); }
 :root .key-note { max-inline-size: var(--fy-prose); }
 /* Two targets the shared layer leaves under the floor, measured at both widths:
    the exposure panel's group links (32px) and the incident links inside the
