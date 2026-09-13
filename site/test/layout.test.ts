@@ -47,8 +47,8 @@ describe("nothing at the end of a page sits under the fixed switcher", () => {
   // forces someone to come and look at this suite, rather than quietly leaving
   // the new one unmeasured. Bump it when the registry grows; never soften it
   // to `DESIGNS.length`, which would pass whatever the registry held.
-  test("all five designs are covered by this suite", () => {
-    expect(STYLESHEETS.length).toBe(5);
+  test("all six designs are covered by this suite", () => {
+    expect(STYLESHEETS.length).toBe(6);
   });
 
   for (const [id, css] of STYLESHEETS) {
