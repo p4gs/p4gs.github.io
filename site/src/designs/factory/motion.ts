@@ -425,7 +425,12 @@ export const MOTION_CSS = `
 }
 
 @media print {
-  .fy-aperture, .fy-chapters, .fy-find { display: none; }
+  /* The opening panel carries the page's only h1, so hiding the whole aperture
+     printed a home page with no title on it. The doors and the response panel
+     go; the panel stays. */
+  .fy-chapters, .fy-find, .fy-bars, .fy-response { display: none; }
+  .fy-stage { overflow: visible; }
+  .fy-opening { min-block-size: auto; padding-block: 24px; }
   .fy-loop :is(.fy-packet, .fy-return-packet, .fy-active-ring, .fy-arrival-ring,
     .fy-context-pulse) { display: none; }
 }
@@ -538,6 +543,20 @@ export const MOTION_SCRIPT = `(function () {
     }
   }
 
+  /* The aperture's conditional will-change. The markup ships "true" so a
+     no-JS reader and the settled state are unchanged; the observer is what
+     makes it CONDITIONAL, which is what the reference does and what keeps a
+     compositor layer from being promoted for the whole document's life. */
+  each(document.querySelectorAll(".fy-track[data-window-in-view]"), function (track) {
+    if (!supportsIO) return;
+    var io = new IntersectionObserver(function (entries) {
+      each(entries, function (en) {
+        track.setAttribute("data-window-in-view", en.isIntersecting ? "true" : "false");
+      });
+    }, { rootMargin: "20% 0px 20% 0px" });
+    io.observe(track);
+  });
+
   /* ── 2. the pill nav scroll-spy ───────────────────────────────────────── */
   var nav = document.querySelector("nav.fy-chapters");
   if (nav) {
@@ -583,9 +602,16 @@ export const MOTION_SCRIPT = `(function () {
           nav.setAttribute("data-navigating", "true");
           mark(p);
           if (navTimer) clearTimeout(navTimer);
-          navTimer = setTimeout(settle, 700);
+          // THE BELT IS FOR ENGINES WITHOUT scrollend, AND ONLY THOSE. Armed
+          // unconditionally it fired FIRST on any smooth jump longer than
+          // 700ms — measured on the repo sheet, where clicking the last pill
+          // from the first lit a third pill on the way. The other three pages'
+          // jumps finish inside 700ms, which is why only the longest page
+          // showed it.
           if ("onscrollend" in window) {
             addEventListener("scrollend", settle, { once: true });
+          } else {
+            navTimer = setTimeout(settle, 700);
           }
         });
       });

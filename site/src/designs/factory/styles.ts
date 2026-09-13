@@ -52,6 +52,10 @@ export const CSS = `
   --fy-tint-blue: #f0f7fe;      --fy-edge-blue: #a4cdfb;
   --fy-tint-violet: #f5f1fd;    --fy-edge-violet: #c9b1f6;
   --fy-tint-grey: #f7f7f8;      --fy-edge-grey: #d0d0d4;
+  /* The verdict tints, in the same tint/border grammar as the four evidence
+     hues — pass is the reference's own green pair. */
+  --fy-tint-pass: #edf8f1;      --fy-edge-pass: #9fddb1;
+  --fy-tint-warn: #fdf4e6;      --fy-edge-warn: #e2bd7e;
   --fy-dash: #a1a1a1;
 
   /* SSCSB's verdicts. Not the diagram accent, not the link blue, and not the
@@ -133,8 +137,10 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   margin-inline: auto; display: flex; align-items: center; gap: 24px;
   padding-inline-end: 56px;
 }
+/* T9 · A MARK, NOT A TERMINAL PROMPT. Wide-tracked mono read as a command
+   line; the reference's wordmark is compact and tight-set. */
 .fy-wordmark {
-  font-family: var(--fy-mono); font-weight: 500; font-size: 15px; letter-spacing: 0.08em;
+  font-family: var(--fy-display); font-weight: 500; font-size: 16px; letter-spacing: -0.02em;
   color: var(--fy-ink); text-decoration: none; display: inline-flex; align-items: center;
   min-block-size: 44px; margin-inline-end: auto;
 }
@@ -422,8 +428,12 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
    half landed, so the one node the figure sets apart was set apart by half a
    treatment. */
 .fy-figure .fy-speed-node.fy-node-hollow { stroke-dasharray: 3 3; }
+/* T12 · A GRID, so the six items form columns. Wrapped as a flex row its two
+   rows started at 768 / 911 / 1039 and 768 / 946 / 1090 — six items in two rows
+   and five different left edges. */
 .fy-trace-legend {
-  list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap;
+  list-style: none; margin: 16px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px 18px; font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet);
 }
 .fy-trace-legend li { display: flex; align-items: baseline; gap: 8px; }
@@ -454,11 +464,19 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-attack-trigger[aria-expanded="true"] .fy-chevron { transform: rotate(180deg); color: var(--fy-accent); }
 .fy-attack-panel { padding-block: 0 24px; display: grid; gap: 12px; }
 .fy-attack-line { font-size: 17px; line-height: 1.6; color: var(--fy-dark-body); }
-.fy-attack-checks { font-size: 14px; line-height: 1.7; color: var(--fy-dark-quiet); overflow-wrap: anywhere; }
+/* T10 · THE RUN-IN LABEL HANGS THE LIST. Set inline, "Checks that defend it"
+   captured the first id and every wrapped line after it started at the label's
+   left edge instead of the list's, so the block read as prose with code in it
+   rather than as a labelled list. */
+.fy-attack-checks {
+  font-size: 14px; line-height: 1.7; color: var(--fy-dark-quiet); overflow-wrap: anywhere;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: baseline;
+}
+.fy-attack-checks > a { grid-column: 1 / -1; }
 .fy-attack-checks code { color: var(--fy-dark-ink); }
 .fy-attack-label {
   font-family: var(--fy-mono); font-size: 12px; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--fy-dark-quiet); margin-inline-end: 8px;
+  letter-spacing: 0.08em; color: var(--fy-dark-quiet); white-space: nowrap;
 }
 .fy-incident { font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet); }
 .fy-incident a { color: var(--fy-dark-ink); }
@@ -477,6 +495,11 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   border-radius: 999px; justify-content: start; gap: 4px;
   margin: 160px auto 0; padding: 3px; display: flex;
   position: sticky; inset-block-start: 12px; overflow-x: auto;
+  /* T16 · On its way out of its sticky container the segmented control slides
+     up THROUGH this band, and two white 999px pills with no elevation between
+     them read as one broken widget. The pass-through is the reference's own
+     behaviour; what was missing is any cue that one is in front. */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .fy-chapters::-webkit-scrollbar { display: none; }
 /* The secondary pages' variant. On home the nav arrives after a full black
@@ -513,6 +536,11 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
    them. One declaration, and it cannot go stale when a shared module renames a
    class. */
 main [id] { scroll-margin-top: 88px; }
+/* T17 · 88px is the nav's PINNED offset, and on the first landing of a page the
+   nav has not reached it yet — its in-flow bottom coincided exactly with the
+   scroll-margin, so "01 Search" landed with 0.0px of clearance while every
+   other landing on every page cleared by 23.7-200px. */
+#directory-search, #sheet-record, #ch-record, #protocol { scroll-margin-top: 124px; }
 .fy-chapter-head { text-align: center; max-inline-size: 900px; margin-inline: auto; }
 .fy-chapter-num {
   font-family: var(--fy-mono); font-size: 13px; letter-spacing: 0.12em;
@@ -568,7 +596,13 @@ main [id] { scroll-margin-top: 88px; }
 .fy-ov-panel[data-ov-panel="none"] { background: 0 0; border: 1px solid var(--fy-hair); }
 .fy-ov-panel h4 { font-size: 17px; font-weight: 500; color: var(--fy-ink); }
 .fy-ov-panel p { margin-block-start: 8px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
-.fy-ov-count { font-family: var(--fy-mono); font-variant-numeric: tabular-nums; color: var(--fy-text); }
+/* T11 · NUMERAL AND UNIT IN SEPARATE CELLS. Set inline, four counts of one and
+   two digits put the word "checks" at four different x positions down a column
+   of otherwise identical panels. */
+.fy-ov-count {
+  font-family: var(--fy-mono); font-variant-numeric: tabular-nums; color: var(--fy-text);
+  display: inline-block; min-inline-size: 2.4ch; text-align: end;
+}
 /* The arithmetic a security reader does on this figure, closed on the figure:
    26 + 6 + 4 + 16 = 52, and the two that are missing are missing on purpose. */
 .fy-ov-foot {
@@ -672,12 +706,22 @@ main [id] { scroll-margin-top: 88px; }
   letter-spacing: 0.04em; text-transform: uppercase; flex: 0 0 auto;
   border: 1px solid currentcolor; border-radius: 999px; padding: 0 7px; line-height: 18px;
 }
-.fy-node[data-verdict="pass"] { border-color: var(--fy-pass); }
-.fy-node[data-verdict="pass"] .fy-node-verdict { color: var(--fy-pass); }
+/* T14 · THE TINT REGISTER, WHERE THESE ARE TINTS. The reference's light palette
+   fills a mark with a pastel and outlines it with the same hue two steps down;
+   ours outlined a white pill in the most saturated green on the page. The
+   semantics are untouched — colour AND shape AND word — and the word keeps the
+   full-strength hue, so contrast goes up rather than down. Red stays red, and
+   stays the fail state only. */
+.fy-node[data-verdict="pass"] { border-color: var(--fy-edge-pass); }
+.fy-node[data-verdict="pass"] .fy-node-verdict {
+  color: var(--fy-pass); background: var(--fy-tint-pass); border-color: var(--fy-edge-pass);
+}
 .fy-node[data-verdict="fail"] { border-color: var(--fy-fail); }
 .fy-node[data-verdict="fail"] .fy-node-verdict { color: var(--fy-fail); }
-.fy-node[data-verdict="gap"] { border-color: var(--fy-warn); border-style: dashed; }
-.fy-node[data-verdict="gap"] .fy-node-verdict { color: var(--fy-warn); }
+.fy-node[data-verdict="gap"] { border-color: var(--fy-edge-warn); border-style: dashed; }
+.fy-node[data-verdict="gap"] .fy-node-verdict {
+  color: var(--fy-warn); background: var(--fy-tint-warn); border-color: var(--fy-edge-warn);
+}
 /* THREE DATA STATES, THREE TREATMENTS. no answer and info were fourteen
    units of grey apart with a border-style between them; the only other thing
    telling them apart was the word. no answer is dashed with a STRUCK icon —
@@ -1352,9 +1396,12 @@ export const PAGES_CSS = `
 .fy-fig-cap { margin-block-start: 12px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
 .fy-cov-verdict { margin-block-start: 12px; font-family: var(--fy-mono); font-size: 12px; color: var(--fy-muted); line-height: 1.6; }
 .fy-cov-verdict .fy-cv-note { font-family: var(--fy-body); display: block; margin-block-start: 6px; }
+/* T13 · NARROWED TO THE MEASURE IT HOLDS. Every paragraph inside stopped at
+   ~928px in a frame that ran to 1280, so ~350px of each card was empty on the
+   right and the frame drew the eye straight to it. */
 .fy-panel {
   border: 1px solid var(--fy-line); border-radius: 8px; padding: 24px; margin-block: 24px;
-  background: var(--fy-ground);
+  background: var(--fy-ground); max-inline-size: calc(var(--fy-prose) + 48px);
 }
 .fy-panel-conflict { border-color: var(--fy-ink); }
 .fy-panel h2 { font-size: 22px; font-weight: 500; letter-spacing: 0; }
@@ -1391,9 +1438,12 @@ export const PAGES_CSS = `
   font-family: var(--fy-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
   border: 1px solid currentcolor; border-radius: 999px; padding: 1px 9px; white-space: nowrap;
 }
-.fy-oc-pass { color: var(--fy-pass); }
+.fy-oc-pass { color: var(--fy-pass); background: var(--fy-tint-pass); border-color: var(--fy-edge-pass); }
 .fy-oc-fail { color: var(--fy-fail); }
-.fy-oc-gap { color: var(--fy-warn); border-style: dashed; }
+.fy-oc-gap {
+  color: var(--fy-warn); background: var(--fy-tint-warn);
+  border-color: var(--fy-edge-warn); border-style: dashed;
+}
 /* Measured 14 units of grey apart, differing on one channel plus the word.
    no answer keeps a pill and goes dashed; info loses the pill, because it
    is not a verdict and a pill is what a verdict looks like on this page. */
@@ -1441,7 +1491,11 @@ export const PAGES_CSS = `
 .fy-method-section > h2 {
   font-size: clamp(28px, 3vw, 40px); line-height: 1.15; letter-spacing: -0.02em; color: var(--fy-ink);
 }
-.fy-method-section p { margin-block-start: 16px; font-size: 17px; line-height: 28px; max-inline-size: var(--fy-prose); }
+/* T10 · PARAGRAPH SPACING AT 1.5x THE LINE, so a paragraph break reads as one.
+   At 16px against a 28px line the gap was narrower than the leading inside the
+   paragraphs it was separating. */
+.fy-method-section p { margin-block-start: 42px; font-size: 17px; line-height: 28px; max-inline-size: var(--fy-prose); }
+.fy-method-section h2 + p, .fy-method-section h3 + p { margin-block-start: 16px; }
 .fy-method-section ol, .fy-method-section ul { margin-block-start: 16px; max-inline-size: var(--fy-prose); line-height: 28px; }
 .fy-method-section li { margin-block-start: 8px; }
 .fy-method-section h3 { font-size: 22px; font-weight: 500; margin-block-start: 36px; color: var(--fy-ink); }
@@ -1805,7 +1859,14 @@ export const RESPONSIVE_CSS = `
  */
 export const OVERRIDES = `
 :root .hp-search-label { letter-spacing: 0.12em; }
-:root .hp-search-input { border-width: 1px; border-color: var(--fy-line); border-radius: 8px; font-family: var(--fy-body); }
+/* T8 · A PILL, NOT AN 8px RECTANGLE. 8px is this design's DIAGRAM radius, and
+   every other control in the build — nav pills, segmented labels, the select,
+   the chips, the grade rings — is 999. The hero's own rule declared the pill and
+   lost the cascade to this one: both are (0,2,0) and this block is last. */
+:root .hp-search-input {
+  border-width: 1px; border-color: var(--fy-hair); border-radius: 999px;
+  font-family: var(--fy-body); max-inline-size: 520px;
+}
 :root .hp-chip, :root .tx-chip { border-width: 1px; border-radius: 999px; }
 :root .hp-card, :root .exposure, :root .hp-waiting { border-width: 1px; border-radius: 8px; }
 :root .hp-panel-title { font-weight: 400; letter-spacing: -0.02em; }
@@ -1826,7 +1887,11 @@ export const OVERRIDES = `
 :root .ex-row { border-inline-start-width: 3px; }
 /* The glosses lose the serif with the family; the shared layer keeps them
    italic and muted, which is §B3's to finish. */
-:root .term-def { font-family: var(--fy-body); }
+/* T10 · The glosses in the sans at a muted colour — a definition-list register
+   rather than an inline aside, which is what italic grey inside running prose
+   reads as. */
+:root .term-def { font-family: var(--fy-body); font-style: normal; color: var(--fy-muted); }
+.fy-dark :root .term-def, .fy-dark .term-def { color: var(--fy-dark-quiet); }
 :root .key-note { max-inline-size: var(--fy-prose); }
 /* Two targets the shared layer leaves under the floor, measured at both widths:
    the exposure panel's group links (32px) and the incident links inside the
