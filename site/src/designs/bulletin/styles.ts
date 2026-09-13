@@ -126,6 +126,14 @@ a:hover { color: var(--hot); text-decoration-thickness: 2px; }
 ::selection { background: var(--hot); color: #fff; }
 code { font-family: var(--mono); font-size: 0.9em; }
 .mono { font-family: var(--mono); }
+/* Present to a screen reader, absent on the page. Used where a chip and the
+   text beside it would otherwise run together in the accessible name —
+   'summary.textContent' read "Mergelocal 3cb129084db2 ≠ scan …", announced as
+   one word. */
+.vh {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
 h1, h2, h3, h4 { margin: 0; }
 p { margin: 0; }
 
@@ -301,8 +309,16 @@ main {
 
 /* ---------- home: the three lanes ---------- */
 .lanes { padding-block: var(--sp-7); border-block-start: 2px solid var(--rule); }
+/* font-weight 400 for the third time on this page, and the reason has not
+   changed: the request loads Anton's 400 face ONLY, so a UA <h2> bold makes
+   Chrome smear a synthetic one. Measured on the shipped element — 3,639 pixels
+   differ between it and the same element at 400, and forcing 900 is
+   byte-identical to the shipped 700, which is the signature of one fixed
+   synthetic stroke rather than a weight axis. Every Anton heading here now
+   states the weight it actually has. */
 .section-head {
-  font-family: var(--display); font-size: clamp(1.6rem, 1rem + 2.4vw, 2.5rem);
+  font-family: var(--display); font-weight: 400;
+  font-size: clamp(1.6rem, 1rem + 2.4vw, 2.5rem);
   text-transform: uppercase; line-height: 1; letter-spacing: 0.01em;
   margin-block-end: var(--sp-5);
 }
@@ -419,6 +435,21 @@ main {
 }
 #dir-filter::placeholder { color: var(--ink-3); }
 
+/* A SECOND HUE, PAINTED BY THE BROWSER. <input type="search"> keeps
+   appearance:auto, so the moment the field has content Chrome draws its own
+   ::-webkit-search-cancel-button — sampled off the captures at #40649F, a
+   system blue — inside the home hero, a hundred pixels above the one hot CTA.
+   iOS Safari draws a grey filled circle in the same place. Either way it is UA
+   chrome in the one area of the page where the register allows exactly two
+   colours, on the two most-visited pages. The affordance is redrawn below, in
+   this design's own ink. */
+input[type="search"] { appearance: none; -webkit-appearance: none; }
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button {
+  appearance: none; -webkit-appearance: none; display: none;
+}
+
 #dir-scan {
   margin-block-start: var(--sp-4); max-inline-size: 640px; background: var(--paper-2);
   border: 2px solid var(--rule); border-inline-start-width: 8px;
@@ -453,8 +484,36 @@ main {
   background: var(--paper-2); color: var(--ink); border: 2px solid var(--rule);
   min-block-size: 44px;
 }
-.dir-check { cursor: pointer; text-transform: none; letter-spacing: 0; }
+/* '.dir-sortbar label' uppercases every label in the row and beat this on
+   specificity, so the sentence-case this line has always asked for was dead
+   and the directory's fold read as a mono eyebrow while the repo sheet's
+   identical control read as a sentence. One widget class, one treatment —
+   and the treatment is the one the source already chose. */
+.dir-sortbar label.dir-check {
+  cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink-2);
+}
 .dir-count { margin-inline-start: auto; color: var(--ink); }
+
+/* FILTERING TO NOTHING MUST SAY SO. Ticking the coverage box took the listings
+   from three to zero and left the space between the control row and the KEY
+   simply blank — the only feedback a 13px count at the far end of the row the
+   thumb had just covered. A page that empties itself reads as a page that
+   broke. The strip below is the same dashed "waiting" box the front page uses
+   for a state with nothing in it, and it carries the way out. */
+.dir-empty {
+  border: 2px dashed var(--rule); padding: var(--sp-5);
+  margin-block: var(--sp-4); color: var(--ink-2);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-4);
+}
+.dir-empty-copy { font-size: var(--t--1); flex: 1 1 22ch; }
+.dir-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 44px; padding: 10px 18px; font-family: var(--mono);
+  font-size: var(--t--2); text-transform: uppercase; letter-spacing: 0.1em;
+  background: var(--paper-2); color: var(--ink); border: 2px solid var(--rule);
+  cursor: pointer;
+}
+.dir-clear:hover { background: var(--ink); color: var(--paper-2); }
 
 /* ---------- broadsheet tables ---------- */
 .table-scroll {
@@ -603,6 +662,28 @@ table.method-table code, .tx-class-controls code, .ex-detail code,
   letter-spacing: 0.16em; color: var(--ink-3);
 }
 .key-item { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+/* The 8px inset belongs to the chip's INLINE use, sitting after a lane stamp in
+   a table cell. Leaking into the legend it put two stacked dashed chips on two
+   different left edges — in a register whose whole apparatus is hard rules and
+   a shared grid, 8px is the difference between composed and not. */
+.key-row .lane-local-overlay { margin-inline-start: 0; }
+/* "n controls…" opened on a bare lowercase n, which at the head of a mono
+   legend line reads as a dropped glyph rather than as a placeholder. */
+.kv { font-family: var(--mono); font-style: italic; color: var(--ink); }
+/* THE PHASE CODES NEEDED A KEY. Each listing card carries six bars labelled
+   P1…P6 and the only place their names existed was a 'title' attribute, which
+   a phone cannot fire. The home board spells the same six out and the repo
+   sheet spells them out in full, so the directory was the one surface that
+   showed a reader codes with no way to decode them. */
+.key-phases {
+  font-family: var(--mono); font-size: var(--t--2); color: var(--ink-2);
+  padding-block: var(--sp-3); border-block-end: 1px solid var(--hair);
+}
+.key-phases .kp-label {
+  text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-3);
+  margin-inline-end: var(--sp-3);
+}
+.key-phases code { color: var(--ink); font-weight: 600; }
 .key-swatch { inline-size: 26px; block-size: 10px; display: inline-block; border: 1px solid var(--rule); }
 .key-pass { background: var(--ink); }
 .key-fail { background: var(--hatch-fail); }
@@ -699,6 +780,55 @@ table.method-table code, .tx-class-controls code, .ex-detail code,
 }
 .cov-cmd code { color: inherit; }
 
+/* THE CONTRACT IS KEY/VALUE DATA, SO IT IS SET AS A TABLE.
+ *
+ * Round 1 stopped this block clipping by wrapping it ('white-space:pre-wrap'),
+ * which traded a visible defect for a silent one: in a 354px column every
+ * continuation line landed flush at the KEY column, so 'record-fields
+ * schema_version methodology_version repo scanned_at scanner' wrapped to a
+ * line reading 'request_issue controls score' — which parses as a key and a
+ * value, two lines under the real key 'methodology-version  2'. On a
+ * byte-precision signing contract a reader could not tell a key from the tail
+ * of a value, and nothing on the page said so.
+ *
+ * A hanging indent cannot fix it: 'text-indent' applies to the first line of a
+ * BLOCK, and a forced break inside a <pre> does not restart it ('each-line' is
+ * not supported here). So the twelve lines are parsed out of CONTRACT_TEXT —
+ * the same bytes, never retyped — and set as rows. The slab keeps its ink
+ * ground and mono face at desk width; below 760px the key becomes a label line
+ * above its value, which is the one arrangement that cannot be misread.
+ */
+table.contract-table {
+  inline-size: 100%; border-collapse: collapse;
+  background: var(--ink); color: var(--paper-2);
+  border: 2px solid var(--rule); margin-block: var(--sp-4);
+  font-family: var(--mono); font-size: var(--t--2); line-height: 1.6;
+}
+.contract-head {
+  font-family: var(--mono); font-size: var(--t--3); text-transform: uppercase;
+  letter-spacing: 0.16em; color: var(--paper-2); text-align: start;
+  padding: var(--sp-3) var(--sp-4); border-block-end: 1px solid #4A443C;
+}
+table.contract-table td { padding: 2px var(--sp-4); vertical-align: top; }
+table.contract-table tbody tr:first-child td { padding-block-start: var(--sp-3); }
+table.contract-table tbody tr:last-child td { padding-block-end: var(--sp-3); }
+table.contract-table .ct-key { color: #B9B1A5; white-space: nowrap; inline-size: 1%; }
+table.contract-table .ct-val { color: var(--paper-2); overflow-wrap: anywhere; }
+
+/* The class column was ~145px, so 'A′ — static audits of committed workflows'
+   set on four lines and pushed the prime mark onto a line of its own — which
+   makes A and A′ harder to tell apart, the exact distinction the table exists
+   to draw. There is room at 1160px; the third column does not need to be the
+   widest. */
+@media (min-width: 761px) {
+  table.cls-table { table-layout: fixed; }
+  /* rem, not ch: a 'ch' on a <th> resolves against the TH's own 11px mono face,
+     so '22ch' came out at the same 145px the column already had and the fix
+     measured as a no-op. */
+  table.cls-table th:nth-child(1) { inline-size: 20rem; }
+  table.cls-table th:nth-child(2) { inline-size: 19rem; }
+}
+
 .btn, .btn-outline {
   display: inline-flex; align-items: center; justify-content: center;
   min-block-size: 44px; padding: 10px 18px; font-family: var(--mono);
@@ -740,7 +870,14 @@ tr.ph-head td {
   letter-spacing: 0.16em; color: var(--ink);
 }
 table.controls tbody tr.ph-head:first-child td { border-block-start: none; }
-.ph-count { color: var(--ink-3); letter-spacing: 0.1em; margin-inline-start: var(--sp-3); }
+/* A band is ONE rule-and-label line. Set as running text the count broke onto
+   a second line in four of the six bands at phone width ("PHASE 4 — CODE &
+   BUILD HARDENING" / "7 CHECKS"), which turns a divider into a two-line block;
+   the band is laid out as a row at phone width, below. */
+.ph-count {
+  color: var(--ink-3); letter-spacing: 0.1em; margin-inline-start: var(--sp-3);
+  white-space: nowrap;
+}
 /* A phase the taxonomy names and this record has nothing for. Printed, because
    the hero band prints its bar; quiet, because there is nothing under it. */
 tr.ph-empty td { color: var(--ink-3); border-block-end: 1px dashed var(--hair); }
@@ -759,14 +896,24 @@ tr.ph-empty td { color: var(--ink-3); border-block-end: 1px dashed var(--hair); 
   padding-block: var(--sp-1); margin-block-end: var(--sp-4);
 }
 .ctl-bar-label {
+  display: inline-flex; align-items: center;
   font-family: var(--mono); font-size: var(--t--3); text-transform: uppercase;
   letter-spacing: 0.16em; color: var(--ink-3); margin-inline-end: var(--sp-2);
 }
+/* The phone gets the short word, the desk gets the sentence — one of the two
+   is always hidden, never both. Hiding the label outright (which this did) left
+   a bare row reading "P1 P2 P3 P4 P5 P6" above a table, which a thumb reads as
+   column headings; the ONE navigation aid on a 12,000px page was invisible as a
+   control, and only the desktop reader — who got both the label and a hover
+   underline — was ever told it existed. */
+.ctl-label-short { display: none; }
+/* A RESTING AFFORDANCE, because a phone can never fire :hover. The underline
+   was there all along and painted transparent until a pointer arrived. */
 .ctl-jump {
   display: inline-flex; align-items: center; justify-content: center;
   min-block-size: 44px; min-inline-size: 44px; padding-inline: var(--sp-2);
   font-family: var(--mono); font-size: var(--t--2); letter-spacing: 0.06em;
-  text-decoration: none; color: var(--ink-2); border-block-end: 2px solid transparent;
+  text-decoration: none; color: var(--ink-2); border-block-end: 2px solid var(--hair);
 }
 .ctl-jump:hover { color: var(--hot); border-block-end-color: var(--hot); }
 .ctl-hide {
@@ -774,6 +921,17 @@ tr.ph-empty td { color: var(--ink-3); border-block-end: 1px dashed var(--hair); 
   min-block-size: 44px; margin-inline-start: auto; padding-inline: var(--sp-2);
   font-family: var(--mono); font-size: var(--t--2); color: var(--ink-2);
 }
+/* A return path from inside a 12,000px table, in the strip that is already
+   sticky — cheaper than a second bar of permanent chrome, which is what a
+   sticky masthead would have cost every page on the site. */
+.ctl-top {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 44px; padding-inline: var(--sp-2); flex: 0 0 auto;
+  font-family: var(--mono); font-size: var(--t--2); letter-spacing: 0.08em;
+  text-transform: uppercase; text-decoration: none; color: var(--ink-2);
+  border-block-end: 2px solid var(--hair);
+}
+.ctl-top:hover { color: var(--hot); border-block-end-color: var(--hot); }
 .ctl-box {
   inline-size: 20px; block-size: 20px; flex: 0 0 auto;
   border: 2px solid var(--rule); background: var(--paper-2);
@@ -831,7 +989,7 @@ tr.out-of-scope td { opacity: 0.55; }
    ("…that can exist for / it ▸ EVIDENCE (6)"), so the one element in a
    fifty-four-row list a thumb is hunting for was the one with no consistent
    position. A block start means every row's evidence begins on the same edge. */
-table.controls details { display: block; margin-block-start: var(--sp-1); }
+table.controls details { display: block; margin-block-start: 0; }
 table.controls td.c-detail { text-wrap: pretty; }
 
 /* The reclassification notes. Four rationales covered 25 of 44 rows, two of
@@ -865,13 +1023,23 @@ table.controls td.c-detail { text-wrap: pretty; }
   text-decoration-color: var(--hair); text-underline-offset: 3px;
 }
 .reason a.rc-ref:hover, a.rc-ref:hover { color: var(--hot); text-decoration-color: var(--hot); }
+/* THE FIRST BASELINE OF EVERY CELL IN A ROW AGREES — that is what makes a
+   ruled table read as a ledger. The fold's 12px of leading padding put
+   "EVIDENCE (n)" about 15px below the control name and the verdict chip beside
+   it, and on the rows with no detail text at all (branch-protection,
+   actions-audit, octo-sts, harden-runner…) it floated alone in an otherwise
+   empty band, which reads as a paragraph that failed to render. The 44px tap
+   area is kept — it just hangs BELOW the text now instead of pushing it down. */
 table.controls summary {
   display: list-item; list-style: disclosure-closed inside; min-block-size: 0;
   cursor: pointer; font-family: var(--mono); font-size: var(--t--2);
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink);
   text-decoration: underline; text-underline-offset: 3px;
-  padding-block: var(--sp-3);
+  padding-block: var(--sp-1) var(--sp-5);
 }
+/* …and where there IS a reason above it, the fold gets its breathing room back
+   from the text rather than from the cell's top edge. */
+table.controls .reason + details { margin-block-start: var(--sp-1); }
 table.controls details[open] > summary { list-style-type: disclosure-open; }
 table.controls summary::marker { color: var(--ink-3); }
 table.controls summary:hover { color: var(--hot); }
@@ -883,20 +1051,104 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
    page head, because that is what lets it stick: on a 27,000px page the eight
    pills are the only navigation there is, and 27,000px away they are not
    navigation. */
+/* STICKY AT EVERY WIDTH, not only on a phone. The mobile build got a sticky
+   single-row strip in round 2 and the desk did not, so the width where a
+   reader is most likely to be SCANNING rather than reading was the one with no
+   return path on an 18,900px document — the eight pills appeared once at the
+   top and were then eighteen thousand pixels away. The phone treatment is the
+   right treatment; it is simply lifted to all widths here, short labels
+   included, which is what lets eight destinations plus a way back fit one row
+   at 1160px instead of wrapping into two. */
 .sec-index {
-  display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4);
-  padding-block: var(--sp-4);
-  border-block-end: 2px solid var(--rule);
+  position: sticky; inset-block-start: 0; z-index: 20;
+  display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 0;
+  background: var(--paper);
+  border-block: 2px solid var(--rule);
+  padding-block: 0; scrollbar-width: none;
 }
+.sec-index::-webkit-scrollbar { display: none; }
 .sec-index a {
   font-family: var(--mono); font-size: var(--t--2); text-transform: uppercase;
   letter-spacing: 0.08em; text-decoration: none; color: var(--ink-2);
-  border: 2px solid var(--hair); padding: 6px 10px;
+  border: none; border-block-end: 2px solid transparent; white-space: nowrap;
+  padding: 6px var(--sp-3);
   display: inline-flex; align-items: center; min-block-size: 44px;
 }
-.sec-index a:hover { border-color: var(--hot); color: var(--hot); }
+.sec-index a:hover { color: var(--hot); border-block-end-color: var(--hot); }
+/* The strip said where you COULD go and never where you ARE. Across all
+   thirty-eight phone slices — including the ones deep inside section 07 — it
+   read "01 PROTOCOL 02 THREATS 03 SCORECARD", pinned left, unchanged. The
+   current section is filled INK rather than accent: it survives greyscale, it
+   does not spend the one hot colour on a position, and it cannot be confused
+   with the masthead's active page. */
+.sec-index a[aria-current="true"] {
+  background: var(--ink); color: var(--paper-2); border-block-end-color: var(--ink);
+}
+.sec-index a[aria-current="true"]:hover { background: var(--hot); border-block-end-color: var(--hot); color: #fff; }
+.sec-top {
+  flex: 0 0 auto; border-inline-end: 1px solid var(--hair);
+  margin-inline-end: var(--sp-2);
+}
+/* Eight titles will not fit a phone and they do not fit a 1160px column
+   either, so the strip carries the SHORT titles at every width — ordinals
+   alone would fit and say nothing. The long title stays the anchor's text, so
+   the accessible name and the page's own headings still agree. */
+.sec-index a .si-long { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* It scrolls, so it says so — the same edge shadow the tables use. */
+.sec-index {
+  background-image:
+    linear-gradient(to right, var(--paper) 40%, rgba(239, 235, 227, 0)),
+    linear-gradient(to left, var(--paper) 40%, rgba(239, 235, 227, 0)),
+    linear-gradient(to right, rgba(20, 18, 16, 0.28), rgba(20, 18, 16, 0)),
+    linear-gradient(to left, rgba(20, 18, 16, 0.28), rgba(20, 18, 16, 0));
+  background-position: left center, right center, left center, right center;
+  background-repeat: no-repeat;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
 
-.method-section { padding-block: var(--sp-6); border-block-end: 1px solid var(--hair); }
+.method-section { padding-block: var(--sp-6); border-block-end: 1px solid var(--hair); position: relative; }
+/* THE RIGHT HALF OF THE PAGE WAS EMPTY FOR FIVE CONSECUTIVE SCREENS. A 72ch
+   measure inside a 1160px column is the right measure and the wrong
+   composition: section 07 alone ran ~6,000px of prose with nothing beside it —
+   no rule, no eyebrow, no marginalia — which is the single strongest
+   "unfinished" tell a poster grid has.
+   A broadsheet answers this with a running head, so that is what goes there:
+   the section's ordinal at poster scale and its title in mono caps, pinned
+   beside the reader for the whole section. It is apparatus, not content — the
+   sec-head above states both already — so it is aria-hidden and it never
+   appears where the column is needed for the text. */
+.sec-rail { display: none; }
+@media (min-width: 1100px) {
+  .method-section:has(> .sec-rail) { padding-inline-end: calc(13rem + var(--gut)); }
+  .sec-rail {
+    display: block; position: absolute; inline-size: 13rem;
+    inset-inline-end: 0; inset-block: var(--sp-6);
+    pointer-events: none;
+  }
+  .sec-rail-in {
+    position: sticky; inset-block-start: 96px;
+    border-block-start: 2px solid var(--rule); padding-block-start: var(--sp-3);
+  }
+  .sec-rail-num {
+    display: block; font-family: var(--display); font-weight: 400;
+    font-size: 4.5rem; line-height: 0.82; color: var(--hair);
+    font-variant-numeric: tabular-nums;
+  }
+  .sec-rail-title {
+    display: block; margin-block-start: var(--sp-3);
+    font-family: var(--mono); font-size: var(--t--3); text-transform: uppercase;
+    letter-spacing: 0.16em; color: var(--ink-3);
+  }
+  /* The BAND still spans the page. Held inside the text column its 2px rule
+     stopped 240px short of every other rule on the page, which reads as the
+     column being the page rather than as a column on it. Full-width rule,
+     then two columns under it — which is the arrangement a broadsheet has
+     always used for a running head. */
+  .method-section:has(> .sec-rail) > .sec-head {
+    margin-inline-end: calc(-1 * (13rem + var(--gut)));
+  }
+}
 .sec-head {
   display: flex; align-items: baseline; gap: var(--sp-4);
   border-block-end: 2px solid var(--rule); padding-block-end: var(--sp-2);
@@ -924,9 +1176,18 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 }
 .tx-section > h2::before { content: "02"; }
 .cmp-section > h2::before { content: "03"; }
+/* SUBHEADS GET THE PAGE'S OWN ANATOMY. Section 07 alone runs six thousand
+   pixels of an eighteen-thousand-pixel document, and its subheads were set in
+   the body face at 19-22px — so the longest stretch of the site's longest page
+   read as a plain web article dropped inside a poster grid, with none of the
+   ruled display type every H2 above it carries. Anton, uppercase, 400 (the only
+   face loaded), over a hard rule: the same anatomy, one step down. */
 .method-section h3, .prose h3 {
-  font-family: var(--sans); font-size: var(--t-2); font-weight: 700;
-  margin-block: var(--sp-5) var(--sp-2); letter-spacing: -0.01em;
+  font-family: var(--display); font-weight: 400; letter-spacing: 0.01em;
+  font-size: clamp(1.15rem, 0.85rem + 1.1vw, 1.65rem); line-height: 1.05;
+  text-transform: uppercase; color: var(--ink);
+  margin-block: var(--sp-6) var(--sp-3);
+  border-block-start: 2px solid var(--rule); padding-block-start: var(--sp-3);
 }
 .prose p, .prose li { color: var(--ink-2); max-inline-size: 72ch; }
 .prose p + p { margin-block-start: var(--sp-3); }
@@ -947,10 +1208,15 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 /* A broadsheet standfirst: the label rides the left column, the copy the
    right. Set as one full-width block it left a void the width of the page
    beside a 72ch measure, which reads as a layout that has not been finished. */
+/* THE HOT RULE MARKS A CONTRADICTION, NOT AN IMPORTANT PANEL. This panel wore
+   the identical 8px hot rule the repo sheet gives "What the evidence merge
+   found", where it genuinely means two verified sources disagreed — so one
+   token meant "read this first" on one page and "these sources conflict" on
+   the next. The anchor panel keeps its extra weight; it takes it in ink. */
 .honesty {
   margin-block: var(--sp-6); padding: var(--sp-5);
   background: var(--paper-2); border: 2px solid var(--rule);
-  border-inline-start-width: 8px; border-inline-start-color: var(--hot);
+  border-inline-start-width: 8px; border-inline-start-color: var(--ink);
   display: grid; grid-template-columns: minmax(140px, 2fr) minmax(0, 7fr);
   gap: var(--sp-3) var(--gut);
 }
@@ -1186,6 +1452,18 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
     font-size: var(--t--3); text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--ink-3); margin-block-end: var(--sp-1);
   }
+  /* The contract, key ABOVE value. This is the arrangement a wrapped <pre>
+     could not produce and the reason the block is a table at all. */
+  table.contract-table, table.contract-table thead, table.contract-table tbody,
+  table.contract-table tr, table.contract-table td,
+  table.contract-table th { display: block; inline-size: 100%; }
+  table.contract-table tr { padding: var(--sp-2) var(--sp-4); }
+  table.contract-table tbody tr + tr { border-block-start: 1px solid #332E28; }
+  table.contract-table td,
+  table.contract-table tbody tr:first-child td,
+  table.contract-table tbody tr:last-child td { padding: 0; }
+  table.contract-table .ct-key { inline-size: auto; white-space: normal; letter-spacing: 0.08em; text-transform: uppercase; font-size: var(--t--3); }
+
   /* The two-column grade table already fits 354px; a table that fits stays a
      table. */
   table.method-table-narrow, table.method-table-narrow thead,
@@ -1250,18 +1528,6 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
   }
   .prose pre { max-inline-size: none; }
 
-  /* Eight pills wrapping into six rows before any content starts, on a page
-     27,000px long, is not an index. One row that follows you down is. */
-  .sec-index {
-    position: sticky; inset-block-start: 0; z-index: 20;
-    flex-wrap: nowrap; overflow-x: auto; gap: 0;
-    background: var(--paper); border-block-start: 2px solid var(--rule);
-    padding-block: 0; scrollbar-width: none;
-  }
-  .sec-index::-webkit-scrollbar { display: none; }
-  .sec-index a { border: none; border-block-end: 2px solid transparent; white-space: nowrap; padding: 6px var(--sp-3); }
-  .sec-index a:hover { border-block-end-color: var(--hot); }
-
   /* THE JUMP STRIP WRAPS, IT DOES NOT SCROLL. As one scrolling row it held
      558px of content in a 358px box, so the single control that changes what
      the table shows — worth 13 rows and 1,646px of page — sat 200px
@@ -1273,36 +1539,43 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
     flex-wrap: wrap; overflow-x: visible; row-gap: 0;
     padding-block: 0; background-image: none;
   }
-  .ctl-bar-label { display: none; }
-  .ctl-jump { flex: 0 0 auto; }
+  /* "Jump to phase" is 109px of a 358px strip that also has to hold six 44px
+     pills; "Phase" is 44px and says the same thing above them. */
+  .ctl-label-long { display: none; }
+  .ctl-label-short { display: inline; }
+  .ctl-bar-label { margin-inline-end: var(--sp-1); letter-spacing: 0.12em; }
+  .ctl-jump { flex: 0 0 auto; padding-inline: var(--sp-1); }
   .ctl-hide {
-    flex: 1 0 100%; margin-inline-start: 0; padding-inline: 0;
+    flex: 1 1 auto; margin-inline-start: 0; padding-inline: 0;
     white-space: normal; min-block-size: 44px;
     border-block-start: 1px solid var(--hair);
   }
+  .ctl-top { border-block-start: 1px solid var(--hair); border-block-end: none; }
   table.controls tr[id], .rc-notes li { scroll-margin-block-start: 96px; }
 
-  /* The section index still scrolls — eight titles will not fit a phone — so
-     it keeps the edge shadow the tables use, which is what says so. */
-  .sec-index {
-    background-image:
-      linear-gradient(to right, var(--paper) 40%, rgba(239, 235, 227, 0)),
-      linear-gradient(to left, var(--paper) 40%, rgba(239, 235, 227, 0)),
-      linear-gradient(to right, rgba(20, 18, 16, 0.28), rgba(20, 18, 16, 0)),
-      linear-gradient(to left, rgba(20, 18, 16, 0.28), rgba(20, 18, 16, 0));
-    background-position: left center, right center, left center, right center;
-    background-repeat: no-repeat;
-    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
-    background-attachment: local, local, scroll, scroll;
+  /* A band is one line: phase on the left, count hard right. */
+  table.controls tr.ph-head td {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: var(--sp-2); flex-wrap: nowrap;
   }
-  /* ...and it says less, so more of it fits: 1,394px of links in a 358px strip
-     left six of eight entries off-screen at rest on a 32,000px page whose only
-     other navigation is the footer. The phone labels are the same titles,
-     shortened — ordinals alone would fit in one row and mean nothing. */
-  .sec-index a { font-size: 0; letter-spacing: 0; }
-  .sec-index a::before {
-    content: attr(data-short); font-size: var(--t--2); letter-spacing: 0.08em;
+  .ph-count { flex: 0 0 auto; }
+  /* The UNVERIFIED chip and the dashed "raw: degraded" chip claimed the rest of
+     the line and broke 'signing-model' mid-name. The identifier is the row's
+     name; the chips can take the line below it. */
+  table.controls td.c-control { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+  table.controls td.c-control code { flex: 1 0 100%; overflow-wrap: normal; word-break: keep-all; }
+
+  /* Six phase names in a ~90px label column wrapped five of the six onto two
+     lines. On a phone the bar does not need to sit beside its name — the name
+     takes the line, the bar takes the full measure under it. */
+  .detail-rules .prule {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name pct" "bar bar";
+    row-gap: var(--sp-1); align-items: baseline;
   }
+  .detail-rules .pr-name { grid-area: name; overflow-wrap: normal; }
+  .detail-rules .pr-pct { grid-area: pct; }
+  .detail-rules .pr-bar, .detail-rules .pr-bar-none { grid-area: bar; }
 
   /* The stale-methodology flag reads as a flag on its own line, not as
      punctuation dropped mid-rule. */
@@ -1381,9 +1654,15 @@ export const OVERRIDES = `
    properly laid out. column-width rather than column-count: one flow on a
    phone, two at tablet, three at desk, all of them a comfortable measure. */
 :root .key-note {
-  max-inline-size: none; column-width: 34ch; column-gap: var(--gut);
+  max-inline-size: none; column-width: 52ch; column-gap: var(--gut);
   column-rule: 1px solid var(--hair);
 }
+/* 34ch gave FOUR columns at desk width, so a column opened mid-sentence twice
+   and the block's bottom edge ragged five lines against seven. 52ch gives two,
+   which is one break instead of three and a measure a reader can hold. The
+   terms are what a reader arrives hunting for — "what does unverified mean" —
+   so each one is ruled rather than buried in the grey. */
+:root .key-note .term { border-block-end: 2px solid var(--ink); }
 
 /* Ten ruled boxes, each 1160px wide with its text stopping at 714-765px, run
    one under another for ~2,800px: on a poster grid a 2px-ruled box that fills
@@ -1394,7 +1673,20 @@ export const OVERRIDES = `
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: var(--gut);
   }
-  :root .tx-class:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* Nine boxes in two columns leaves the ninth alone on its row. Spanning it
+     made that visible rather than hidden — a 1160px box whose content stops at
+     ~540px, the grid's own arithmetic on display — so where it has to span, it
+     uses the width it takes. */
+  :root .tx-classes > .tx-class:last-child:nth-child(odd) {
+    grid-column: 1 / -1; column-width: 34ch; column-gap: var(--gut);
+  }
+  :root .tx-classes > .tx-class:last-child:nth-child(odd) > * { break-inside: avoid; }
+}
+/* Nine items fill three columns exactly, so at the width where there is room
+   for it there is no orphan to compose around at all. */
+@media (min-width: 1240px) {
+  :root .tx-classes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  :root .tx-classes > .tx-class:last-child:nth-child(odd) { grid-column: auto; column-width: auto; }
 }
 
 /* THE SAME CLOSING SENTENCE UNDER ALL NINE GROUPS. "That is not the same as
@@ -1426,6 +1718,27 @@ export const OVERRIDES = `
    target. Sized here because the shared layer pins every checkbox to 20px. */
 :root input.ctl-toggle { inline-size: 0; block-size: 0; }
 
+/* ONE WIDGET CLASS, ONE TREATMENT. The directory's coverage checkbox kept
+   appearance:auto, so it drew the native control — a 20x20 white-filled,
+   1px grey, ROUNDED box, and system blue when checked. That made it the only
+   rounded corner, the only pure-white fill and the only 1px border on a page
+   whose stated rule is hard 2px rules and no rounded-card soup, on the site's
+   index page — while the repo sheet's equivalent fold drew a hard ink square
+   correctly. This is that square, ported. accent-color is belt and braces for
+   any engine that ignores appearance:none on a checkbox. */
+:root .dir-check input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  inline-size: 20px; block-size: 20px; flex: 0 0 auto; margin: 0;
+  border: 2px solid var(--rule); border-radius: 0; background: var(--paper-2);
+  display: inline-grid; place-content: center; cursor: pointer;
+  accent-color: var(--hot);
+}
+:root .dir-check input[type="checkbox"]::after {
+  content: ""; inline-size: 10px; block-size: 10px; background: var(--paper-2);
+}
+:root .dir-check input[type="checkbox"]:checked::after { background: var(--ink); }
+:root .dir-check input[type="checkbox"]:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
+
 /* A phone met two dashed "nothing here yet" panels back to back — 644px, 12%
    of the page, both ending in the same link. At desk width they sit side by
    side; on a phone the only lever this stylesheet has is to stop the apparatus
@@ -1435,6 +1748,46 @@ export const OVERRIDES = `
    sharedFileProposals.) */
 @media (max-width: 760px) {
   :root .hp-panel:has(> .hp-waiting) .hp-panel-line { display: none; }
+
+  /* ...and the SECOND of two consecutive waiting states loses its APPARATUS,
+     never its copy. Three judges across three rounds counted the same ~530px:
+     two eyebrows, two Anton headings, two dashed boxes and two identical
+     "Browse every listing" links, to say "not enough data yet" twice. Both
+     sentences stay — they name different real counts — welded into one dashed
+     box under one heading, with one way out. The headings stay in the
+     accessibility tree, because each section is still labelled by its own h2.
+     (Not rendering the second panel at all is exemplars.ts's call, and it is
+     in sharedFileProposals; this is what a stylesheet can do about it.) */
+  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) {
+    margin-block-start: calc(-1 * clamp(28px, 5vw, 48px));
+  }
+  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) > .hp-panel-eyebrow,
+  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) > .hp-panel-title {
+    position: absolute; inline-size: 1px; block-size: 1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+    padding: 0; margin: 0; border: 0;
+  }
+  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) > .hp-waiting {
+    border-block-start: 0;
+  }
+  /* A :has() may not contain another :has(), so "the next panel is also
+     waiting" is asked as "the next panel has a waiting child" — a relative
+     selector with a child combinator, which is legal. Written the nested way
+     first, the whole rule was dropped as invalid and the two dashed boxes met
+     as a doubled 4px line. Measured, not assumed. */
+  :root .hp-panels
+    > .hp-panel:has(> .hp-waiting):has(+ .hp-panel > .hp-waiting)
+    > .hp-waiting {
+    border-block-end: 0; padding-block-end: 0;
+  }
+  :root .hp-panels
+    > .hp-panel:has(> .hp-waiting):has(+ .hp-panel > .hp-waiting)
+    > .hp-waiting > .hp-waiting-link { display: none; }
+
+  /* Two 150px chips per row leaves the third spanning the full width with its
+     label centred — three boxes, three shapes and two text alignments directly
+     under the hero. The register promises one column on a phone. */
+  :root .hp-chips .hp-chip { flex: 1 0 100%; justify-content: flex-start; padding-inline: var(--sp-3); }
 }
 
 /* ---------- the switcher, shaped against the shared layer ---------- */
