@@ -22,14 +22,22 @@ import type { DesignCtx } from "../types";
 import { chapterNav, loopFigure, type Chapter } from "./components";
 import { escapeHtml, page } from "./layout";
 
+/**
+ * Eight pills, and every label short enough that the strip stays a pill.
+ *
+ * Measured at 1440 with the long labels: 1230px against the reference's 728px,
+ * within 37px of the fixed search affordance and no longer reading as one
+ * control. The section headings carry the full titles — the pill only has to
+ * be recognisable once you have read one.
+ */
 const CHAPTERS: readonly Chapter[] = [
-  { id: "protocol", no: "01", label: "The scan" },
-  { id: THREATS_SECTION_ID, no: "02", label: "What checks are for" },
-  { id: COMPARE_SECTION_ID, no: "03", label: "Next to Scorecard" },
-  { id: "evidence-classes", no: "04", label: "Evidence classes" },
-  { id: "formula", no: "05", label: "The formula" },
+  { id: "protocol", no: "01", label: "Protocol" },
+  { id: THREATS_SECTION_ID, no: "02", label: "Threats" },
+  { id: COMPARE_SECTION_ID, no: "03", label: "Scorecard" },
+  { id: "evidence-classes", no: "04", label: "Evidence" },
+  { id: "formula", no: "05", label: "Formula" },
   { id: "grades", no: "06", label: "Grades" },
-  { id: LOCAL_SECTION_ID, no: "07", label: "The local lane" },
+  { id: LOCAL_SECTION_ID, no: "07", label: "Local" },
   { id: "changelog", no: "08", label: "Changelog" },
 ];
 

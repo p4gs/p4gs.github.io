@@ -393,6 +393,14 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-chapters a span::after { content: "."; }
 .fy-chapters a[aria-current], .fy-chapters a:hover { background: var(--fy-surface-2); color: var(--fy-text); }
 .fy-chapters a:focus-visible { outline: 2px solid var(--fy-accent); outline-offset: -2px; }
+/* OVER A DARK SECTION THE NAV INVERTS. The reference never shows a white pill
+   on black, and a 1px #e6e6e6 hairline on #000 is simply not there. The spy
+   writes data-on-dark from whether the active section is inside .fy-dark,
+   which is the same class the black block itself is painted by. */
+.fy-chapters[data-on-dark="true"] { background: #000000; border-color: #333333; }
+.fy-chapters[data-on-dark="true"] a { color: var(--fy-dark-ink); }
+.fy-chapters[data-on-dark="true"] a[aria-current],
+.fy-chapters[data-on-dark="true"] a:hover { background: #1a1a1a; color: #ffffff; }
 .fy-chapter { padding-block: var(--fy-beat); }
 /* EVERY anchor target clears the sticky nav, not just the ones this design
    names its own classes for. Two of the methodology's eight pills point at

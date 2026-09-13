@@ -494,20 +494,50 @@ export const MOTION_SCRIPT = `(function () {
     });
     if (pills.length) {
       var currentPill = null;
+      // THE NAVIGATING GUARD. The root scrolls smoothly, so a click on pill 04
+      // sends the page THROUGH 02 and 03 and the spy dutifully lights each one
+      // on the way — a 250ms cross-fade fired three times, which reads as the
+      // nav having a seizure. A click marks its own target at once and the spy
+      // is ignored until the scroll settles (scrollend, or 700ms where that
+      // event does not exist).
+      var navigating = false;
+      var navTimer = null;
+      var settle = function () {
+        navigating = false;
+        nav.setAttribute("data-navigating", "false");
+        if (navTimer) { clearTimeout(navTimer); navTimer = null; }
+      };
       var mark = function (hit) {
         if (!hit || hit === currentPill) return;
         if (currentPill) currentPill.a.removeAttribute("aria-current");
         hit.a.setAttribute("aria-current", "location");
         currentPill = hit;
+        // The nav inverts over a dark section: the reference never shows a
+        // white pill on black, and a 1px #e6e6e6 hairline on #000 is invisible.
+        var dark = !!(hit.el.closest && hit.el.closest(".fy-dark"));
+        nav.setAttribute("data-on-dark", dark ? "true" : "false");
         var a = hit.a;
         var want = a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2;
         var max = nav.scrollWidth - nav.clientWidth;
         if (max > 0) nav.scrollLeft = Math.max(0, Math.min(max, want));
       };
+      each(pills, function (p) {
+        p.a.addEventListener("click", function () {
+          navigating = true;
+          nav.setAttribute("data-navigating", "true");
+          mark(p);
+          if (navTimer) clearTimeout(navTimer);
+          navTimer = setTimeout(settle, 700);
+          if ("onscrollend" in window) {
+            addEventListener("scrollend", settle, { once: true });
+          }
+        });
+      });
       if (supportsIO) {
         var seen = {};
         var spy = new IntersectionObserver(function (entries) {
           each(entries, function (en) { seen[en.target.id] = en.isIntersecting; });
+          if (navigating) return;
           var hit = null;
           for (var i = 0; i < pills.length; i++) {
             if (seen[pills[i].el.id]) hit = pills[i];
@@ -521,6 +551,7 @@ export const MOTION_SCRIPT = `(function () {
         }, { rootMargin: "0px 0px -70% 0px", threshold: 0 });
         each(pills, function (p) { spy.observe(p.el); });
       }
+      nav.setAttribute("data-navigating", "false");
       mark(pills[0]);
     }
   }

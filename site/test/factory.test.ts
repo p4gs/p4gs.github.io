@@ -1196,3 +1196,46 @@ describe("A8 + D5 · the maze is a real lattice, and it stops asserting a walk",
     expect(HOME).not.toContain("phases a scan walks");
   });
 });
+
+describe("A9 · the pill nav has a navigating guard, short labels, and a dark state", () => {
+  test("a pill click marks its own target and shuts the spy up until the scroll settles", () => {
+    // The root scrolls smoothly, so a click on 04 sends the page THROUGH 02 and
+    // 03 and the spy lit each on the way — a 250ms cross-fade fired three
+    // times. Both halves are asserted: the flag is set, and the spy reads it.
+    expect(MOTION_SCRIPT).toContain('nav.setAttribute("data-navigating", "true")');
+    expect(MOTION_SCRIPT).toContain("if (navigating) return;");
+    expect(MOTION_SCRIPT).toContain('"onscrollend" in window');
+    expect(MOTION_SCRIPT).toContain("setTimeout(settle, 700)");
+    // and the guard is released, or the nav would stop tracking after one click
+    expect(MOTION_SCRIPT).toContain('nav.setAttribute("data-navigating", "false")');
+  });
+
+  test("the nav inverts over a dark section, written by the spy", () => {
+    expect(MOTION_SCRIPT).toContain('closest(".fy-dark")');
+    expect(MOTION_SCRIPT).toContain('nav.setAttribute("data-on-dark", dark ? "true" : "false")');
+    expect(CSS).toContain(
+      '.fy-chapters[data-on-dark="true"] { background: #000000; border-color: #333333; }',
+    );
+    expect(CSS).toContain('.fy-chapters[data-on-dark="true"] a { color: var(--fy-dark-ink); }');
+    expect(CSS).toContain('.fy-chapters[data-on-dark="true"] a:hover { background: #1a1a1a; color: #ffffff; }');
+    // and there IS a dark section for it to fire on
+    expect(METHODOLOGY).toMatch(/<div class="fy-dark">[\s\S]*id="threats"/);
+  });
+
+  test("the methodology's eight labels fit a pill", () => {
+    const nav = METHODOLOGY.slice(
+      METHODOLOGY.indexOf('<nav class="fy-chapters'),
+      METHODOLOGY.indexOf("</nav>", METHODOLOGY.indexOf('<nav class="fy-chapters')),
+    );
+    const labels = [...nav.matchAll(/<\/span>([^<]+)<\/a>/g)].map((m) => m[1]!);
+    expect(labels.length).toBe(8);
+    for (const l of labels) expect(l.length, l).toBeLessThanOrEqual(12);
+    expect(labels).toEqual([
+      "Protocol", "Threats", "Scorecard", "Evidence",
+      "Formula", "Grades", "Local", "Changelog",
+    ]);
+    // the long forms that measured 1230px are gone
+    expect(nav).not.toContain("What checks are for");
+    expect(nav).not.toContain("Next to Scorecard");
+  });
+});
