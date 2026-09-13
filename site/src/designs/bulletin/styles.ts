@@ -13,15 +13,18 @@
  *   - a strict 12-column grid on desktop that collapses to ONE column on a
  *     phone. Nothing half-collapses into a two-up that then overflows.
  *
- * MOBILE IS A CORRECTNESS TARGET, NOT A COURTESY. Below 760px the directory
- * and the control table restack into labelled blocks (`td::before` prints the
- * `data-label` each cell carries), because a broadsheet row on a 390px screen
- * is either a sideways-scrolling page or an unreadable squeeze, and the first
- * of those is a defect. Tables that cannot restack — the Scorecard comparison
- * and the every-check index, whose markup is shared across all designs — keep
- * their own scroller, and that scroller is given a VISIBLE affordance: an
- * always-drawn scrollbar plus the classic edge shadow that retracts at each
- * end, so a clipped table never looks like a finished one.
+ * MOBILE IS A CORRECTNESS TARGET, NOT A COURTESY. Below 760px EVERY table
+ * restacks — the directory, the control sheet, and the methodology's shared
+ * tables too. The first two print the `data-label` each cell carries; the
+ * shared ones (the Scorecard comparison and the every-check index, whose
+ * markup five designs render and none of them owns) are labelled by column
+ * POSITION instead, and told apart by the `data-coverage` attribute the
+ * four-column comparison puts on its rows. Keeping those two in a scroller was
+ * measured and rejected: a 747px table in a 354px box hid the sscsb-mapping
+ * column, which is the only reason that table exists, and cut questions
+ * mid-word. The only horizontal scrollers left are the two sticky NAV strips
+ * (the methodology index, the jump-to-phase bar), and both carry the edge
+ * shadow that says so.
  */
 export const CSS = `/* Bulletin — Swiss/brutalist broadsheet (single light theme). */
 
@@ -39,7 +42,10 @@ export const CSS = `/* Bulletin — Swiss/brutalist broadsheet (single light the
      as a fill. --rust is a darker tint of the same hue, never a second hue. */
   --hot: #C02A12;
   --hot-wash: #F6E3DC;
-  --rust: #8A4418;
+  /* Sampled from the captures, #8A4418 sat at hue 24° beside the accent's 8°
+     and read as a second colour — brown — which is exactly what the line above
+     forbids. This is the accent darkened toward the ink, same hue family. */
+  --rust: #8F200C;
   --hatch: repeating-linear-gradient(45deg, #141210 0 2px, #EFEBE3 2px 5px);
 
   --display: "Anton", "Haettenschweiler", "Arial Narrow Bold", Impact, "Franklin Gothic Bold", sans-serif;
@@ -83,6 +89,26 @@ body {
 }
 a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 a:hover { color: var(--hot); text-decoration-thickness: 2px; }
+
+/* TOUCH TARGETS IN RUNNING PROSE. Vertical padding on an INLINE box grows the
+   hit rectangle without moving a single line of type — the line box is sized
+   by line-height, not by an inline element's padding — so a 22px link becomes
+   a 46px target and the broadsheet measure is untouched. Measured at 390px:
+   every one of these was 17-25px before. Block-level links get a real
+   min-block-size instead, further down. */
+.standfirst a, .key-note a, .body-copy a, .hero-count a, .slab-line a,
+.cov-note a, .scan-copy a, .transparency-note a, .score-line a,
+.prose p a, .prose li a, .reason a, .ex-line a, .ex-detail a, .ex-foot a,
+.tx-class-line a, .tx-class-controls a, .tx-defs a, .hp-panel-line a,
+.cmp-note a, .cmp-footnote a, .honesty-body a { padding-block: 13px; }
+/* The 11px mono lines (the slab footnote, the repo meta rule) start at 17px,
+   so they need the deeper pad to clear 44. */
+.slab-foot a, .repo-meta a, .hp-unans-foot a, .tx-lineage a,
+.tx-sourcing a, .hp-card-note a { padding-block: 14px; }
+/* A definition is italic, never bold: directoryTermsNote wraps one of the
+   five in a <strong>, which made that one definition render bold-italic while
+   its four siblings were regular. Stated here so the odd one out matches. */
+.term-def { font-weight: 400; }
 :focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
 ::selection { background: var(--hot); color: #fff; }
 code { font-family: var(--mono); font-size: 0.9em; }
@@ -98,6 +124,11 @@ p { margin: 0; }
   display: inline-flex; align-items: center; min-block-size: 44px;
 }
 .skip-link:focus { inset-block-start: var(--sp-3); color: var(--paper-2); }
+
+/* Anchors clear the sticky strips (the methodology index on a phone, the
+   jump-to-phase bar on the repo sheet); :where() keeps the specificity at zero
+   so nothing has to fight it. */
+:where(main [id], main tr[id]) { scroll-margin-block-start: 68px; }
 
 main {
   max-inline-size: var(--wrap);
@@ -151,6 +182,14 @@ main {
   font-family: var(--mono); font-size: var(--t--2); color: var(--ink-2);
 }
 .col-domain { color: var(--ink); }
+/* The repo sheet runs to 20,000px and the methodology to 27,000px. Neither had
+   any way back up but a scroll. */
+.col-top {
+  display: inline-flex; align-items: center; min-block-size: 44px;
+  text-transform: uppercase; letter-spacing: 0.12em; text-decoration: none;
+  border-block-end: 2px solid var(--ink); color: var(--ink);
+}
+.col-top:hover { color: var(--hot); border-block-end-color: var(--hot); }
 
 /* ---------- poster grid ---------- */
 .poster {
@@ -178,6 +217,10 @@ main {
   font-size: var(--banner); line-height: 0.92; letter-spacing: 0.005em;
   color: var(--ink);
 }
+/* The poster's one sentence. A hard <br> set it as a two-word second line at
+   desk width and orphaned "PASS." on a phone; a measure plus balancing lets
+   the line break where the clause breaks, at every width. */
+.poster-lead .banner { max-inline-size: 13ch; text-wrap: balance; }
 .banner-sm { font-size: var(--banner-sm); line-height: 0.98; }
 .standfirst {
   font-size: var(--t-1); line-height: 1.5; color: var(--ink-2);
@@ -378,7 +421,8 @@ main {
 }
 .dir-sortbar label {
   text-transform: uppercase; letter-spacing: 0.12em;
-  display: inline-flex; align-items: center; min-block-size: 44px; gap: var(--sp-2);
+  display: inline-flex; align-items: center; min-block-size: 44px;
+  min-inline-size: 44px; gap: var(--sp-2);
 }
 .dir-sortbar select {
   font-family: var(--mono); font-size: 16px; letter-spacing: 0; padding: 8px 10px;
@@ -435,7 +479,12 @@ table.method-table tbody tr:first-child td { border-block-start: none; }
 table.directory tbody tr:hover { background: rgba(20, 18, 16, 0.035); }
 table.method-table td { font-size: var(--t--1); color: var(--ink-2); }
 table.method-table td strong { color: var(--ink); }
-table.method-table code { color: var(--hot); }
+/* A control id is STRUCTURE — there are about eighty of them on this page, and
+   painting every one hot made red the second most frequent colour here, which
+   is the same as having no accent at all. The accent stays on NOT CHECKED, on
+   a fail and on a gap. Weight and the mono face carry the identifier. */
+table.method-table code, .tx-class-controls code, .ex-detail code,
+.tx-defs code { color: var(--ink); font-weight: 500; }
 
 .c-grade { inline-size: 1%; white-space: nowrap; }
 .c-date { font-family: var(--mono); font-size: var(--t--2); color: var(--ink-2); white-space: nowrap; }
@@ -484,7 +533,41 @@ table.method-table code { color: var(--hot); }
 }
 .cov-note code { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
 .cov-caveat { border-inline-start-style: dashed; }
+/* The hot rule is for a CONTRADICTION — verified sources that disagree. It was
+   firing on every row's provenance notes, which spent the accent on the normal
+   state of a page with no failures on it. */
 .cov-conflict { border-inline-start-color: var(--hot); }
+
+/* The merge summary: one scannable mono line per row, with the full sentences
+   one tap underneath. The long text is not dropped — a claim about evidence
+   has exactly one wording, in shared-facts.ts — it is folded, because printing
+   the same ninety-five words under all three listings buried the one thing
+   that differs between them. */
+.merge-note {
+  display: block; margin-block-start: var(--sp-3); font-size: var(--t--2);
+  color: var(--ink-2); max-inline-size: 62ch;
+  border-inline-start: 4px solid var(--ink); padding-inline-start: var(--sp-3);
+}
+.merge-note > summary {
+  display: list-item; list-style: disclosure-closed inside;
+  cursor: pointer; font-family: var(--mono); font-size: var(--t--3);
+  line-height: 1.5; color: var(--ink); padding-block: var(--sp-2);
+  overflow-wrap: anywhere;
+}
+.merge-note[open] > summary { list-style-type: disclosure-open; }
+.merge-note > summary::marker { color: var(--ink-3); }
+.merge-note > summary:hover { color: var(--hot); }
+.mn-tag {
+  display: inline-block; font-family: var(--mono); font-size: var(--t--3);
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--paper-2);
+  background: var(--ink); padding: 1px 6px; margin-inline-end: var(--sp-2);
+}
+.mn-sep { color: var(--ink-3); }
+.merge-note p {
+  font-size: var(--t--2); line-height: 1.55; color: var(--ink-2);
+  padding-block-end: var(--sp-3);
+}
+.merge-note p + p { border-block-start: 1px solid var(--hair); padding-block-start: var(--sp-3); }
 
 .key-row {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5);
@@ -509,11 +592,27 @@ table.method-table code { color: var(--hot); }
 }
 .repo-hero-slab { flex: 0 0 auto; display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--sp-2); }
 .repo-hero-copy { flex: 1 1 320px; min-inline-size: 0; }
+/* font-weight 400 is not decoration: only Anton's 400 face is loaded, so the
+   UA's own <h1> bold made Chrome synthesise one — a smeared, off-register
+   headline where every other Anton line on the site is the real face.
+   text-transform stays off because a repository slug is case-sensitive: the
+   same identifier is set in lowercase mono two lines below. */
 .repo-title {
-  font-family: var(--display); text-transform: uppercase;
+  font-family: var(--display); font-weight: 400; text-transform: none;
   font-size: clamp(1.7rem, 1rem + 3.4vw, 3rem); line-height: 0.98;
   letter-spacing: 0.005em; overflow-wrap: anywhere;
 }
+/* The hit area is on the link, the dashed box on the span inside it: a 44px
+   target without a 44px chip in the middle of a meta rule. */
+.repo-meta .meta-stale {
+  display: inline-block; padding-block: 13px; text-decoration: none;
+  color: var(--rust); white-space: nowrap;
+}
+.repo-meta .meta-stale span {
+  font-family: var(--mono); font-size: var(--t--3); text-transform: uppercase;
+  letter-spacing: 0.08em; border: 1px dashed currentColor; padding: 1px 5px;
+}
+.repo-meta .meta-stale:hover { color: var(--hot); }
 .repo-lane { margin-block-start: var(--sp-3); }
 .repo-meta {
   font-family: var(--mono); font-size: var(--t--2); color: var(--ink-2);
@@ -525,7 +624,15 @@ table.method-table code { color: var(--hot); }
 }
 .detail-figs .fig { padding: 0; }
 .score-line { margin-block-start: var(--sp-4); font-size: var(--t--1); color: var(--ink-2); }
-.detail-rules { max-inline-size: 720px; padding-block: var(--sp-5); }
+.detail-rules { max-inline-size: 980px; padding-block: var(--sp-5); }
+/* Six phase names in an 11ch column wrapped five of them onto two lines while
+   440px of the row sat empty to the right of the percentages. The bar is the
+   content; give the label the width it needs and the bar the rest. */
+@media (min-width: 760px) {
+  .detail-rules .prule { grid-template-columns: minmax(200px, 27ch) minmax(0, 1fr) minmax(5.5ch, auto); }
+  .detail-rules .pr-name { font-size: var(--t--2); }
+  .detail-rules .pr-bar { block-size: 14px; }
+}
 
 .panel, .nudge {
   margin-block: var(--sp-6) var(--sp-4); background: var(--paper-2);
@@ -542,8 +649,13 @@ table.method-table code { color: var(--hot); }
 .nudge-local { border-style: dashed; }
 .panel-conflict { border-inline-start-width: 8px; border-inline-start-color: var(--hot); }
 
+/* A copy-me command wraps rather than clips, at every width: the continuations
+   are already backslashed and the contract block is key/value lines, so there
+   is nothing here that a wrap can corrupt — and a command cut mid-token at the
+   panel edge is not a command anyone can run. */
 .cov-cmd {
-  overflow-x: auto; background: var(--ink); color: var(--paper-2);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--ink); color: var(--paper-2);
   border: 2px solid var(--rule); padding: var(--sp-4);
   font-family: var(--mono); font-size: var(--t--2); line-height: 1.7;
   margin-block: var(--sp-4);
@@ -568,37 +680,126 @@ table.method-table code { color: var(--hot); }
   margin-block: var(--sp-7) var(--sp-3);
 }
 .transparency-note { font-size: var(--t--1); color: var(--ink-2); max-inline-size: 78ch; margin-block-end: var(--sp-4); }
-table.controls td { font-size: var(--t--1); }
+/* A fifty-four-row results table wants a broadsheet's row height, not a card's
+   padding: the detail sits inline after the reason and the evidence list folds
+   into the same cell, so a row costs one line plus whatever it has to say. */
+table.controls td { font-size: var(--t--1); padding: var(--sp-2) var(--sp-4); vertical-align: top; }
 table.controls .outcome { font-family: var(--mono); font-size: var(--t--2); white-space: nowrap; }
 .oc-chip {
   display: inline-block; padding: 2px 7px; border: 1px solid currentColor;
   text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--t--3);
 }
+
+/* The phase bands. The Phase column was a 60px label carrying one digit on
+   every one of 54 rows; a ruled band names the phase once and the rows below
+   it belong to it — which is how a results table has always done this. */
+tr.ph-head td {
+  padding: var(--sp-5) var(--sp-4) var(--sp-2);
+  border-block-start: 2px solid var(--rule);
+  font-family: var(--mono); font-size: var(--t--3); text-transform: uppercase;
+  letter-spacing: 0.16em; color: var(--ink);
+}
+table.controls tbody tr.ph-head:first-child td { border-block-start: none; }
+.ph-count { color: var(--ink-3); letter-spacing: 0.1em; margin-inline-start: var(--sp-3); }
+
+/* Jump-to-phase strip + the out-of-scope fold. The checkbox is a real input,
+   placed before the bar so the fold is a sibling selector rather than script:
+   filter.js owns the directory's rows and this page has no JS of its own. */
+.ctl-toggle {
+  position: absolute; inline-size: 0; block-size: 0; opacity: 0;
+  margin: 0; padding: 0; border: 0; appearance: none;
+}
+.ctl-bar {
+  position: sticky; inset-block-start: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2);
+  background: var(--paper); border-block: 2px solid var(--rule);
+  padding-block: var(--sp-1); margin-block-end: var(--sp-4);
+}
+.ctl-bar-label {
+  font-family: var(--mono); font-size: var(--t--3); text-transform: uppercase;
+  letter-spacing: 0.16em; color: var(--ink-3); margin-inline-end: var(--sp-2);
+}
+.ctl-jump {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 44px; min-inline-size: 44px; padding-inline: var(--sp-2);
+  font-family: var(--mono); font-size: var(--t--2); letter-spacing: 0.06em;
+  text-decoration: none; color: var(--ink-2); border-block-end: 2px solid transparent;
+}
+.ctl-jump:hover { color: var(--hot); border-block-end-color: var(--hot); }
+.ctl-hide {
+  display: inline-flex; align-items: center; gap: var(--sp-2); cursor: pointer;
+  min-block-size: 44px; margin-inline-start: auto; padding-inline: var(--sp-2);
+  font-family: var(--mono); font-size: var(--t--2); color: var(--ink-2);
+}
+.ctl-box {
+  inline-size: 20px; block-size: 20px; flex: 0 0 auto;
+  border: 2px solid var(--rule); background: var(--paper-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1; color: var(--ink);
+}
+.ctl-toggle:checked + .ctl-bar .ctl-box::after { content: "\\2715"; }
+.ctl-toggle:checked + .ctl-bar .ctl-hide { color: var(--ink); }
+.ctl-toggle:focus-visible + .ctl-bar .ctl-hide { outline: 3px solid var(--hot); outline-offset: 2px; }
+.ctl-toggle:checked ~ .table-scroll-controls tr.out-of-scope { display: none; }
 tr.oc-pass .outcome { color: var(--ink); }
 tr.oc-pass .oc-chip { background: var(--ink); color: var(--paper-2); border-color: var(--ink); }
 tr.oc-fail .outcome { color: var(--hot); }
 tr.oc-fail .oc-chip { background: var(--hot); color: #fff; border-color: var(--hot); }
 tr.oc-gap .outcome { color: var(--rust); }
 tr.oc-unverified .outcome { color: var(--ink-2); }
-tr.oc-unverified .oc-chip { background: var(--hatch); }
+/* THE HATCH IS A SWATCH, NOT A BACKGROUND. Painted behind the letters it made
+   the one state this site's honesty rule depends on — a check nobody could
+   answer — the only verdict on the page you cannot read. */
+tr.oc-unverified .oc-chip {
+  position: relative; background: var(--paper-2); color: var(--ink);
+  border-color: var(--ink); padding-inline-start: 24px;
+}
+tr.oc-unverified .oc-chip::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; inline-size: 16px;
+  background: var(--hatch); border-inline-end: 1px solid var(--ink);
+}
 tr.oc-info .outcome { color: var(--ink-3); }
 tr.out-of-scope td { opacity: 0.55; }
-.oos { font-family: var(--mono); font-size: var(--t--3); color: var(--ink-3); border: 1px solid var(--hair); padding: 1px 5px; }
+.oos {
+  font-family: var(--mono); font-size: var(--t--3); color: var(--ink-3);
+  border: 1px solid var(--hair); padding: 1px 5px;
+  display: inline-block; white-space: nowrap;
+}
 .raw {
   display: inline-block; font-family: var(--mono); font-size: var(--t--3);
   color: var(--rust); border: 1px dashed var(--rust); padding: 1px 5px;
   margin-inline-start: var(--sp-2);
 }
-.reason { color: var(--ink-2); font-size: var(--t--1); }
-table.controls details { margin-block-start: var(--sp-2); }
-table.controls summary { cursor: pointer; font-family: var(--mono); font-size: var(--t--2); color: var(--ink); }
+.reason { color: var(--ink-2); font-size: var(--t--1); display: inline; }
+/* The evidence fold. summary{display:inline-flex} in the shared layer
+   suppresses the disclosure marker, so 42 rows ended in the bare word
+   "evidence" on a line of its own — a dead label, not a control. It gets the
+   marker back, an underline, a count, and a seat on the same line as the
+   detail it belongs to. */
+table.controls details { display: inline-block; margin-inline-start: var(--sp-3); vertical-align: baseline; }
+table.controls td.c-detail > details:only-child { margin-inline-start: 0; }
+table.controls summary {
+  display: list-item; list-style: disclosure-closed inside; min-block-size: 0;
+  cursor: pointer; font-family: var(--mono); font-size: var(--t--2);
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink);
+  text-decoration: underline; text-underline-offset: 3px;
+  padding-block: var(--sp-3);
+}
+table.controls details[open] > summary { list-style-type: disclosure-open; }
+table.controls summary::marker { color: var(--ink-3); }
+table.controls summary:hover { color: var(--hot); }
 table.controls details ul { margin: var(--sp-2) 0 0; padding-inline-start: 18px; color: var(--ink-2); font-size: var(--t--2); }
 table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 
 /* ---------- methodology ---------- */
+/* The section index is a sibling of the sections rather than a tail on the
+   page head, because that is what lets it stick: on a 27,000px page the eight
+   pills are the only navigation there is, and 27,000px away they are not
+   navigation. */
 .sec-index {
   display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4);
-  margin-block-start: var(--sp-5);
+  padding-block: var(--sp-4);
+  border-block-end: 2px solid var(--rule);
 }
 .sec-index a {
   font-family: var(--mono); font-size: var(--t--2); text-transform: uppercase;
@@ -645,10 +846,14 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 .prose strong { color: var(--ink); }
 .prose ol, .prose ul { padding-inline-start: 22px; margin-block: var(--sp-3); }
 .prose li { margin-block: var(--sp-2); }
+/* A one-line command set as a 1160px black slab beside a 72ch measure is the
+   page alternating half-width and full-width every few hundred pixels. The
+   block takes the measure its own content needs. */
 .prose pre {
   overflow-x: auto; background: var(--ink); color: var(--paper-2);
   border: 2px solid var(--rule); padding: var(--sp-4); margin-block: var(--sp-4);
   font-family: var(--mono); font-size: var(--t--2); line-height: 1.7;
+  max-inline-size: 80ch;
 }
 .prose pre code { color: inherit; }
 
@@ -690,25 +895,46 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 .cmp-footnote { color: var(--ink-3); font-size: var(--t--2); }
 .cmp-table { min-inline-size: 760px; }
 
+/* Same fold, same defect: the shared layer's display:inline-flex eats the
+   disclosure marker, so nine "What this looks like when it happens" lines read
+   as headings nobody can open. */
 .tx-details summary {
+  display: list-item; list-style: disclosure-closed inside;
   font-family: var(--mono); font-size: var(--t--2); text-transform: uppercase;
   letter-spacing: 0.1em; cursor: pointer; color: var(--ink);
+  text-decoration: underline; text-underline-offset: 4px;
+  padding-block: var(--sp-2);
 }
+.tx-details[open] > summary { list-style-type: disclosure-open; }
+.tx-details summary::marker { color: var(--ink-3); }
+.tx-details summary:hover { color: var(--hot); }
 
 /* ---------- design switcher (shared markup, styled here) ---------- */
+/* This is review chrome, and it is fixed, so at every scroll position it sits
+   on top of whatever is at the bottom of the viewport. Two measurements drove
+   this shape: at 390px it wrapped to 370x98 and stood over the grade slab and
+   the first listing's score line — 11% of the screen, permanently; at 1440 the
+   407x54 bar overlapped the figure band's fourth numeral at rest.
+   So: a compact chip naming the CURRENT design at desk width, opening to the
+   full list on hover or keyboard focus (the links stay in the DOM and stay
+   focusable, they are only clipped), and one full-bleed 44px row docked to the
+   bottom edge on a phone, where a fixed corner box has nowhere safe to sit. */
 .design-switcher {
   position: fixed; inset-inline-end: 12px; inset-block-end: 12px; z-index: 50;
-  display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+  display: flex; align-items: stretch; gap: 0; flex-wrap: nowrap;
   background: var(--paper-2); border: 2px solid var(--rule);
-  padding: 3px; font-family: var(--mono); font-size: var(--t--3);
+  padding: 0; font-family: var(--mono); font-size: var(--t--3);
 }
 .design-switcher .ds-label {
+  display: inline-flex; align-items: center; order: -2;
   text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3);
-  padding-inline: var(--sp-2);
+  padding-inline: var(--sp-3); white-space: nowrap;
+  border-inline-end: 1px solid var(--hair);
 }
 .design-switcher a {
+  display: inline-flex; align-items: center; justify-content: center;
   color: var(--ink-2); text-decoration: none; text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.06em; white-space: nowrap; padding-inline: var(--sp-3);
 }
 .design-switcher a:hover { background: var(--ink); color: var(--paper-2); }
 .design-switcher a[aria-current="true"] { background: var(--hot); color: #fff; }
@@ -748,7 +974,6 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 }
 
 @media (max-width: 760px) {
-  .banner br { display: none; }
   .figband { grid-template-columns: 1fr; }
   .figband .fig + .fig {
     border-inline-start: none; padding-inline-start: 0;
@@ -781,19 +1006,155 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
   table.directory td, table.controls td {
     border-block-start: none; padding: var(--sp-2) 0;
   }
-  table.directory td::before, table.controls td::before {
+  table.directory td::before {
     content: attr(data-label); display: block; font-family: var(--mono);
     font-size: var(--t--3); text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--ink-3); margin-block-end: var(--sp-1);
   }
   table.directory td.c-repo::before { display: none; }
   .c-grade { inline-size: auto; }
-  .desc, .body-copy, .cov-note, .prose p, .prose li { max-inline-size: none; }
+
+  /* THE CONTROL TABLE IS A LIST, NOT 54 CARDS. Read literally, the restack
+     spent ~60px per row printing "PHASE" over a single digit and another
+     label over an empty detail cell: 54 rows came to 14,700px. The phase is
+     named once per band, the control and its verdict share a line, and only
+     the detail — when there is one — takes the full width. */
+  table.controls tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sp-3); row-gap: var(--sp-1);
+    padding: var(--sp-3) var(--sp-3); align-items: baseline;
+  }
+  table.controls tr.ph-head { display: block; padding: 0; border-block-end: none; }
+  table.controls td::before { display: none; }
+  table.controls td.c-control { grid-column: 1; }
+  table.controls td.c-verdict { grid-column: 2; text-align: end; }
+  table.controls td.c-detail { grid-column: 1 / -1; }
+  table.controls td.c-detail:empty { display: none; }
+  table.controls td { padding: 0; inline-size: auto; }
+  table.controls summary { padding-block: var(--sp-3); }
+  tr.ph-head td { padding: var(--sp-5) var(--sp-3) var(--sp-2); inline-size: auto; }
+  .desc, .body-copy, .cov-note, .prose p, .prose li, .merge-note { max-inline-size: none; }
   .cprules { min-inline-size: 0; }
   .prule {
     grid-template-columns: minmax(80px, 9ch) minmax(0, 1fr) minmax(5.5ch, auto);
     gap: var(--sp-2);
   }
+
+  /* THE METHODOLOGY'S TABLES RESTACK TOO. They were the only ones that did not,
+     and they are the densest data on the site: measured live, a 747px table in
+     a 354px box hid the whole sscsb-mapping column — the reason that table
+     exists — and cut questions mid-word. Their markup is shared by five
+     designs, so where there is no data-label the column POSITION carries the
+     label; the two shared tables are told apart by the data-coverage attribute
+     the four-column one puts on its rows. */
+  .table-scroll { overflow-x: visible; background-image: none; }
+  table.method-table { min-inline-size: 0; display: block; }
+  table.method-table thead {
+    position: absolute; inline-size: 1px; block-size: 1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  table.method-table tbody, table.method-table tr, table.method-table td {
+    display: block; inline-size: 100%;
+  }
+  table.method-table tr {
+    padding: var(--sp-3) var(--sp-3); border-block-end: 2px solid var(--rule);
+  }
+  table.method-table tbody tr:last-child { border-block-end: none; }
+  table.method-table td { border-block-start: none; padding: var(--sp-1) 0; }
+  table.method-table td[data-label]::before {
+    content: attr(data-label); display: block; font-family: var(--mono);
+    font-size: var(--t--3); text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--ink-3); margin-block-end: var(--sp-1);
+  }
+  /* The two-column grade table already fits 354px; a table that fits stays a
+     table. */
+  table.method-table-narrow, table.method-table-narrow thead,
+  table.method-table-narrow tbody, table.method-table-narrow tr,
+  table.method-table-narrow td { display: revert; }
+  table.method-table-narrow td::before { display: none; }
+  table.method-table-narrow tr { padding: 0; border-block-end: none; }
+  table.method-table-narrow td { padding: var(--sp-3) var(--sp-4); }
+
+  /* "Every check, as a question": id and groups on one line, the question
+     under them at full width. */
+  table.tx-q-table { min-inline-size: 0; }
+  table.tx-q-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sp-3); row-gap: var(--sp-1); align-items: baseline;
+  }
+  table.tx-q-table td { inline-size: auto; }
+  /* Explicit rows, because DOM order is id / question / groups and the row we
+     want is id + groups, then the question under both. */
+  table.tx-q-table td:nth-child(1) { grid-row: 1; grid-column: 1; font-family: var(--mono); }
+  table.tx-q-table td:nth-child(3) { grid-row: 1; grid-column: 2; text-align: end; }
+  table.tx-q-table td:nth-child(2) { grid-row: 2; grid-column: 1 / -1; color: var(--ink); }
+  table.tx-q-table td:nth-child(3)::before {
+    content: "grp "; font-family: var(--mono); font-size: var(--t--3);
+    color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em;
+  }
+
+  /* Scorecard comparison: name + verdict on one line, then what it looks for,
+     then the sscsb mapping — the column that used to be off-screen. */
+  table.cmp-table { min-inline-size: 0; }
+  table.cmp-table tbody tr[data-coverage] {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--sp-3); row-gap: var(--sp-1);
+  }
+  table.cmp-table tr[data-coverage] td { inline-size: auto; }
+  table.cmp-table tr[data-coverage] td:nth-child(1) { grid-row: 1; grid-column: 1; }
+  table.cmp-table tr[data-coverage] td:nth-child(3) { grid-row: 1; grid-column: 2; text-align: end; }
+  table.cmp-table tr[data-coverage] td:nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+  table.cmp-table tr[data-coverage] td:nth-child(4) { grid-row: 3; grid-column: 1 / -1; }
+  table.cmp-table tr[data-coverage] td:nth-child(4)::before { content: "sscsb checks"; }
+  table.cmp-table tr:not([data-coverage]) td:nth-child(3)::before { content: "sscsb checks"; }
+  table.cmp-table td:nth-child(4)::before,
+  table.cmp-table tr:not([data-coverage]) td:nth-child(3)::before {
+    display: block; font-family: var(--mono); font-size: var(--t--3);
+    text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3);
+    margin-block-end: var(--sp-1);
+  }
+
+  /* A copy-me command that clips mid-token is not a copy-me command. The
+     backslash continuations already make every one of these wrap-safe. */
+  .prose pre, .formula-slab pre {
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .prose pre { max-inline-size: none; }
+
+  /* Eight pills wrapping into six rows before any content starts, on a page
+     27,000px long, is not an index. One row that follows you down is. */
+  .sec-index {
+    position: sticky; inset-block-start: 0; z-index: 20;
+    flex-wrap: nowrap; overflow-x: auto; gap: 0;
+    background: var(--paper); border-block-start: 2px solid var(--rule);
+    padding-block: 0; scrollbar-width: none;
+  }
+  .sec-index::-webkit-scrollbar { display: none; }
+  .sec-index a { border: none; border-block-end: 2px solid transparent; white-space: nowrap; padding: 6px var(--sp-3); }
+  .sec-index a:hover { border-block-end-color: var(--hot); }
+
+  /* The jump strip is sticky, so it is a tax on every screen: one scrolling
+     row, no label — P1-P6 say what they are. */
+  .ctl-bar {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    padding-block: 0;
+  }
+  .ctl-bar::-webkit-scrollbar { display: none; }
+  /* The same edge shadow the tables use, so a strip that scrolls says so. */
+  .sec-index, .ctl-bar {
+    background-image:
+      linear-gradient(to right, var(--paper) 40%, rgba(239, 235, 227, 0)),
+      linear-gradient(to left, var(--paper) 40%, rgba(239, 235, 227, 0)),
+      linear-gradient(to right, rgba(20, 18, 16, 0.28), rgba(20, 18, 16, 0)),
+      linear-gradient(to left, rgba(20, 18, 16, 0.28), rgba(20, 18, 16, 0));
+    background-position: left center, right center, left center, right center;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+  .ctl-bar-label { display: none; }
+  .ctl-hide { margin-inline-start: var(--sp-3); white-space: nowrap; flex: 0 0 auto; }
+  .ctl-jump { flex: 0 0 auto; }
 }
 
 @media (max-width: 420px) {
@@ -836,4 +1197,71 @@ export const OVERRIDES = `
 :root .tx-strip { border-block-start-width: 2px; border-block-start-color: var(--rule); }
 :root .hp-unans-track { block-size: 10px; border: 1px solid var(--rule); background: var(--paper-2); }
 :root .ex-row { border-inline-start-width: 6px; }
+/* A9's title runs to two lines; centred, its group id floated to the middle of
+   them while A1-A3's sat on the baseline. */
+:root .ex-name { align-items: baseline; min-block-size: 44px; }
+/* Chips are 2px ink rules like everything else here, not a 1px hairline card:
+   this was the one place the shared component layer showed through. */
+:root .tx-chip, :root .hp-chip { border-width: 2px; border-color: var(--rule); background: transparent; }
+/* A full-width row of body text is a link target too. */
+:root .tx-incident > a { display: inline-flex; align-items: center; min-block-size: 44px; }
+
+/* Two waiting states stacked back to back ran ~1,400px of mostly blank paper
+   through the middle of the front page. Side by side under one band they read
+   as a composed pair; the aggregate panel below keeps the full measure. */
+@media (min-width: 1000px) {
+  :root .hp-panels { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--gut); }
+  :root .hp-panels > #still-unchecked { grid-column: 1 / -1; }
+}
+
+/* The fold's checkbox is a mechanism, not a control: the LABEL is the 44px
+   target. Sized here because the shared layer pins every checkbox to 20px. */
+:root input.ctl-toggle { inline-size: 0; block-size: 0; }
+
+/* ---------- the switcher, shaped against the shared layer ---------- */
+:root .design-switcher { flex-wrap: nowrap; padding: 0; }
+:root .design-switcher a { padding: 0 var(--sp-3); min-block-size: 44px; }
+
+@media (min-width: 761px) {
+  /* Collapsed to "DESIGN | BULLETIN ▸" — the current design is ordered to the
+     front, and the other four are clipped to zero width rather than removed,
+     so they keep their place in the tab order and a keyboard :focus-within
+     opens the strip exactly as a hover does. */
+  :root .design-switcher { overflow: hidden; }
+  :root .design-switcher a[aria-current="true"] { order: -1; }
+  :root .design-switcher a[aria-current="true"]::after { content: "\\00a0▸"; }
+  :root .design-switcher:hover a[aria-current="true"]::after,
+  :root .design-switcher:focus-within a[aria-current="true"]::after { content: "\\00a0▾"; }
+  /* Collapsed to zero area, NOT to display:none or visibility:hidden — a
+     zero-area link keeps its seat in the tab order, so tabbing into the strip
+     is what opens it. It is not a tap target while it is closed, and it is a
+     44px one the moment it is not. */
+  :root .design-switcher a:not([aria-current="true"]) {
+    max-inline-size: 0; max-block-size: 0; padding: 0; overflow: hidden;
+    min-block-size: 0;
+  }
+  :root .design-switcher:hover a:not([aria-current="true"]),
+  :root .design-switcher:focus-within a:not([aria-current="true"]) {
+    max-inline-size: 12rem; max-block-size: none; min-block-size: 44px;
+    padding-inline: var(--sp-3);
+  }
+}
+
+@media (max-width: 760px) {
+  /* One 44px row docked to the bottom edge. The label goes: five names fit
+     across 390px without it, and "Design" is what the nav's aria-label already
+     says. */
+  :root .design-switcher {
+    inset-inline: 0; inset-block-end: 0; max-inline-size: none;
+    border-inline: none; border-block-end: none;
+    border-block-start: 2px solid var(--rule);
+    padding-block-end: env(safe-area-inset-bottom, 0px);
+  }
+  :root .design-switcher .ds-label { display: none; }
+  :root .design-switcher a {
+    flex: 1 1 0; min-inline-size: 0; padding: 0 2px;
+    font-size: 10px; letter-spacing: 0.02em; min-block-size: 44px;
+  }
+  :root .design-switcher a + a { border-inline-start: 1px solid var(--hair); }
+}
 `;

@@ -19,7 +19,7 @@
  *     saying nothing about it is the silent downgrade this site exists to
  *     argue against.
  */
-import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
+import { ACTION_REPO_URL, METHODOLOGY_VERSION, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import {
   anchorCaveat,
   coverageFacts,
@@ -28,7 +28,7 @@ import {
   type CoverageFacts,
 } from "../../coverage";
 import { define, defineTerm } from "../../glossary";
-import { lookupFacts, type ListingFacts } from "../../listing";
+import { lookupFacts, shortSha, type ListingFacts } from "../../listing";
 import type { ScanRecord, Score } from "../../schema";
 import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
 import {
@@ -50,7 +50,13 @@ import {
   METHODOLOGY_SHARE_URL,
   shareUrl,
 } from "../share-urls";
-import { factSentences } from "../shared-facts";
+import {
+  awaitingSentence,
+  contradictionSentence,
+  factSentences,
+  selfReportSentence,
+  staleSentence,
+} from "../shared-facts";
 import { exposurePanel } from "../threats-shared";
 import { compactRules, gradeBadge, phaseRules, PHASE_NAMES } from "./components";
 import { escapeHtml, page } from "./layout";
@@ -138,24 +144,77 @@ function coverageNoteBody(f: CoverageFacts): string {
   available here.</span>`;
 }
 
+const pct = (v: number | null): string => (v === null ? "no evidence" : `${v}%`);
+
+/**
+ * The merge findings as one scannable mono line: the two commits that differ,
+ * how many verdicts are held back, and the two scores side by side.
+ *
+ * Derived from the SAME `ListingFacts` fields the sentences are derived from,
+ * never re-worded from them — this is an index to the fold below it, and the
+ * fold carries `shared-facts.ts` verbatim.
+ */
+function mergeSummary(lf: ListingFacts, directory: Score): string {
+  const bits: string[] = [];
+  if (lf.staleAgainstBase) {
+    bits.push(
+      `local ${shortSha(lf.staleAgainstBase.local)} ≠ scan ${shortSha(
+        lf.staleAgainstBase.base,
+      )}`,
+    );
+  }
+  if (lf.awaitingIndependent.length > 0) {
+    bits.push(`${lf.awaitingIndependent.length} held for a second source`);
+  }
+  const s = lf.selfReported;
+  if (s) {
+    bits.push(
+      `self-reported ${s.grade} ${pct(s.overall_percent)} vs DIRECTORY ${
+        directory.grade
+      } ${pct(directory.overall_percent)}`,
+    );
+  }
+  return bits.map(escapeHtml).join(' <span class="mn-sep">·</span> ');
+}
+
 /**
  * What the evidence merge found, in this design's chrome. A design MUST render
  * these: a contradiction is scored as a gap, and a gap that does not say why is
  * a silent downgrade.
+ *
+ * A CONTRADICTION stays open, in full, on the hot rule — two verified sources
+ * disagreed and the control was scored down for it, which is the one thing on
+ * this page the reader cannot be asked to expand.
+ *
+ * The other three findings fold. Printed in full they were ~95 identical words
+ * under every listing — measured: three rows, 812-884px each, roughly 40% of
+ * the page at 13px — with the one fact that differs between them buried
+ * mid-sentence, and they lit the hot rule on rows that had nothing wrong. The
+ * summary line above the fold carries the differing facts; the sentences
+ * inside are the shared ones, not a paraphrase.
  */
 function factNotes(lf: ListingFacts, directory: Score): string {
-  const notes = factSentences(lf, directory);
-  if (notes.length === 0) return "";
-  return notes
-    .map((n) => `<span class="cov-note cov-conflict">${escapeHtml(n)}</span>`)
-    .join("");
+  const contradiction = contradictionSentence(lf);
+  const head = contradiction
+    ? `<span class="cov-note cov-conflict">${escapeHtml(contradiction)}</span>`
+    : "";
+  const folded = [
+    staleSentence(lf),
+    awaitingSentence(lf),
+    selfReportSentence(lf, directory),
+  ].filter((s): s is string => s !== null);
+  if (folded.length === 0) return head;
+  return `${head}<details class="merge-note">
+  <summary><span class="mn-tag">Merge</span>${mergeSummary(lf, directory)}</summary>
+  ${folded.map((n) => `<p>${escapeHtml(n)}</p>`).join("\n  ")}
+</details>`;
 }
 
 /** The same findings as a section on the detail sheet. */
 function renderFactsSection(lf: ListingFacts, directory: Score): string {
   const notes = factSentences(lf, directory);
   if (notes.length === 0) return "";
-  return `<section class="panel panel-conflict">
+  return `<section class="panel panel-conflict" id="merge">
   <h2 class="panel-title">What the evidence merge found</h2>
   ${notes.map((n) => `<p class="body-copy">${escapeHtml(n)}</p>`).join("\n  ")}
   ${
@@ -240,6 +299,8 @@ ${rows}
   <span class="key-item"><span class="key-swatch key-unv"></span>${defineTerm("unverified")}</span>
   <span class="key-item">${LANE_CHIP.local} a maintainer ran this on their own machine and
   signed it — the only evidence that can exist for the checks only they can see</span>
+  <span class="key-item"><span class="lane lane-local-overlay">+local n</span> n controls on
+  that listing were settled by a maintainer's signed local scan</span>
 </div>
 ${directoryTermsNote(ctx.h)}
 <script src="${ctx.h("filter.js")}" defer></script>`;
@@ -462,29 +523,67 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   const facts = coverageFacts(r, localOverlayCount(lt));
   const passed =
     r.score.overall_percent === null ? "—" : `${r.score.overall_percent}%`;
-  const controlRows = r.controls
-    .map((c) => {
-      const label = OUTCOME_LABEL[c.scan_outcome] ?? c.scan_outcome;
-      const raw =
-        c.reclassified || c.raw_outcome !== c.scan_outcome
-          ? `<span class="raw" title="sscsb verify raw outcome">raw: ${escapeHtml(c.raw_outcome)}</span>`
-          : "";
-      const reason = c.reason ? `<div class="reason">${escapeHtml(c.reason)}</div>` : "";
-      const msgs = c.messages.length
-        ? `<details><summary>evidence</summary><ul>${c.messages
-            .map((m) => `<li>${escapeHtml(m)}</li>`)
-            .join("")}</ul></details>`
+  // Grouped into ruled phase bands rather than carrying a Phase column: the
+  // column spent ~60px on a single digit in all 54 rows (about 3,200px of a
+  // phone page), and a band names the phase once for every row under it —
+  // which is what a results table has always done. The bands double as the
+  // anchors the jump strip above the table uses.
+  const byPhase = new Map<number, ScanRecord["controls"][number][]>();
+  for (const c of r.controls) {
+    const seen = byPhase.get(c.phase);
+    if (seen) seen.push(c);
+    else byPhase.set(c.phase, [c]);
+  }
+  const phaseNumbers = [...byPhase.keys()].sort((a, b) => a - b);
+  const outOfScope = r.controls.filter((c) => !c.in_scope).length;
+  const controlRow = (c: ScanRecord["controls"][number]): string => {
+    const label = OUTCOME_LABEL[c.scan_outcome] ?? c.scan_outcome;
+    const raw =
+      c.reclassified || c.raw_outcome !== c.scan_outcome
+        ? ` <span class="raw" title="sscsb verify raw outcome">raw: ${escapeHtml(c.raw_outcome)}</span>`
         : "";
-      return `<tr class="oc-${escapeHtml(c.scan_outcome)}${c.in_scope ? "" : " out-of-scope"}">
-  <td data-label="Phase">${c.phase}</td>
-  <td data-label="Control"><code>${escapeHtml(c.id)}</code>${
+    const reason = c.reason ? `<span class="reason">${escapeHtml(c.reason)}</span>` : "";
+    // The count goes in the label: "evidence" alone read as a dead word, and a
+    // reader cannot tell how much is behind a disclosure that says nothing.
+    const msgs = c.messages.length
+      ? `<details><summary>evidence (${c.messages.length})</summary><ul>${c.messages
+          .map((m) => `<li>${escapeHtml(m)}</li>`)
+          .join("")}</ul></details>`
+      : "";
+    return `<tr class="oc-${escapeHtml(c.scan_outcome)}${c.in_scope ? "" : " out-of-scope"}">
+  <td class="c-control" data-label="Control"><code>${escapeHtml(c.id)}</code>${
     c.in_scope ? "" : ' <span class="oos">out of scope</span>'
   }</td>
-  <td class="outcome" data-label="Verdict"><span class="oc-chip">${escapeHtml(label)}</span> ${raw}</td>
-  <td data-label="Detail">${reason}${msgs}</td>
+  <td class="c-verdict outcome" data-label="Verdict"><span class="oc-chip">${escapeHtml(label)}</span>${raw}</td>
+  <td class="c-detail" data-label="Detail">${reason}${msgs}</td>
 </tr>`;
+  };
+  const controlRows = phaseNumbers
+    .map((p) => {
+      const list = byPhase.get(p) ?? [];
+      const band = `<tr class="ph-head" id="phase-${p}"><td colspan="3">Phase ${p} — ${escapeHtml(
+        PHASE_NAMES[p] ?? "",
+      )}<span class="ph-count">${escapeHtml(plural(list.length, "check"))}</span></td></tr>`;
+      return [band, ...list.map(controlRow)].join("\n");
     })
     .join("\n");
+  const jumpStrip = `<input type="checkbox" id="ctl-hide-oos" class="ctl-toggle">
+<div class="ctl-bar">
+  <span class="ctl-bar-label">Jump to phase</span>
+  ${phaseNumbers
+    .map(
+      (p) =>
+        `<a class="ctl-jump" href="#phase-${p}" title="${escapeHtml(
+          PHASE_NAMES[p] ?? `Phase ${p}`,
+        )}">P${p}</a>`,
+    )
+    .join("\n  ")}
+  ${
+    outOfScope > 0
+      ? `<label class="ctl-hide" for="ctl-hide-oos"><span class="ctl-box" aria-hidden="true"></span>Hide the ${outOfScope} out-of-scope checks</label>`
+      : ""
+  }
+</div>`;
   const body = `
 <nav class="crumbs"><a href="${ctx.h("directory/")}">← Directory</a></nav>
 <section class="repo-hero">
@@ -498,7 +597,13 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
       <code>${escapeHtml(r.repo.commit.slice(0, 12))}</code> on
       <code>${escapeHtml(r.repo.default_branch)}</code> ·
       sscsb ${escapeHtml(r.scanner.sscsb_version)} ·
-      methodology v${r.methodology_version} ·
+      methodology v${r.methodology_version}${
+        r.methodology_version < METHODOLOGY_VERSION
+          ? ` <a class="meta-stale" href="${ctx.h(
+              "methodology/#changelog",
+            )}" title="This record was scored before methodology v${METHODOLOGY_VERSION}"><span>scored before v${METHODOLOGY_VERSION}</span></a>`
+          : ""
+      } ·
       <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a>
     </p>
   </div>
@@ -522,13 +627,18 @@ ${renderFactsSection(lookupFacts(ctx.facts, r), r.score)}
 ${coveragePanel(r, facts, ctx)}
 <h2 class="controls-title">All controls</h2>
 <p class="transparency-note">Raw sscsb verdicts and every reclassification are shown.
-Being transparent about what was and was not verifiable is the product.
-Phases: ${Object.entries(PHASE_NAMES)
-    .map(([nn, name]) => `${nn} = ${escapeHtml(name)}`)
-    .join(", ")}.</p>
+Being transparent about what was and was not verifiable is the product. The checks run in
+six phases, named on the band above each group.</p>
+<div class="key-row">
+  <span class="key-label">Key</span>
+  <span class="key-item"><span class="key-swatch key-pass"></span>pass</span>
+  <span class="key-item"><span class="key-swatch key-fail"></span>fail / gap</span>
+  <span class="key-item"><span class="key-swatch key-unv"></span>${defineTerm("unverified")}</span>
+</div>
+${jumpStrip}
 <div class="table-scroll table-scroll-controls">
 <table class="controls">
-  <thead><tr><th>Phase</th><th>Control</th><th>Verdict</th><th>Detail</th></tr></thead>
+  <thead><tr><th>Control</th><th>Verdict</th><th>Detail</th></tr></thead>
   <tbody>
 ${controlRows}
   </tbody>

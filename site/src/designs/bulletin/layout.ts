@@ -95,6 +95,7 @@ ${opts.body}
   <div class="colophon-in">
     <span class="col-domain">${SITE_HOST_LABEL}</span>
     <span class="col-meta">Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
+    <a class="col-top" href="#content">&#8593; Top</a>
   </div>
 </footer>
 ${ctx.switcher}
