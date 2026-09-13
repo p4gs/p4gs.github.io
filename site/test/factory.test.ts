@@ -938,7 +938,9 @@ describe("A5 · the explorer is the reference's flow diagram", () => {
   });
 
   test("the stage is dotted-grid with a dotted working viewport inside it", () => {
-    expect(CSS).toContain("border: 1px dashed var(--fy-edge-grey); border-radius: 8px;");
+    expect(CSS).toContain("border: 1px dotted var(--fy-edge-grey); border-radius: 8px;");
+    // R1 · the stage was the one off-grammar stroke in the whole figure
+    expect(CSS).not.toContain("border: 1px dashed var(--fy-edge-grey); border-radius: 8px;");
     expect(CSS).toContain(
       "background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.7px, rgba(0, 0, 0, 0) 0.9px);",
     );
@@ -961,7 +963,10 @@ describe("A5 · the explorer is the reference's flow diagram", () => {
   test("the bands are what makes the bracket land on the input cards", () => {
     // A wire stretched to the GRID row would take its 16/50/84 percentages
     // from the tallest column on the page — the 54-card checks column.
-    expect(CSS).toMatch(/\.fy-flow-band \{[^}]*align-content: center;/);
+    // R1 · and they TOP-anchor, so a head sits on its own content rather than
+    // naming a column that starts a third of a screen below it.
+    expect(CSS).toMatch(/\.fy-flow-band \{[^}]*align-content: start;/);
+    expect(CSS).toMatch(/\.fy-flow-col \{[^}]*align-content: start;/);
     expect(CSS).toMatch(/\.fy-flow-band \{[^}]*grid-template-columns: minmax\(0, 1fr\) 56px;/);
   });
 
@@ -981,6 +986,18 @@ describe("A5 · the explorer is the reference's flow diagram", () => {
 
   test("the flow stacks at <=767 and the stretched brackets are hidden there", () => {
     expect(MOBILE).toContain(".fy-flow-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 14px; }");
+    // R1 · THE REGRESSION. The stacking rules must OUT-RANK the desktop
+    // `[data-flow-*]` family (0,2,0) or the three-column track survives the
+    // media query and one of its tracks computes to 0px. Written without the
+    // attribute they are (0,1,0) and lose, silently, without widening the
+    // document — which is why only a computed-style probe at 390 found it.
+    expect(MOBILE).toContain(
+      ".fy-flow-head[data-flow-head], .fy-flow-band[data-flow-band] {\n    grid-column: 1; grid-row: auto;\n  }",
+    );
+    expect(MOBILE).toContain(".fy-flow-head[data-flow-head] { text-align: start; padding-inline-end: 0; }");
+    // the unqualified forms are the ones that lost; neither may come back
+    expect(MOBILE).not.toMatch(/\.fy-flow-head, \.fy-flow-band \{/);
+    expect(MOBILE).not.toMatch(/\n  \.fy-flow-head \{/);
     // the heads are one row at desktop and interleave with their bands when stacked
     expect(MOBILE).toContain('.fy-flow-head[data-flow-head="in"] { order: 1; }');
     expect(MOBILE).toContain('.fy-flow-band[data-flow-band="out"] { order: 6; }');

@@ -813,8 +813,11 @@ main [id] { scroll-margin-top: 88px; }
    arms at 16 / 50 / 84 % land on the three input cards' centres, and what puts
    every band's content centre on the same y. A wire stretched to the GRID row
    instead would take its percentages from the tallest column on the page. */
+/* DOTTED, not dashed. The column separators and the \`meta\` card inside this
+   figure are dotted; the stage was the one off-grammar stroke in a diagram that
+   otherwise matches the reference frame. */
 .fy-flow {
-  margin-block-start: 28px; border: 1px dashed var(--fy-edge-grey); border-radius: 8px;
+  margin-block-start: 28px; border: 1px dotted var(--fy-edge-grey); border-radius: 8px;
   padding: 20px 24px 24px;
   background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.7px, rgba(0, 0, 0, 0) 0.9px);
   background-size: 6px 6px;
@@ -835,8 +838,15 @@ main [id] { scroll-margin-top: 88px; }
 .fy-flow-head[data-flow-head="in"] { grid-column: 1; padding-inline-end: 56px; }
 .fy-flow-head[data-flow-head="checks"] { grid-column: 2; padding-inline-end: 56px; }
 .fy-flow-head[data-flow-head="out"] { grid-column: 3; }
+/* TOP-ANCHORED, so a header sits on its own content. Centred, the 13-card
+   Checks band is ~2000px tall and its two neighbours centred against it — the
+   Inputs head named a column that started a third of a screen below it, over
+   empty dotted grid. Nothing is capped: the point of the figure is that it
+   holds EVERY check, so the three stacks start together instead. The wire's
+   own row is still exactly as tall as the column beside it, which is what
+   keeps the bracket's arms on the three input cards' centres. */
 .fy-flow-band {
-  position: relative; grid-row: 2; display: grid; align-content: center;
+  position: relative; grid-row: 2; display: grid; align-content: start;
   grid-template-columns: minmax(0, 1fr) 56px;
 }
 .fy-flow-band[data-flow-band="in"] { grid-column: 1; }
@@ -849,7 +859,7 @@ main [id] { scroll-margin-top: 88px; }
   content: ""; position: absolute; inset-block: -36px 0; inset-inline-end: 0;
   border-inline-start: 1px dotted rgba(0, 0, 0, 0.16);
 }
-.fy-flow-col { grid-column: 1; display: grid; gap: 12px; align-content: center; }
+.fy-flow-col { grid-column: 1; display: grid; gap: 12px; align-content: start; }
 .fy-flow-wire { grid-column: 2; position: relative; }
 .fy-flow-lines {
   inline-size: 100%; block-size: 100%; display: block; overflow: visible;
@@ -1492,9 +1502,22 @@ export const RESPONSIVE_CSS = `
   .fy-flow-band, .fy-flow-band[data-flow-band="out"] { grid-template-columns: minmax(0, 1fr); }
   .fy-flow-band:not([data-flow-band="out"])::after { content: none; }
   /* Source order is heads-then-bands, which is what lets the heads be one row
-     at desktop; the order property interleaves them again when stacked. */
-  .fy-flow-head, .fy-flow-band { grid-column: 1; grid-row: auto; }
-  .fy-flow-head { text-align: start; padding-inline-end: 0; }
+     at desktop; the order property interleaves them again when stacked.
+
+     THE ATTRIBUTE IS LOAD-BEARING IN THE SELECTOR, not decoration. Written as
+     \`.fy-flow-head, .fy-flow-band\` these rules are (0,1,0) and LOSE to the
+     desktop \`.fy-flow-head[data-flow-head="in"]\` family at (0,2,0), which is
+     never overridden — so the three-column track survived the media query and
+     \`grid-template-columns\` computed to \`0px 186px 130px\` at 390: "Inputs"
+     broke to one character per line in a zero-width track, its cards overflowed
+     their own column, "Checks" landed on top of them, and the Record card sat
+     2186px below the head that names it. The document never widened, which is
+     exactly why nothing else caught it. Matching the attribute makes these
+     (0,2,0) too, and the later block wins. */
+  .fy-flow-head[data-flow-head], .fy-flow-band[data-flow-band] {
+    grid-column: 1; grid-row: auto;
+  }
+  .fy-flow-head[data-flow-head] { text-align: start; padding-inline-end: 0; }
   .fy-flow-head[data-flow-head="in"] { order: 1; }
   .fy-flow-band[data-flow-band="in"] { order: 2; }
   .fy-flow-head[data-flow-head="checks"] { order: 3; }
