@@ -163,6 +163,18 @@ export interface ChipOpts {
   href: string;
   /** When set, the chip is bound to one record's verdict for that control. */
   verdicts?: ReadonlyMap<string, ControlRecord>;
+  /**
+   * Control ids whose countable verdict came SOLELY from a maintainer's signed
+   * local record (`ctx.localTrust.resolved`).
+   *
+   * A green PASS here is the repository's owner asserting his own posture on
+   * his own laptop; a green PASS beside it may be something an independent scan
+   * observed. `types.ts` requires the local mark to read as WEAKER than the
+   * action lane, and the header badge and the deep panel both honour that — but
+   * the ROW is the only place a reader decides whether to trust one control,
+   * and it is where the provenance was being dropped.
+   */
+  localResolved?: ReadonlySet<string>;
 }
 
 /**
@@ -178,8 +190,17 @@ export function nodeChip(id: string, o: ChipOpts): string {
   const tipId = `fy-tip-${o.scope}-${id}`;
   const row = o.verdicts?.get(id);
   const verdict = row ? row.scan_outcome : null;
+  // Only a COUNTABLE verdict can have come from the local lane. Marking a
+  // "no answer" chip as locally resolved would be two contradictory claims in
+  // one chip, and a merge that produced that pairing is a data fault, not a
+  // thing to draw.
+  const countable =
+    verdict === "pass" || verdict === "fail" || verdict === "gap";
+  const local = countable && o.localResolved?.has(id) === true;
   const verdictMark = verdict
-    ? `<span class="fy-node-verdict">${escapeHtml(VERDICT_WORD[verdict] ?? verdict)}</span>`
+    ? `<span class="fy-node-verdict">${escapeHtml(VERDICT_WORD[verdict] ?? verdict)}</span>${
+        local ? `<span class="fy-node-lane">local</span>` : ""
+      }`
     : "";
   const scoped = row && !row.in_scope ? " · not in scope for this listing" : "";
   const tipBody = `<p>${escapeHtml(questionFor(id))}</p>
@@ -189,11 +210,15 @@ export function nodeChip(id: string, o: ChipOpts): string {
               VERDICT_WORD[verdict] ?? verdict,
             )}</strong>${escapeHtml(scoped)}.`
           : ""
+      }${
+        local
+          ? " That verdict comes from a record the maintainer signed on their own machine, and from no other source."
+          : ""
       }</p>`;
   return `<div class="fy-tip-holder">
     <button type="button" class="fy-node"${
       verdict ? ` data-verdict="${escapeHtml(verdict)}"` : ""
-    } ${tipTrigger(tipId)}>
+    }${local ? ` data-lane="local"` : ""} ${tipTrigger(tipId)}>
       ${icon(meta.cls)}<span class="fy-node-label"><code>${escapeHtml(id)}</code></span>${verdictMark}
     </button>
     ${tipPanel({

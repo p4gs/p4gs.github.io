@@ -573,11 +573,27 @@ main [id] { scroll-margin-top: 88px; }
 .fy-node[data-verdict="fail"] .fy-node-verdict { color: var(--fy-fail); }
 .fy-node[data-verdict="gap"] { border-color: var(--fy-warn); border-style: dashed; }
 .fy-node[data-verdict="gap"] .fy-node-verdict { color: var(--fy-warn); }
-.fy-node[data-verdict="unverified"] { border-style: dotted; border-color: var(--fy-na); }
-.fy-node[data-verdict="unverified"] .fy-node-icon { background-image: var(--fy-hatch); }
-.fy-node[data-verdict="unverified"] .fy-node-verdict { color: var(--fy-na); }
+/* THREE DATA STATES, THREE TREATMENTS. no answer and info were fourteen
+   units of grey apart with a border-style between them; the only other thing
+   telling them apart was the word. no answer is dashed with a STRUCK icon —
+   the check did not happen — and info loses its pill entirely, because it is
+   not a verdict at all and a pill is what a verdict looks like here. */
+.fy-node[data-verdict="unverified"] { border-style: dashed; border-color: var(--fy-na); }
+.fy-node[data-verdict="unverified"] .fy-node-icon { opacity: 0.55; }
+.fy-node[data-verdict="unverified"] .fy-node-label { text-decoration: line-through; text-decoration-color: var(--fy-na); }
+.fy-node[data-verdict="unverified"] .fy-node-verdict { color: var(--fy-na); border-style: dashed; }
 .fy-node[data-verdict="info"] { border-color: var(--fy-line); }
-.fy-node[data-verdict="info"] .fy-node-verdict { color: var(--fy-muted); }
+.fy-node[data-verdict="info"] .fy-node-verdict { color: var(--fy-muted); border: 0; padding: 0; }
+/* THE LOCAL LANE, AT THE ROW. A green PASS here is the repository's owner
+   asserting his own posture on his own laptop; the one beside it may be
+   something an independent scan observed, and there was no way on the page to
+   tell which. Dashed and named, the same treatment the header badge wears. */
+.fy-node[data-lane="local"] { border-style: dashed; }
+.fy-node-lane {
+  font-family: var(--fy-mono); font-size: 11px; letter-spacing: 0.04em; flex: 0 0 auto;
+  border: 1px dashed var(--fy-na); border-radius: 999px; padding: 0 7px; line-height: 18px;
+  color: var(--fy-na); margin-inline-start: 6px;
+}
 
 /* ══ the toggletip ═══════════════════════════════════════════════════════ */
 .fy-tip-holder { position: relative; }
@@ -1171,9 +1187,28 @@ export const PAGES_CSS = `
 }
 .fy-oc-pass { color: var(--fy-pass); }
 .fy-oc-fail { color: var(--fy-fail); }
-.fy-oc-gap { color: var(--fy-warn); }
-.fy-oc-unverified { color: var(--fy-na); border-style: dotted; }
-.fy-oc-info { color: var(--fy-muted); }
+.fy-oc-gap { color: var(--fy-warn); border-style: dashed; }
+/* Measured 14 units of grey apart, differing on one channel plus the word.
+   no answer keeps a pill and goes dashed; info loses the pill, because it
+   is not a verdict and a pill is what a verdict looks like on this page. */
+.fy-oc-unverified { color: var(--fy-na); border-style: dashed; }
+.fy-oc-info { color: var(--fy-muted); border: 0; padding: 0; text-transform: none; letter-spacing: 0; }
+/* A row whose verdict came only from a maintainer's own machine says so, and
+   the word is a link to the panel that says what that signature proves. */
+.fy-table tr[data-lane="local"] td[data-label="Verdict"] .fy-outcome { border-style: dashed; }
+.fy-row-lane {
+  font-family: var(--fy-mono); font-size: 11px; letter-spacing: 0.04em;
+  border: 1px dashed var(--fy-na); border-radius: 999px; padding: 1px 7px;
+  color: var(--fy-na); margin-inline-start: 6px; text-decoration: none; white-space: nowrap;
+}
+.fy-row-lane:hover { color: var(--fy-ink); border-color: var(--fy-ink); }
+/* The contradiction badge, in the hero, before any figure. */
+.fy-badge-conflict {
+  display: block; margin-block-start: 12px; padding: 10px 14px; border-radius: 8px;
+  border: 1px solid var(--fy-fail); background: var(--fy-ground); color: var(--fy-text);
+  font-size: 14px; line-height: 21px; max-inline-size: 64ch; text-decoration: none;
+}
+.fy-badge-conflict:hover { background: var(--fy-surface-2); }
 .fy-raw { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); margin-inline-start: 8px; }
 .fy-oos { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); }
 .fy-row-oos { opacity: 0.62; }

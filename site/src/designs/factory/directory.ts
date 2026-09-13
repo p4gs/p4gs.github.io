@@ -30,6 +30,7 @@ import {
   type CoverageFacts,
 } from "../../coverage";
 import { define, defineTerm } from "../../glossary";
+import { CONTROL_COUNT } from "../../reclassify";
 import { lookupFacts, shortSha, type ListingFacts } from "../../listing";
 import { COVERAGE_FLOOR_NA, COVERAGE_FLOOR_PROVISIONAL, PHASE_NAMES } from "../../scoring";
 import type { ControlRecord, PhaseScore, ScanRecord, Score } from "../../schema";
@@ -134,13 +135,40 @@ const LANE_CHIP: Readonly<Record<TrustKind, string>> = {
   external: `<span class="fy-lane fy-lane-ext" title="${escapeHtml(LANE_TITLE.external)}">Outside-in</span>`,
 };
 
-function localOverlayChip(lt: TrustInfo | undefined): string {
+/**
+ * The local overlay badge — as words, and as a link to the rows it names.
+ *
+ * `+local 6` was uncountable: six WHAT, resolved by whom, and which six? The
+ * number was right and the sentence that explained it lived in a `title`.
+ */
+function localOverlayChip(lt: TrustInfo | undefined, href?: string): string {
   const n = localOverlayCount(lt);
   if (n === 0) return "";
-  const title = `+${plural(n)} resolved by a local scan signed by ${
-    lt?.signer ?? "an approved signer"
-  }, verified against this repository's committed allowed_signers`;
-  return `<span class="fy-lane fy-lane-overlay" title="${escapeHtml(title)}">+local ${n}</span>`;
+  const label = `+${n} from a local signed record`;
+  return href
+    ? `<a class="fy-lane fy-lane-overlay" href="${href}">${escapeHtml(label)}</a>`
+    : `<span class="fy-lane fy-lane-overlay">${escapeHtml(label)}</span>`;
+}
+
+/**
+ * The contradiction badge, in the words D4 settles on — never "MERGE", never
+ * "≠", which are internal notation a reader has no way to decode.
+ */
+function conflictBadge(lf: ListingFacts, score: Score, href: string): string {
+  if (lf.staleAgainstBase) {
+    const self = lf.selfReported;
+    const both =
+      self && self.grade === score.grade ? ` Both score ${escapeHtml(score.grade)}.` : "";
+    return `<a class="fy-badge-conflict" href="${href}">DIFFERENT COMMIT &mdash; the maintainer's
+    local record describes ${escapeHtml(shortSha(lf.staleAgainstBase.local))}, this listing scans
+    ${escapeHtml(shortSha(lf.staleAgainstBase.base))}.${both}</a>`;
+  }
+  if (lf.contradictions.length > 0) {
+    return `<a class="fy-badge-conflict" href="${href}">SOURCES DISAGREE &mdash;
+    ${escapeHtml(plural(lf.contradictions.length))} scored a gap because two records answered
+    them differently.</a>`;
+  }
+  return "";
 }
 
 /* ══ the coverage verdict ════════════════════════════════════════════════ */
@@ -166,14 +194,30 @@ function metaLine(r: ScanRecord, f: CoverageFacts): string {
   return `${overall} passed &middot; coverage ${r.score.evidence_coverage_percent}%${mark}${prov}`;
 }
 
-function coverageVerdictLine(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): string {
+function coverageVerdictLine(
+  r: ScanRecord,
+  f: CoverageFacts,
+  ctx: DesignCtx,
+  lf?: ListingFacts,
+): string {
   const v = floorVerdict(f);
   const mark = `<span class="fy-cov-mark ${
     v.over ? "fy-cov-over" : "fy-cov-under"
   }">${escapeHtml(v.mark)}</span>`;
   if (v.over) {
-    const letter = r.score.provisional ? "" : "The grade is not provisional. ";
-    return `<p class="fy-cov-verdict">${mark}<span class="fy-cv-note">${escapeHtml(letter)}<a
+    // "The grade is not provisional" is true about COVERAGE and says nothing
+    // about whether the sources agreed. Where they did not, it is qualified in
+    // the same breath rather than left to stand alone above a panel seven
+    // sections down that contradicts the impression it leaves.
+    const conflicted = !!lf && (lf.contradictions.length > 0 || lf.staleAgainstBase !== null);
+    const letter = r.score.provisional
+      ? ""
+      : conflicted
+        ? "The grade is not provisional — but the evidence sources did not agree. "
+        : "The grade is not provisional. ";
+    return `<p class="fy-cov-verdict">${mark}<span class="fy-cv-note">${escapeHtml(letter)}${
+      conflicted ? `<a href="#merge">What the merge found &rarr;</a> &middot; ` : ""
+    }<a
     href="${ctx.h("methodology/#grades")}">How coverage is scored &rarr;</a></span></p>`;
   }
   const letter = f.belowNaFloor ? "There is no letter at all." : "The letter is provisional.";
@@ -226,8 +270,13 @@ const pct = (v: number | null): string => (v === null ? "no evidence" : `${v}%`)
 function mergeSummary(lf: ListingFacts, directory: Score): string {
   const bits: string[] = [];
   if (lf.staleAgainstBase) {
+    // Never "≠". It is a mathematician's symbol standing in for the most
+    // interesting fact this listing holds, on a page read by people who came
+    // to find out whether a repository is worth trusting.
     bits.push(
-      `local ${shortSha(lf.staleAgainstBase.local)} ≠ scan ${shortSha(lf.staleAgainstBase.base)}`,
+      `local record at ${shortSha(lf.staleAgainstBase.local)}, this scan at ${shortSha(
+        lf.staleAgainstBase.base,
+      )}`,
     );
   }
   if (lf.awaitingIndependent.length > 0) {
@@ -236,7 +285,7 @@ function mergeSummary(lf: ListingFacts, directory: Score): string {
   const s = lf.selfReported;
   if (s) {
     bits.push(
-      `self-reported ${s.grade} ${pct(s.overall_percent)} vs DIRECTORY ${directory.grade} ${pct(
+      `self-reported ${s.grade} ${pct(s.overall_percent)} vs this listing ${directory.grade} ${pct(
         directory.overall_percent,
       )}`,
     );
@@ -261,8 +310,9 @@ function factNotes(lf: ListingFacts, directory: Score): string {
     selfReportSentence(lf, directory),
   ].filter((s): s is string => s !== null);
   if (folded.length === 0) return head;
+  const tag = lf.staleAgainstBase ? "Different commit" : "What the sources said";
   return `${head}<details class="fy-merge">
-  <summary><span class="fy-merge-tag">Merge</span>${mergeSummary(lf, directory)}</summary>
+  <summary><span class="fy-merge-tag">${tag}</span>${mergeSummary(lf, directory)}</summary>
   ${folded.map((n) => `<p>${escapeHtml(n)}</p>`).join("\n  ")}
 </details>`;
 }
@@ -687,8 +737,22 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   const lt = lookupLocalTrust(ctx.localTrust, r);
   const kind = resolveTrustKind(r, t, lt);
   const facts = coverageFacts(r, localOverlayCount(lt));
+  const lf = lookupFacts(ctx.facts, r);
   const passed = r.score.overall_percent === null ? "—" : `${r.score.overall_percent}%`;
   const verdicts = new Map<string, ControlRecord>(r.controls.map((c) => [c.id, c]));
+  const localResolved = new Set<string>(lt?.lane === "local" ? lt.resolved : []);
+
+  // THE DENOMINATORS, from the rows the table below shows. A reader who has
+  // just been taught "54 checks in the standard set" reads a bare 87.1% against
+  // 54 and infers ~47 answered; the true figure was 27 of 31 in scope, off by a
+  // factor of 1.7 in the flattering direction, with nothing on the page to
+  // catch it. The strings 31 and 27 appeared zero times in the rendered page.
+  const scoped = r.controls.filter((c) => c.in_scope);
+  const answeredRows = scoped.filter(
+    (c) => c.scan_outcome === "pass" || c.scan_outcome === "fail" || c.scan_outcome === "gap",
+  );
+  const passedRows = scoped.filter((c) => c.scan_outcome === "pass");
+  const outOfStandard = CONTROL_COUNT - scoped.length;
 
   const byPhase = new Map<number, ControlRecord[]>();
   for (const c of r.controls) {
@@ -718,13 +782,21 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
           .map((m) => `<li>${escapeHtml(m)}</li>`)
           .join("")}</ul></details>`
       : "";
-    return `<tr class="${c.in_scope ? "" : "fy-row-oos"}">
+    // A local-lane row is the repository's owner asserting his own posture on
+    // his own laptop. Drawn exactly like a row an independent scan observed, it
+    // is the one thing on this table a reader cannot check — so it is marked.
+    const local =
+      localResolved.has(c.id) &&
+      (c.scan_outcome === "pass" || c.scan_outcome === "fail" || c.scan_outcome === "gap");
+    return `<tr class="${c.in_scope ? "" : "fy-row-oos"}"${local ? ' data-lane="local"' : ""}>
   <td data-label="Control"><code>${escapeHtml(c.id)}</code>${
     c.in_scope ? "" : ' <span class="fy-oos">out of scope</span>'
   }</td>
   <td data-label="Verdict"><span class="fy-outcome fy-oc-${escapeHtml(
     c.scan_outcome,
-  )}">${escapeHtml(label)}</span>${raw}</td>
+  )}">${escapeHtml(label)}</span>${
+    local ? `<a class="fy-row-lane" href="#sheet-lane">local</a>` : ""
+  }${raw}</td>
   <td data-label="Detail">${reason}${msgs}</td>
 </tr>`;
   };
@@ -770,7 +842,14 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
   ${gradeWithTag(r.score)}
   <div style="flex:1 1 320px;min-width:0">
     <h1 class="fy-repo-title">${escapeHtml(slug)}</h1>
-    <p style="margin-top:12px">${LANE_CHIP[kind]}${localOverlayChip(lt)}</p>
+    <!-- THE CONTRADICTION IS IN THE HERO, BEFORE ANY FIGURE. types.ts requires
+         it "on the listing row AND on the detail page" precisely because it is
+         the most interesting fact the directory holds about a repository — and
+         it was on the detail page, in the seventh section, ~86KB of markup
+         BELOW every number a reader acts on. A visitor arriving from a shared
+         link read A+ / 100% / not provisional and left. -->
+    <p style="margin-top:12px">${LANE_CHIP[kind]}${localOverlayChip(lt, "#sheet-lane")}</p>
+    ${conflictBadge(lf, r.score, "#merge")}
     <p class="fy-repo-meta">
       <span class="fy-rm fy-rm-url"><a href="${escapeHtml(r.repo.url)}">${escapeHtml(
         r.repo.url,
@@ -796,12 +875,15 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
 <section class="fy-figs" aria-label="The two numbers on this listing">
   <div>
     <p class="fy-fig-num">${escapeHtml(passed)}</p>
-    <p class="fy-fig-cap">of the answered checks passed</p>
+    <p class="fy-fig-cap">${passedRows.length} of the ${answeredRows.length} checks that were
+    answered passed. A check with no answer is not one of them.</p>
   </div>
   <div>
     <p class="fy-fig-num">${r.score.evidence_coverage_percent}%</p>
-    <p class="fy-fig-cap">of the checks were answered at all</p>
-    ${coverageVerdictLine(r, facts, ctx)}
+    <p class="fy-fig-cap">${answeredRows.length} of the ${scoped.length} checks in scope for this
+    listing were answered. ${outOfStandard} of the ${CONTROL_COUNT} standard checks are out of
+    scope here &mdash; <a href="#sheet-controls">see the table</a>.</p>
+    ${coverageVerdictLine(r, facts, ctx, lf)}
   </div>
 </section>
 ${
@@ -822,6 +904,7 @@ ${nestedDiagram({
   titleTip:
     "The standard set, grouped by phase. Each chip carries this listing's verdict; a chip with no verdict is a check this record holds no row for.",
   verdicts,
+  localResolved,
 })}
 </div>
 
@@ -831,7 +914,7 @@ ${exposurePanel(ctx.h, r)}
 ${provenance(r, t, kind, ctx, lt)}
 ${lt && kind !== "local" ? localProvenance(r, lt, false, ctx) : ""}
 </div>
-${factsSection(lookupFacts(ctx.facts, r), r.score)}
+${factsSection(lf, r.score)}
 ${coveragePanel(r, facts, ctx)}
 
 <section class="fy-section" id="sheet-controls">

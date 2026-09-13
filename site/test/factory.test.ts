@@ -40,7 +40,7 @@ import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
 import { CLASS_SHORT } from "../src/designs/factory/components";
 import { PHASES } from "../src/scoring";
 import { ATTACK_CLASSES, controlsDefending, type AttackClassId } from "../src/threats";
-import { ctxFor, RECORDS } from "./fixtures";
+import { ctxFor, rec, RECORDS } from "./fixtures";
 import { attrOfEach, textFrom } from "./html-text";
 
 const CTX = ctxFor("factory");
@@ -1522,5 +1522,159 @@ describe("D2 + A14 · the pass bar's width equals its own number", () => {
     expect(DETAIL.indexOf('class="fy-phase-key"')).toBeLessThan(DETAIL.indexOf('class="fy-phaserow"'));
     expect(DETAIL).toContain("no answer, never counted");
     expect(countOf(DIRECTORY, 'class="fy-phase-key"')).toBe(0);
+  });
+});
+
+/* ══ the honesty fixtures ════════════════════════════════════════════════ */
+
+/**
+ * A listing whose class-C verdict came from a maintainer's signed local record,
+ * whose local record describes a DIFFERENT commit than the scan, and whose
+ * grade is NOT provisional.
+ *
+ * The default fixture carries none of those, so every local-lane and
+ * contradiction claim below would pass vacuously against it — the two facts
+ * this design is most obliged to surface are exactly the two it has never had.
+ * `commit-signing` passes here, because only a COUNTABLE verdict can have come
+ * from a lane at all.
+ */
+const HONEST_RECORD = {
+  ...rec("sscsb-action", {
+    provisional: false,
+    evidence_coverage_percent: 96,
+    phases: [1, 2, 3, 4, 5].map((phase) => ({
+      phase, pass: 2, fail: 0, gap: 0, unverified: phase === 1 ? 1 : 0, info: 0, percent: 100,
+    })),
+  }),
+  controls: [
+    {
+      id: "commit-signing", phase: 1, in_scope: true, raw_outcome: "pass",
+      scan_outcome: "pass" as const, reclassified: false, reason: null, messages: [],
+    },
+    {
+      id: "codeql", phase: 4, in_scope: true, raw_outcome: "pass",
+      scan_outcome: "pass" as const, reclassified: false, reason: null, messages: [],
+    },
+  ],
+};
+const LOCAL_TRUST = {
+  schema_version: 1,
+  lane: "local" as const,
+  signature: "verified" as const,
+  identity: null,
+  commit: "3cb129084db2".padEnd(40, "0"),
+  verified_at: "2026-09-04T00:00:00.000Z",
+  bundle: null,
+  signer: "10093271+p4gs@users.noreply.github.com",
+  key_fingerprint: "SHA256:aaaa",
+  signature_file: "scan-record.local.json.sig",
+  resolved: ["commit-signing"],
+};
+const HONEST_FACTS = {
+  resolvedByLocal: ["commit-signing"],
+  contradictions: [],
+  awaitingIndependent: [],
+  localOnly: false,
+  staleAgainstBase: { local: "3cb129084db2ffff", base: "c8a23493ec0caaaa" },
+  selfReported: { grade: "A+", overall_percent: 100, evidence_coverage_percent: 96 },
+};
+const HONEST_CTX = {
+  ...ctxFor("factory", "directory", "directory/p4gs--sscsb-action/"),
+  localTrust: new Map([["p4gs--sscsb-action", LOCAL_TRUST]]),
+  facts: new Map([["p4gs--sscsb-action", HONEST_FACTS]]),
+};
+const HONEST_DETAIL = factory.renderRepoDetail(HONEST_RECORD as never, HONEST_CTX as never);
+
+describe("D3 · a local-lane verdict reads weaker at the row, not only in the header", () => {
+  test("the fixture actually carries the facts, or every claim below is vacuous", () => {
+    expect(LOCAL_TRUST.resolved.length).toBeGreaterThan(0);
+    expect(DETAIL).not.toContain('data-lane="local"');
+  });
+
+  test("every chip the local lane resolved is dashed and says local", () => {
+    const chip = HONEST_DETAIL.slice(
+      HONEST_DETAIL.indexOf('aria-controls="fy-tip-sheet-commit-signing"') - 400,
+      HONEST_DETAIL.indexOf('aria-controls="fy-tip-sheet-commit-signing"') + 1200,
+    );
+    expect(chip).toContain('data-lane="local"');
+    expect(chip).toContain('<span class="fy-node-lane">local</span>');
+    expect(CSS).toContain('.fy-node[data-lane="local"] { border-style: dashed; }');
+    // and a chip the local lane did NOT resolve carries neither
+    expect(countOf(HONEST_DETAIL, 'class="fy-node-lane"')).toBe(LOCAL_TRUST.resolved.length);
+  });
+
+  test("every evidence-table row it resolved carries the same mark", () => {
+    expect(HONEST_DETAIL).toContain('<tr class="" data-lane="local">');
+    expect(HONEST_DETAIL).toContain('<a class="fy-row-lane" href="#sheet-lane">local</a>');
+    expect(CSS).toContain('.fy-table tr[data-lane="local"] td[data-label="Verdict"] .fy-outcome { border-style: dashed; }');
+  });
+
+  test("+local N is countable words, and a link to the rows it names", () => {
+    // "+local 6" was six WHAT, resolved by whom, and which six — with the
+    // sentence that answered it in a `title`.
+    expect(HONEST_DETAIL).toContain(
+      `<a class="fy-lane fy-lane-overlay" href="#sheet-lane">+${LOCAL_TRUST.resolved.length} from a local signed record</a>`,
+    );
+    expect(HONEST_DETAIL).not.toContain(">+local ");
+  });
+});
+
+describe("D4 · the contradiction is in the hero, before any figure", () => {
+  test("the badge anchors to #merge and comes before the two numbers", () => {
+    const badge = HONEST_DETAIL.indexOf('class="fy-badge-conflict"');
+    const figs = HONEST_DETAIL.indexOf('class="fy-figs"');
+    expect(badge).toBeGreaterThan(-1);
+    expect(badge).toBeLessThan(figs);
+    expect(HONEST_DETAIL.slice(badge, figs)).toContain('href="#merge"');
+  });
+
+  test("the wording is words, never MERGE and never the not-equals sign", () => {
+    expect(HONEST_DETAIL).toContain("DIFFERENT COMMIT &mdash; the maintainer" + String.fromCharCode(39) + "s");
+    expect(HONEST_DETAIL).toContain("this listing scans");
+    expect(HONEST_DETAIL).toContain("Both score A+.");
+    for (const [name, html] of [["detail", HONEST_DETAIL], ["directory", DIRECTORY]] as const) {
+      expect(html, `${name}: not-equals`).not.toContain("≠");
+      expect(html, `${name}: MERGE`).not.toContain(">Merge<");
+    }
+  });
+
+  test('"not provisional" is qualified in the same breath', () => {
+    expect(HONEST_DETAIL).toContain("The grade is not provisional — but the evidence sources did not agree.");
+    expect(HONEST_DETAIL).toContain('<a href="#merge">What the merge found &rarr;</a>');
+    // and a listing with no disagreement keeps the plain sentence
+    const clean = factory.renderRepoDetail(
+      { ...HONEST_RECORD, repo: { ...HONEST_RECORD.repo, name: "clean" } } as never,
+      ctxFor("factory", "directory", "directory/p4gs--clean/"),
+    );
+    expect(clean).toContain("The grade is not provisional. ");
+    expect(clean).not.toContain("did not agree");
+  });
+});
+
+describe("D10 · the denominators are on the page", () => {
+  test("both figures name what they are a fraction OF", () => {
+    // 87.1% against a home page that just taught "54 checks" reads as ~47
+    // answered; the true figure was 27 of 31 in scope, and the strings 31 and
+    // 27 appeared zero times in the rendered page.
+    expect(DETAIL).toMatch(/\d+ of the \d+ checks in scope for this\s*\n?\s*listing were answered\./);
+    expect(DETAIL).toMatch(/\d+ of the 54 standard checks are out of\s*\n?\s*scope here/);
+    expect(DETAIL).toMatch(/\d+ of the \d+ checks that were\s*\n?\s*answered passed\./);
+    expect(DETAIL).toContain('<a href="#sheet-controls">see the table</a>');
+    // derived from the rows the table shows, not typed
+    const scoped = RECORDS[0]!.controls.filter((c) => c.in_scope).length;
+    expect(DETAIL).toContain(`of the ${scoped} checks in scope`);
+    expect(DETAIL).toContain(`${CONTROL_COUNT - scoped} of the ${CONTROL_COUNT} standard checks`);
+  });
+});
+
+describe("D12 · three data states, three treatments", () => {
+  test("no answer is dashed and struck; info is not a pill at all", () => {
+    expect(CSS).toContain('.fy-node[data-verdict="unverified"] { border-style: dashed; border-color: var(--fy-na); }');
+    expect(CSS).toContain('.fy-node[data-verdict="unverified"] .fy-node-label { text-decoration: line-through;');
+    expect(CSS).toContain('.fy-node[data-verdict="info"] .fy-node-verdict { color: var(--fy-muted); border: 0; padding: 0; }');
+    expect(CSS).toContain(".fy-oc-unverified { color: var(--fy-na); border-style: dashed; }");
+    expect(CSS).toContain(".fy-oc-info { color: var(--fy-muted); border: 0; padding: 0;");
+    // the dotted-border pair that differed on one channel plus the word is gone
+    expect(CSS).not.toContain("border-style: dotted; border-color: var(--fy-na)");
   });
 });
