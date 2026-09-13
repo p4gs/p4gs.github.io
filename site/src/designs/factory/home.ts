@@ -189,11 +189,14 @@ function blackBlock(records: ScanRecord[], ctx: DesignCtx): string {
       <div class="fy-trace-grid">
         ${triangleFigure()}
         <div class="fy-trace-copy">
-          <h2 id="lanes-h">Three ways a scan gets run &mdash; and the third is
-          the one only you can do.</h2>
-          <p class="fy-beat-body">Two of the three read things anyone can read. The third reads
-          a developer's own machine. No scan from outside reaches there, so a maintainer answers
-          those checks by running the scan and signing it.</p>
+          <h2 id="lanes-h">Three ways a record gets made, and they do not carry equal
+          weight.</h2>
+          <p class="fy-beat-body">A record made in the project's own build is signed there, and
+          the repository, the workflow and the branch are burned into that signature by an issuer
+          neither side controls. A scan from outside proves nothing about who ran it &mdash; and
+          anybody can run it again. A maintainer's own machine is the only place the last group of
+          checks can be looked at, and the only lane where the party being measured is the party
+          asserting the result.</p>
         </div>
       </div>
     </div>

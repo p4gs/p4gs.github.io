@@ -364,33 +364,26 @@ describe("every diagram is derived, and a literal would fail here", () => {
     expect([...new Set(cards)].sort()).toEqual(["artifact", "local", "meta", "observed"]);
   });
 
-  test("the bar chart has nine bars whose heights order matches the counts", () => {
+  test("the bar chart has nine bars whose total heights match the counts", () => {
     const heights = attrOfEach(HOME, ".fy-bar", "height").map(Number);
-    expect(heights.length).toBe(ATTACK_CLASSES.length);
-    expect(heights.length).toBe(9);
+    expect(heights.length).toBe(ATTACK_CLASSES.length * 2);
+    expect(heights.length).toBe(18);
+    // pairs, in order: [local-only, answerable-from-outside] per group
+    const totals: number[] = [];
+    for (let i = 0; i < heights.length; i += 2) totals.push(heights[i]! + heights[i + 1]!);
     const counts = ATTACK_CLASSES.map((c) => controlsDefending(c.id as AttackClassId).length);
     const order = (xs: number[]) =>
       xs
         .map((v, i) => [v, i] as const)
         .sort((a, b) => a[0] - b[0] || a[1] - b[1])
         .map(([, i]) => i);
-    expect(order(heights)).toEqual(order(counts));
+    expect(order(totals)).toEqual(order(counts));
     // Proportional, not merely ordered: a chart that ranked right and scaled
     // wrong would pass an ordering check and still lie about the magnitudes.
-    const unit = heights[0]! / counts[0]!;
-    for (let i = 0; i < heights.length; i += 1) {
-      expect(Math.abs(heights[i]! - counts[i]! * unit)).toBeLessThanOrEqual(1);
+    const unit = totals[0]! / counts[0]!;
+    for (let i = 0; i < totals.length; i += 1) {
+      expect(Math.abs(totals[i]! - counts[i]! * unit)).toBeLessThanOrEqual(1);
     }
-  });
-
-  test("the marked bars are the groups a maintainer alone can answer", () => {
-    const marked = countOf(HOME, "fy-bar fy-bar-marked");
-    const expected = ATTACK_CLASSES.filter((c) => {
-      const ids = controlsDefending(c.id as AttackClassId);
-      return ids.filter((id) => CONTROL_REGISTRY[id]!.cls === "C").length * 2 > ids.length;
-    }).length;
-    expect(marked).toBe(expected);
-    expect(expected).toBeGreaterThan(0);
   });
 
   test("the maze carries one checkpoint per phase, at real path fractions", () => {
@@ -1676,5 +1669,85 @@ describe("D12 · three data states, three treatments", () => {
     expect(CSS).toContain(".fy-oc-info { color: var(--fy-muted); border: 0; padding: 0;");
     // the dotted-border pair that differed on one channel plus the word is gone
     expect(CSS).not.toContain("border-style: dotted; border-color: var(--fy-na)");
+  });
+});
+
+describe("D6 + D7 · the chart plots the fact, and the lanes figure is ranked", () => {
+  const chart = HOME.slice(HOME.indexOf('<div class="fy-chart-grid">'), HOME.indexOf('id="chaining"'));
+
+  test("nine bars, eighteen segments, split by where an answer could come from", () => {
+    expect(countOf(chart, 'class="fy-bar ')).toBe(ATTACK_CLASSES.length * 2);
+    expect(countOf(chart, "fy-bar-local")).toBe(ATTACK_CLASSES.length);
+    expect(countOf(chart, "fy-bar-outside")).toBe(ATTACK_CLASSES.length);
+    // and each split is the class-C share of that group, from the registry
+    ATTACK_CLASSES.forEach((c) => {
+      const ids = controlsDefending(c.id as AttackClassId);
+      const localOnly = ids.filter((id) => CONTROL_REGISTRY[id]!.cls === "C").length;
+      expect(chart, c.id).toContain(
+        `${c.id} ${c.name}: ${localOnly} of ${ids.length} only a maintainer&#39;s own machine can answer`,
+      );
+    });
+  });
+
+  test("no bar is singled out, and the accent is nowhere in the chart", () => {
+    // The accent marked the two groups defended MOSTLY by maintainer-only
+    // checks — true against the data, and underivable from anything plotted:
+    // A8 is also 5 and grey, A7 is also 8 and grey.
+    expect(chart).not.toContain("fy-bar-marked");
+    expect(CSS).not.toContain(".fy-bar-marked");
+    expect(chart.toLowerCase()).not.toContain("#0285ff");
+    expect(chart).not.toContain("var(--fy-accent)");
+    expect(CSS).not.toMatch(/\.fy-bar[\w-]* \{ fill: var\(--fy-accent\)/);
+    // two neutral fills, one of them a hatch, so they differ on texture too
+    expect(CSS).toContain(".fy-bar-local { fill: url(#fy-chart-hatch); }");
+    expect(chart).toContain('<pattern id="fy-chart-hatch"');
+  });
+
+  test("the caption describes what is drawn, with a key for the two fills", () => {
+    expect(chart).toContain("answerable from outside");
+    expect(chart).toContain("only on a maintainer&rsquo;s own machine");
+    expect(chart).toContain("Each bar is split by where an answer could come from.");
+    expect(countOf(chart, "fy-chart-swatch")).toBe(2);
+    expect(chart).not.toContain("stand out. Most of what defends them");
+  });
+
+  test("the lanes figure is an OPEN ranked path, with exactly two segments", () => {
+    const tri = HOME.slice(
+      HOME.indexOf('class="fy-figure fy-triangle"'),
+      HOME.indexOf("</figure>", HOME.indexOf('class="fy-figure fy-triangle"')),
+    );
+    const d = tri.match(/<path class="fy-trace" d="([^"]+)"/)![1]!;
+    expect(d.split("L").length - 1).toBe(2);
+    expect(d).not.toContain("Z");
+    // a closed triangle asserts an edge from the weakest lane back to the
+    // strongest, which is not a thing this site believes
+    expect(tri).not.toContain("M70 92L510 92L290 286Z");
+    expect(countOf(tri, "data-node-at=")).toBe(3);
+    expect(countOf(tri, "fy-node-hollow")).toBe(1);
+  });
+
+  test("the ranking is readable — strongest first, and the first label says signed", () => {
+    const tri = HOME.slice(
+      HOME.indexOf('class="fy-figure fy-triangle"'),
+      HOME.indexOf("</figure>", HOME.indexOf('class="fy-figure fy-triangle"')),
+    );
+    const labels = [...tri.matchAll(/<text class="fy-speed-label"[^>]*>([^<]+)<\/text>/g)].map(
+      (m) => m[1]!,
+    );
+    expect(labels.length).toBe(3);
+    expect(labels[0]).toContain("signed");
+    expect(labels[2]).toContain("maintainer");
+    expect(tri).toContain(">strongest<");
+    expect(tri).toContain(">weakest<");
+    // the hollow node is the LAST one, which is the weakest
+    const hollowAt = tri.indexOf("fy-node-hollow");
+    const nodes = [...tri.matchAll(/data-node-at="([\d.]+)"/g)].map((m) => Number(m[1]));
+    expect(nodes[2]).toBe(1);
+    expect(hollowAt).toBeGreaterThan(tri.indexOf(`data-node-at="${nodes[1]!.toFixed(4)}"`));
+  });
+
+  test("the beat's headline weights them, and stops addressing the wrong reader", () => {
+    expect(HOME).toContain("Three ways a record gets made, and they do not carry equal");
+    expect(HOME).not.toContain("the third is the one only you can do");
   });
 });

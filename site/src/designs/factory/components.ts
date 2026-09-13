@@ -473,18 +473,30 @@ export function barChart(): string {
   const data = ATTACK_CLASSES.map((c) => {
     const ids = controlsDefending(c.id as AttackClassId);
     const localOnly = ids.filter((id) => CONTROL_REGISTRY[id]!.cls === "C").length;
-    return { id: c.id, name: c.name, n: ids.length, marked: localOnly * 2 > ids.length };
+    return { id: c.id, name: c.name, n: ids.length, localOnly, outside: ids.length - localOnly };
   });
   const max = Math.max(...data.map((d) => d.n), 1);
   const unit = (PLOT_BOTTOM - PLOT_TOP) / max;
+  // TWO SEGMENTS PER BAR, and no bar singled out. The accent used to mark the
+  // two groups defended MOSTLY by checks only a maintainer's machine can
+  // answer — a claim that checks out against the data and that THE CHART COULD
+  // NOT SHOW: A8 is also 5 and grey, A7 is also 8 and grey, so the emphasis
+  // rule was underivable from anything plotted and the reader had to take the
+  // caption's word for it. Plotting the split makes the fact readable off the
+  // figure, and leaves the brand accent out of a chart about risk entirely.
   const bars = data
     .map((d, i) => {
       const x = BAR_X0 + i * (BAR_W + BAR_GAP);
       const h = Math.round(d.n * unit);
+      const hLocal = Math.round(d.localOnly * unit);
       const y = PLOT_BOTTOM - h;
-      return `    <rect class="fy-bar${d.marked ? " fy-bar-marked" : ""}" x="${x}" y="${y}"
-      width="${BAR_W}" height="${h}"><title>${escapeHtml(
-        `${d.id} ${d.name}: ${d.n} checks`,
+      return `    <rect class="fy-bar fy-bar-local" x="${x}" y="${y}"
+      width="${BAR_W}" height="${hLocal}"><title>${escapeHtml(
+        `${d.id} ${d.name}: ${d.localOnly} of ${d.n} only a maintainer's own machine can answer`,
+      )}</title></rect>
+    <rect class="fy-bar fy-bar-outside" x="${x}" y="${y + hLocal}"
+      width="${BAR_W}" height="${h - hLocal}"><title>${escapeHtml(
+        `${d.id} ${d.name}: ${d.outside} of ${d.n} answerable from outside`,
       )}</title></rect>`;
     })
     .join("\n");
@@ -500,14 +512,21 @@ export function barChart(): string {
       }" text-anchor="middle">${d.id}</text>`;
     })
     .join("\n");
-  const marked = data.filter((d) => d.marked);
-  const markedNames = marked.map((d) => d.id).join(" and ");
   const width = BAR_X0 + data.length * (BAR_W + BAR_GAP) + 20;
   return `<div class="fy-chart-grid">
   <figure class="fy-chart-figure">
     <svg class="fy-plot" viewBox="0 0 ${width} 320" role="img"
-      aria-label="How many of the 54 checks defend each of the nine attack groups">
-      <title>Checks that defend each attack group</title>
+      aria-label="How many of the 54 checks defend each of the nine attack groups, and how many of those only a maintainer's own machine can answer">
+      <title>Checks that defend each attack group, split by where an answer could come from</title>
+      <!-- A 3-of-7 duty cycle at 42% white averages the 0.18 the second fill
+           wants, and delivers it AS a hatch — so the two segments differ on
+           texture as well as on value, which survives greyscale. -->
+      <defs>
+        <pattern id="fy-chart-hatch" width="7" height="7" patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)">
+          <path d="M0 0V7" stroke="rgba(255, 255, 255, 0.42)" stroke-width="3"></path>
+        </pattern>
+      </defs>
       <line class="fy-baseline" x1="${AXIS_X}" y1="${PLOT_TOP - 8}" x2="${AXIS_X}" y2="${PLOT_BOTTOM}"></line>
       <line class="fy-baseline" x1="${AXIS_X}" y1="${PLOT_BOTTOM}" x2="${width - 12}" y2="${PLOT_BOTTOM}"></line>
 ${bars}
@@ -526,11 +545,11 @@ ${labels}
     <p class="fy-beat-body">The groups are drawn from the public catalogues of what has
     actually gone wrong. Every bar is the number of checks mapped to that group. A tall bar
     is not safety. It is how many questions we know to ask.</p>
-    <p class="fy-chart-caption">${escapeHtml(
-      marked.length === 0
-        ? "No group is defended mostly by checks a maintainer alone can answer."
-        : `${markedNames} stand out. Most of what defends them can only be answered on a maintainer's own machine, so an outside scan leaves those questions open.`,
-    )}</p>
+    <p class="fy-chart-caption"><span class="fy-chart-key">
+      <span><span class="fy-chart-swatch" data-fill="outside"></span>answerable from outside</span>
+      <span><span class="fy-chart-swatch" data-fill="local"></span>only on a maintainer&rsquo;s own machine</span>
+    </span>Each bar is split by where an answer could come from. Where the hatched part is most
+    of the bar, an outside scan leaves most of that group&rsquo;s questions open.</p>
   </div>
 </div>`;
 }
@@ -796,51 +815,68 @@ export function mazeFigure(): string {
   });
 }
 
-/** The three evidence lanes, as the triangle's three nodes. */
+/**
+ * The three evidence lanes, IN RANK ORDER — which is the whole figure.
+ *
+ * The strongest first: a record produced in the project's own CI and signed
+ * there, where the repository, the workflow path and the branch are burned into
+ * the certificate by an issuer neither party controls. Then a scan from outside,
+ * which proves nothing about who ran it and which anybody can repeat. Then a
+ * maintainer's own machine, which is the only place the last group of checks can
+ * be looked at and the only lane where the party being measured is the party
+ * asserting the result.
+ */
 const LANE_NODES = [
+  { name: "The project's own build, signed", hollow: false },
   { name: "A scan from outside", hollow: false },
-  { name: "The project's own build", hollow: false },
   { name: "A maintainer's own machine", hollow: true },
 ] as const;
 
 /**
- * "Three ways a scan gets run" — the triangle.
+ * "Three ways a record gets made" — a RANKED OPEN PATH, not a triangle.
  *
- * Two nodes filled and one outlined, because two of the three lanes produce
- * evidence anybody can go and check, and the third produces evidence only the
- * maintainer can make. Outlined is not weaker-looking by accident: the local
- * lane IS weaker than the action lane, and the site says so everywhere.
+ * A closed triangle asserts three relationships that do not exist: that lane 1
+ * relates to lane 2 as lane 2 relates to lane 3, that the set is closed, and
+ * that there is an edge from the weakest back to the strongest. None of those
+ * is a thing this site believes. What it does believe is an ORDERING, and an
+ * ordering is a line: the trace draws the ranking, and there is no closing edge
+ * because there is nothing to close.
  */
 export function triangleFigure(): string {
+  // The ladder starts at x 120 so the rank words sit OUTSIDE it: at x 40 the
+  // word "strongest" ran straight through the first node.
   const pts: Array<[number, number]> = [
-    [70, 92],
-    [510, 92],
-    [290, 286],
+    [160, 96],
+    [334, 176],
+    [508, 256],
   ];
   const len = (a: [number, number], b: [number, number]) =>
     Math.hypot(b[0] - a[0], b[1] - a[1]);
   const l1 = len(pts[0]!, pts[1]!);
   const l2 = len(pts[1]!, pts[2]!);
-  const l3 = len(pts[2]!, pts[0]!);
-  const total = l1 + l2 + l3;
-  const at = [0, l1 / total, (l1 + l2) / total];
+  const total = l1 + l2;
+  const at = [0, l1 / total, 1];
   const overlay = `    <g class="fy-label-scale">
-      <text class="fy-speed-label" x="70" y="66" text-anchor="start">${escapeHtml(
+      <text class="fy-speed-label" x="160" y="70" text-anchor="start">${escapeHtml(
         LANE_NODES[0].name,
       )}</text>
-      <text class="fy-speed-label" x="510" y="66" text-anchor="end">${escapeHtml(
+      <text class="fy-speed-label" x="334" y="150" text-anchor="middle">${escapeHtml(
         LANE_NODES[1].name,
       )}</text>
-      <text class="fy-speed-label" x="290" y="314" text-anchor="middle">${escapeHtml(
+      <text class="fy-speed-label" x="508" y="288" text-anchor="end">${escapeHtml(
         LANE_NODES[2].name,
       )}</text>
+      <text class="fy-rank-label" x="20" y="100" text-anchor="start">strongest</text>
+      <text class="fy-rank-label" x="20" y="260" text-anchor="start">weakest</text>
     </g>`;
   return tracedFigure({
     kind: "fy-triangle",
-    label: "Three evidence lanes, two of them open to anyone and the third only to a maintainer",
+    label:
+      "Three ways a record gets made, ranked: the project's own signed build, a scan from outside, and a maintainer's own machine",
     viewBox: "0 0 580 330",
-    structure: `    <path class="fy-structure" d="M70 92L510 92L290 286Z"></path>`,
-    trace: "M70 92L510 92L290 286Z",
+    // The ladder the ranking is read against — three rungs, no closed shape.
+    structure: `    <path class="fy-structure" d="M120 96H548M120 176H548M120 256H548"></path>`,
+    trace: `M${pts[0]![0]} ${pts[0]![1]}L${pts[1]![0]} ${pts[1]![1]}L${pts[2]![0]} ${pts[2]![1]}`,
     overlay,
     nodes: pts.map((p, i) => ({
       at: at[i]!,

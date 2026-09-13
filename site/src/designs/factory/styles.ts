@@ -302,9 +302,24 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-axis-label, .fy-data-label { fill: var(--fy-dark-ink); font-size: 16px; font-family: var(--fy-body); }
 .fy-data-label { font-variant-numeric: tabular-nums; }
 .fy-baseline { stroke: var(--fy-dark-axis); stroke-width: 1px; }
+/* TWO NEUTRAL FILLS, AND NO ACCENT. The brand blue used to single out two bars
+   for a fact the chart could not show; the split is plotted now, and a chart
+   about where an answer could come from has no business borrowing the colour
+   that means emphasis on a diagram three sections up. */
 .fy-bar { fill: var(--fy-dark-bar); }
-.fy-bar-marked { fill: var(--fy-accent); }
+.fy-bar-local { fill: url(#fy-chart-hatch); }
 .fy-chart-caption { margin-block-start: 20px; font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet); }
+.fy-chart-key { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-block-end: 10px; }
+.fy-chart-swatch {
+  inline-size: 12px; block-size: 12px; border-radius: 2px; display: inline-block;
+  margin-inline-end: 8px; vertical-align: -1px;
+}
+.fy-chart-swatch[data-fill="outside"] { background: var(--fy-dark-bar); }
+.fy-chart-swatch[data-fill="local"] {
+  background-color: rgba(255, 255, 255, 0.18);
+  background-image: repeating-linear-gradient(45deg,
+    rgba(255, 255, 255, 0.42) 0 3px, rgba(255, 255, 255, 0) 3px 7px);
+}
 
 /* the traced figures */
 .fy-trace-grid {
@@ -331,6 +346,10 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-figure .fy-speed-node.fy-node-hollow { fill: none; }
 .fy-speed-label {
   fill: var(--fy-dark-ink); font-size: 14px; font-family: var(--fy-body);
+}
+.fy-rank-label {
+  fill: var(--fy-dark-quiet); font-size: 12px; font-family: var(--fy-mono);
+  letter-spacing: 0.06em;
 }
 .fy-trace-legend {
   list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap;
