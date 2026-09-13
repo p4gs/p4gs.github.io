@@ -176,17 +176,34 @@ describe("MOTION_CSS carries all three branches, and the settled state is the de
     expect(inside).toContain("round(nearest, 50%, 1px)");
   });
 
-  test("the loop is GATED, not scroll-linked", () => {
+  test("A11 · the loop is GATED on reduced motion ALONE, never on a scroll timeline", () => {
+    // Only the aperture uses a scroll timeline. Inside the @supports block the
+    // loop's rings and packets were `display: none` in any engine without
+    // `animation-timeline` — every WebKit before 26 — while its state machine
+    // kept flipping stages, and the traces drew with every checkpoint already
+    // lit because the pending rules were unreachable. It fails by doing nothing.
     const inside = blockAfter(MOTION_CSS, SUPPORTS);
+    const noSupport = blockAfter(MOTION_CSS, NO_SUPPORTS);
     expect(MOTION_CSS).toContain("animation-play-state: paused");
-    expect(inside).toContain('.fy-loop[data-running="true"]');
-    expect(inside).toContain("animation-play-state: running");
+    expect(MOTION_CSS).toContain('.fy-loop[data-running="true"]');
+    expect(inside).not.toContain('.fy-loop[data-running="true"]');
+    expect(inside).not.toContain('.fy-checkpoint-group[data-reached="false"]');
+    expect(inside).not.toContain("fy-loop-travel");
+    // the @supports not branch is the APERTURE's settled state and nothing else
+    expect(noSupport).not.toContain(".fy-packet");
+    expect(noSupport).not.toContain(".fy-loop");
+    expect(noSupport).not.toContain(".fy-trace");
+    // and the gate lives in a plain reduced-motion block
+    const noPref = blockAfter(MOTION_CSS, "\n@media (prefers-reduced-motion: no-preference)");
+    expect(noPref).toContain('.fy-loop[data-running="true"]');
+    expect(noPref).toContain('.fy-checkpoint-group[data-reached="false"]');
+    expect(noPref).toContain("@keyframes fy-loop-travel");
     // The measured cadence, in the one place the script reads it from.
     expect(LOOP_STAGE_MS).toBe(2500);
     expect(MOTION_SCRIPT).toContain(String(LOOP_STAGE_MS));
   });
 
-  test("BOTH fallback branches paint the settled END state", () => {
+  test("the aperture's settled state is painted by BOTH of its fallbacks", () => {
     for (const [name, header] of [
       ["no-support", NO_SUPPORTS],
       ["reduced-motion", REDUCED],
@@ -198,13 +215,40 @@ describe("MOTION_CSS carries all three branches, and the settled state is the de
       expect(body, name).toContain("display: none");
       expect(body, name).toContain("background: #000");
       expect(body, name).toContain("clip-path: none");
-      // the traces: drawn, every checkpoint reached
-      expect(body, name).toContain("stroke-dashoffset: 0");
-      expect(body, name).toContain("fill-opacity: 0.4");
-      // the loop: static, its moving parts gone
-      expect(body, name).toContain(".fy-packet");
-      expect(body, name).toContain(".fy-context-pulse");
     }
+    // Reduced motion ALSO settles the traces and the loop, because those two
+    // are exactly what a reader asking for less motion is asking about.
+    const reduced = blockAfter(MOTION_CSS, REDUCED);
+    expect(reduced).toContain("stroke-dashoffset: 0");
+    expect(reduced).toContain("fill-opacity: 0.4");
+    expect(reduced).toContain(".fy-packet");
+    expect(reduced).toContain(".fy-context-pulse");
+  });
+
+  test("M1 · every var(--fy-…) the stylesheet reads is one something defines", () => {
+    // `view-timeline-inset: 0 calc(100% - var(--fy-window-viewport-height))`
+    // shipped against a property nothing defined: invalid at computed-value
+    // time, silently `auto`, and `auto` coincides with the intended inset at
+    // exactly one viewport height. Class-level guard, not a one-name check.
+    expect(CSS).toContain("--fy-window-viewport-height: 100svh");
+    expect(CSS).toContain("min-block-size: max(540px, var(--fy-window-viewport-height))");
+    expect(CSS).toContain("min-block-size: max(500px, var(--fy-window-viewport-height))");
+
+    const defined = new Set([...CSS.matchAll(/(--fy-[\w-]+)\s*:/g)].map((m) => m[1]!));
+    // Properties the SCRIPT writes, and properties written as inline styles by
+    // the renderers, are defined too — just not in the stylesheet.
+    for (const m of MOTION_SCRIPT.matchAll(/setProperty\("(--fy-[\w-]+)"/g)) defined.add(m[1]!);
+    for (const [, html] of PAGES) {
+      for (const m of html.matchAll(/(--fy-[\w-]+)\s*:/g)) defined.add(m[1]!);
+    }
+    const missing = new Set<string>();
+    for (const m of CSS.matchAll(/var\(\s*(--fy-[\w-]+)\s*([,)])/g)) {
+      if (m[2] === ",") continue; // has a fallback, so an absent name is fine
+      if (!defined.has(m[1]!)) missing.add(m[1]!);
+    }
+    expect([...missing]).toEqual([]);
+    // counted, or an expression that stopped matching would satisfy the line above
+    expect([...CSS.matchAll(/var\(\s*--fy-/g)].length).toBeGreaterThan(100);
   });
 
   test("nothing animates a name outside the catalogued set", () => {

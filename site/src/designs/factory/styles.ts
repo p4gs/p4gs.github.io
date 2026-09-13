@@ -175,7 +175,13 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 
 /* ══ the hero aperture ═══════════════════════════════════════════════════ */
 .fy-aperture { position: relative; }
-.fy-track { position: relative; }
+/* THE TIMELINE'S INSET AND THE PANEL'S HEIGHT ARE THE SAME NUMBER, so they are
+   the same custom property. A view-timeline-inset of calc(100% - var(...)) on
+   an undefined property is invalid at computed-value time and silently falls
+   back to auto — which happens to coincide with the intended inset at one
+   viewport height and drifts everywhere else. Defining it here also makes it
+   impossible for the panel and the inset to be changed apart. */
+.fy-track { position: relative; --fy-window-viewport-height: 100svh; }
 .fy-opening {
   min-block-size: calc(100svh - var(--fy-header-h));
   background: var(--fy-ground); position: relative; z-index: 0;
@@ -229,7 +235,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-continue:focus-visible { outline: solid 2px; outline-offset: 3px; }
 
 .fy-response {
-  min-block-size: max(540px, 100svh); z-index: 2;
+  min-block-size: max(540px, var(--fy-window-viewport-height)); z-index: 2;
   display: flex; align-items: center; justify-content: center;
 }
 .fy-response-left, .fy-response-right {
@@ -1170,7 +1176,7 @@ export const RESPONSIVE_CSS = `
   .fy-context { margin-block-start: 18px; font-size: 16px; line-height: 26px; }
   .fy-opening .hp-search { margin-block-start: 20px; }
   .fy-controls { margin-block-start: 16px; }
-  .fy-response { min-block-size: max(500px, 100svh); }
+  .fy-response { min-block-size: max(500px, var(--fy-window-viewport-height)); }
   .fy-response-left, .fy-response-right { padding: 40px var(--fy-gutter); }
   .fy-response-headline { font-size: clamp(48px, 10vw, 77px); }
   .fy-response-line { margin-block-start: 18px; font-size: 16px; line-height: 26px; }

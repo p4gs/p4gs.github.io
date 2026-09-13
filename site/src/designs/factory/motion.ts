@@ -166,7 +166,24 @@ export const MOTION_CSS = `
       }
     }
 
-    /* ── 2. the traced figures ─────────────────────────────────────────────
+  }
+}
+
+/* ══ motion: everything that is NOT scroll-driven ════════════════════════
+   The traced figures are written by JS per scroll frame and the loop is a
+   time-based state machine; neither uses a scroll timeline, and the reference
+   gates both on \`prefers-reduced-motion\` and nothing else.
+
+   THIS BLOCK USED TO BE INSIDE THE \`@supports\` ABOVE, and that was a real
+   defect rather than a tidiness question: in an engine with keyframes and JS
+   but no scroll-timeline support — every Safari before 26, every WebKit view
+   inside an app — the loop's rings and packets were \`display: none\` while its
+   state machine kept flipping stages, and the traces drew with every checkpoint
+   already lit because the pending rules were unreachable. It fails by doing
+   nothing, in the browsers least likely to be the ones it was tested in. */
+@media (prefers-reduced-motion: no-preference) {
+
+    /* ── the traced figures ────────────────────────────────────────────────
        No keyframes and no transition: \`stroke-dashoffset\` is recomputed per
        scroll frame from the figure's own \`data-figure-progress\`, which the
        script writes. Mid-band the value must be whatever the scroll position
@@ -177,7 +194,7 @@ export const MOTION_CSS = `
     }
     .fy-speed-node[data-reached="false"] { fill: #000; }
 
-    /* ── 3. the operating loop ─────────────────────────────────────────────
+    /* ── the operating loop ────────────────────────────────────────────────
        Gated, not scroll-linked: every animation is declared \`paused\` and only
        \`[data-running="true"]\` — which the script sets on intersection — lets
        it run. That is the cleanest way to hold an animation until it is on
@@ -284,7 +301,6 @@ export const MOTION_CSS = `
       62% { opacity: 0.32; transform: scale(1.03); }
       100% { opacity: 0; transform: scale(1.08); }
     }
-  }
 }
 
 /* ══ motion: transitions (state affordances only — never scroll-linked) ═══ */
@@ -328,7 +344,12 @@ export const MOTION_CSS = `
   100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-/* ══ motion: no scroll-driven animation available ════════════════════════ */
+/* ══ motion: no scroll-driven animation available ════════════════════════
+   THE APERTURE'S SETTLED STATE, AND ONLY THE APERTURE'S. The aperture is the
+   one thing on this page that needs a scroll timeline; the loop and the traced
+   figures do not, and an engine without \`animation-timeline\` must still run
+   them. This block used to hide the loop's moving parts here, which turned a
+   missing CSS feature into a dead diagram. */
 @supports not (animation-timeline: scroll()) {
   .fy-track[data-window-mode] .fy-bars,
   .fy-track[data-window-mode] .fy-response-right { display: none; }
@@ -336,13 +357,6 @@ export const MOTION_CSS = `
   .fy-track[data-window-mode] .fy-response-left {
     clip-path: none; transform: none; will-change: auto; visibility: visible;
   }
-  .fy-figure .fy-trace { stroke-dashoffset: 0; }
-  .fy-figure .fy-checkpoint {
-    fill: var(--fy-figure-accent); fill-opacity: 0.4; stroke: var(--fy-figure-accent);
-  }
-  .fy-figure .fy-speed-node { fill: var(--fy-figure-accent); }
-  .fy-loop :is(.fy-packet, .fy-return-packet, .fy-edge-highlight, .fy-active-ring,
-    .fy-arrival-ring, .fy-context-pulse) { display: none; }
 }
 
 /* ══ motion: the reader asked for less of it ═════════════════════════════ */
