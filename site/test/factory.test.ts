@@ -35,7 +35,7 @@ import {
   MOTION_CSS,
   MOTION_SCRIPT,
 } from "../src/designs/factory/motion";
-import { mazeRoute } from "../src/designs/factory/components";
+import { mazeRoute, slotForPhases } from "../src/designs/factory/components";
 import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
 import { CLASS_SHORT } from "../src/designs/factory/components";
 import { PHASES } from "../src/scoring";
@@ -960,5 +960,98 @@ describe("A5 · the flow's heads are one row, and the bands align on one centre"
       chapter.indexOf('<div class="fy-explorer">'),
     );
     expect(CSS).toContain("grid-template-columns: minmax(190px, 1fr) minmax(0, 3fr) minmax(190px, 1fr);");
+  });
+});
+
+describe("A6 · the nested diagram is an irregular composition, three deep", () => {
+  test("there is still one region per phase, and the slots come from the counts", () => {
+    const slots = attrOfEach(HOME, ".fy-region", "data-slot");
+    expect(attrOfEach(HOME, ".fy-region", "data-phase").map(Number)).toEqual([...PHASES]);
+    expect(slots.length).toBe(PHASES.length);
+    // every slot used exactly once at six phases, and the composition is the
+    // reference's: one tall narrow, two wide stacked, two narrow stacked, one
+    // full-width strip
+    expect([...slots].sort()).toEqual(["full", "narrowA", "narrowB", "narrowC", "wide1", "wide2"]);
+    const counts = new Map(
+      PHASES.map((p) => [p, Object.values(CONTROL_REGISTRY).filter((m) => m.phase === p).length]),
+    );
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+    // largest in the wide middle, smallest on the short full-width strip
+    expect(slotForPhases(counts).get(ranked[0]![0])).toBe("wide2");
+    expect(slotForPhases(counts).get(ranked[1]![0])).toBe("wide1");
+    expect(slotForPhases(counts).get(ranked[ranked.length - 1]![0])).toBe("full");
+  });
+
+  test("the slot mapping follows the data rather than a literal", () => {
+    // A seventh phase, or a phase that grows past its neighbours, must move.
+    const grown = new Map([[1, 3], [2, 99], [3, 40], [4, 5], [5, 4], [6, 1]]);
+    expect(slotForPhases(grown).get(2)).toBe("wide2");
+    expect(slotForPhases(grown).get(3)).toBe("wide1");
+    expect(slotForPhases(grown).get(6)).toBe("full");
+    // and a seventh lands on its own full-width row rather than on top of the
+    // sixth, which is why the slot is a span and not a named area
+    const seven = new Map([[1, 9], [2, 8], [3, 7], [4, 6], [5, 5], [6, 4], [7, 3]]);
+    expect(slotForPhases(seven).get(7)).toBe("full");
+    expect(CSS).toContain('.fy-region[data-slot="full"] { grid-column: 1 / -1; }');
+  });
+
+  test("each phase nests its class-C checks three deep, in a dashed counted group", () => {
+    expect(countOf(HOME, '<div class="fy-stack">')).toBeGreaterThanOrEqual(1);
+    const withLocal = PHASES.filter((p) =>
+      Object.entries(CONTROL_REGISTRY).some(([, m]) => m.phase === p && m.cls === "C"),
+    );
+    expect(withLocal.length).toBeGreaterThan(0);
+    expect(countOf(HOME, '<div class="fy-stack">')).toBe(withLocal.length);
+    expect(countOf(HOME, '<div class="fy-repeat" data-group="local">')).toBe(withLocal.length);
+    // the dashed group carries the counter
+    expect(HOME).toMatch(
+      /Only a maintainer's machine can answer these<\/span>\s*<span class="fy-repeat-count" aria-hidden="true">1&hellip;\d+<\/span>/,
+    );
+    // the offset stacked-card edge, and it cannot reach the document edge
+    expect(CSS).toContain("inset-block: 6px -6px; inset-inline: 6px -6px;");
+  });
+
+  test("the P-badges are gone from the region corners", () => {
+    expect(HOME).not.toMatch(/<span class="fy-repeat-count">P\d<\/span>/);
+    const heads = HOME.match(/<div class="fy-region-head">[\s\S]*?<\/div>/g) ?? [];
+    expect(heads.length).toBe(PHASES.length);
+    for (const h of heads) expect(h).not.toMatch(/>P\d</);
+  });
+
+  test("the regions are neutral — the four tints stay on the evidence class", () => {
+    expect(HOME).not.toContain("data-tint=");
+    expect(CSS).not.toContain('.fy-region[data-tint="green"]');
+    expect(CSS).toContain(
+      ".fy-region {\n  border-radius: 8px; border: 1px solid var(--fy-edge-grey);\n  background: var(--fy-tint-grey); padding: 16px;\n}",
+    );
+    // and the one tint inside a region is the class-C group's violet
+    expect(CSS).toContain(
+      '.fy-repeat[data-group="local"] {\n  border-color: var(--fy-edge-violet); background: var(--fy-tint-violet);\n}',
+    );
+  });
+
+  test("every chip icon is 20x20 and carries its evidence class", () => {
+    const sizes = attrOfEach(HOME, ".fy-node-icon", "width");
+    expect(sizes.length).toBe(CONTROL_COUNT);
+    expect([...new Set(sizes)]).toEqual(["20"]);
+    const classes = attrOfEach(HOME, ".fy-node-icon", "data-cls");
+    expect([...new Set(classes)].sort()).toEqual(["A", "Aprime", "B", "C", "M"]);
+    // five classes, five DISTINCT glyphs — not one path drawn five times
+    const glyphs = new Set(
+      [...HOME.matchAll(/<svg class="fy-node-icon" data-cls="(\w+)"[\s\S]*?>([\s\S]*?)<\/svg>/g)]
+        .map((m) => m[2]!.trim()),
+    );
+    expect(glyphs.size).toBe(5);
+    expect(CSS).toContain('.fy-node-icon[data-cls="C"] { color: #8b62e0; }');
+  });
+
+  test("the region note says checks BELONG to a phase, and splits on the sheet", () => {
+    // "N checks run here" over a column of NO ANSWER chips reads as a
+    // contradiction; and the scanner does not walk a phase, so nothing runs
+    // "here" in the first place.
+    expect(HOME).not.toContain("run here");
+    expect(HOME).toContain("checks belong to this phase.");
+    expect(DETAIL).toContain("checks belong to this phase &middot;");
+    expect(DETAIL).toMatch(/\d+ answered &middot; \d+ with no answer\./);
   });
 });

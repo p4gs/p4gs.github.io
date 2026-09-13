@@ -52,8 +52,6 @@ const CARD_TYPE: Readonly<Record<EvidenceClass, string>> = {
   M: "meta",
 };
 
-const REGION_TINTS = ["blue", "violet", "green", "grey"] as const;
-
 /** The four card types, as the legend names them. Order is the registry's. */
 const CARD_LEGEND: ReadonlyArray<{ type: string; label: string }> = [
   { type: "observed", label: "what the project commits" },
@@ -134,10 +132,19 @@ const ICONS: Readonly<Record<EvidenceClass, string>> = {
   M: '<circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.5v.6"/>',
 };
 
+/**
+ * The chip's icon: 20 × 20, one distinct glyph per evidence class, coloured by
+ * the class's own tint edge.
+ *
+ * The glyph is what carries the class here, not a texture and not a shade of
+ * grey — a reader who has met the key once can read a chip's source without
+ * opening it. `data-cls` is on the element so a test can prove the five glyphs
+ * are five glyphs rather than one drawn five times.
+ */
 function icon(cls: EvidenceClass): string {
-  return `<svg class="fy-node-icon" viewBox="0 0 20 20" width="20" height="20" fill="none"
-      stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"
-      aria-hidden="true" focusable="false">${ICONS[cls]}</svg>`;
+  return `<svg class="fy-node-icon" data-cls="${cls}" viewBox="0 0 20 20" width="20" height="20"
+      fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[cls]}</svg>`;
 }
 
 /** How a verdict is named on a chip, when the chip is bound to one record. */
@@ -218,24 +225,76 @@ export interface NestedOpts extends ChipOpts {
  * phase, so a seventh phase or a fifty-fifth control appears here the moment it
  * exists in the data, and cannot fail to.
  */
+/**
+ * Which slot of the irregular composition each phase takes, by control count.
+ *
+ * The reference's grid is not a row of equal boxes: one tall narrow column on
+ * the left, two stacked regions in a wide middle, two stacked narrow ones on
+ * the right, and one full-width short region across the bottom. Ours is the
+ * same shape, and which phase lands where is COMPUTED from how many checks it
+ * holds — the two largest take the wide middle, the smallest takes the short
+ * full-width strip, and the rest fill the narrow columns. A seventh phase, or a
+ * phase that grows past its neighbours, rearranges the diagram by itself.
+ */
+const SLOTS = ["wide2", "wide1", "narrowA", "narrowB", "narrowC", "full"] as const;
+
+export function slotForPhases(counts: ReadonlyMap<number, number>): Map<number, string> {
+  const ranked = [...counts.keys()].sort(
+    (a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a - b,
+  );
+  const out = new Map<number, string>();
+  // The two largest take the wide middle column (the larger of them below, as
+  // the reference stacks its short Control plane over its tall Data plane), the
+  // next three the narrow columns, and anything beyond that the full-width
+  // strip — which is a `grid-column: 1 / -1` rather than a named area, so a
+  // seventh phase adds a row instead of stacking on top of the sixth.
+  ranked.forEach((phase, i) => out.set(phase, SLOTS[i] ?? "full"));
+  return out;
+}
+
 export function nestedDiagram(o: NestedOpts): string {
   const titleTipId = `fy-tip-${o.scope}-frame`;
-  const regions = PHASES.map((phase, i) => {
+  const counts = new Map(PHASES.map((p) => [p, controlsInPhase(p).length]));
+  const slots = slotForPhases(counts);
+  const regions = PHASES.map((phase) => {
     const ids = controlsInPhase(phase);
-    const tint = REGION_TINTS[i % REGION_TINTS.length]!;
-    return `<div class="fy-region" data-tint="${tint}" data-phase="${phase}">
+    const localOnly = ids.filter((id) => CONTROL_REGISTRY[id]!.cls === "C");
+    const rest = ids.filter((id) => CONTROL_REGISTRY[id]!.cls !== "C");
+    // On the sheet the chips carry verdicts, so "N checks belong to this phase"
+    // alone sits above a column of NO ANSWER chips and reads as a contradiction.
+    // The answered split comes from the record, not from the taxonomy.
+    let note = `${ids.length} ${ids.length === 1 ? "check belongs" : "checks belong"} to this phase.`;
+    if (o.verdicts) {
+      const rows = ids.map((id) => o.verdicts!.get(id)).filter((r) => r !== undefined);
+      const answered = rows.filter(
+        (r) => r!.scan_outcome === "pass" || r!.scan_outcome === "fail" || r!.scan_outcome === "gap",
+      ).length;
+      const open = rows.filter((r) => r!.scan_outcome === "unverified").length;
+      note = `${ids.length} ${
+        ids.length === 1 ? "check belongs" : "checks belong"
+      } to this phase &middot; ${answered} answered &middot; ${open} with no answer.`;
+    }
+    const stack =
+      localOnly.length === 0
+        ? ""
+        : `      <div class="fy-stack">
+        <div class="fy-repeat" data-group="local">
+          <p class="fy-repeat-label"><span>Only a maintainer's machine can answer these</span>
+          <span class="fy-repeat-count" aria-hidden="true">1&hellip;${localOnly.length}</span></p>
+          <div class="fy-nodes">
+${localOnly.map((id) => nodeChip(id, o)).join("\n")}
+          </div>
+        </div>
+      </div>`;
+    return `<div class="fy-region" data-slot="${slots.get(phase) ?? "full"}" data-phase="${phase}">
       <div class="fy-region-head">
         <h4 class="fy-region-title">${escapeHtml(PHASE_NAMES[phase] ?? `Phase ${phase}`)}</h4>
-        <span class="fy-repeat-count">P${phase}</span>
       </div>
-      <p class="fy-region-note">${ids.length} ${ids.length === 1 ? "check" : "checks"} run here.</p>
-      <div class="fy-repeat">
-        <p class="fy-repeat-label"><span>One chip per check</span>
-        <span class="fy-repeat-count" aria-hidden="true">1&hellip;${ids.length}</span></p>
-        <div class="fy-nodes">
-${ids.map((id) => nodeChip(id, o)).join("\n")}
-        </div>
+      <p class="fy-region-note">${note}</p>
+      <div class="fy-nodes">
+${rest.map((id) => nodeChip(id, o)).join("\n")}
       </div>
+${stack}
     </div>`;
   }).join("\n");
   return `<figure class="fy-network" id="${o.scope}-diagram">

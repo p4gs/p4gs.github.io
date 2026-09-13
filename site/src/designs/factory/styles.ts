@@ -444,18 +444,52 @@ main [id] { scroll-margin-top: 88px; }
 .fy-annotate:hover, .fy-annotate[aria-expanded="true"] {
   text-decoration-style: solid; text-decoration-color: currentcolor;
 }
-.fy-regions { display: grid; gap: 16px; }
-.fy-region { border-radius: 8px; border: 1px solid var(--fy-edge-grey); background: var(--fy-tint-grey); padding: 16px; }
-.fy-region[data-tint="blue"] { background: var(--fy-tint-blue); border-color: var(--fy-edge-blue); }
-.fy-region[data-tint="violet"] { background: var(--fy-tint-violet); border-color: var(--fy-edge-violet); }
-.fy-region[data-tint="green"] { background: var(--fy-tint-green); border-color: var(--fy-edge-green); }
-.fy-region[data-tint="grey"] { background: var(--fy-tint-grey); border-color: var(--fy-edge-grey); }
+/* AN IRREGULAR COMPOSITION, NOT A LIST. The reference's grid is one tall narrow
+   column, two stacked regions in a wide middle, two stacked narrow ones on the
+   right, and a short full-width strip across the bottom. Which phase lands in
+   which slot is computed from its control count, so the diagram rearranges
+   itself rather than being redrawn. The full-width slot is a 1 / -1 span rather
+   than a named area, so a seventh phase adds a row instead of landing on top of
+   the sixth. */
+.fy-regions {
+  display: grid; gap: 16px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 2fr) minmax(0, 0.92fr);
+}
+/* THE REGIONS ARE NEUTRAL. Four tints exist on this page and they encode the
+   evidence class — what could be looked at to answer a check. A phase is not an
+   evidence class, so a tinted phase region spends the same four colours on a
+   second meaning, and the green one spends a verdict colour on decoration. */
+.fy-region {
+  border-radius: 8px; border: 1px solid var(--fy-edge-grey);
+  background: var(--fy-tint-grey); padding: 16px;
+}
+.fy-region[data-slot="narrowA"] { grid-column: 1; grid-row: 1 / span 2; }
+.fy-region[data-slot="wide1"] { grid-column: 2; grid-row: 1; }
+.fy-region[data-slot="wide2"] { grid-column: 2; grid-row: 2; }
+.fy-region[data-slot="narrowB"] { grid-column: 3; grid-row: 1; }
+.fy-region[data-slot="narrowC"] { grid-column: 3; grid-row: 2; }
+.fy-region[data-slot="full"] { grid-column: 1 / -1; }
 .fy-region-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 .fy-region-title { font-size: 17px; font-weight: 500; color: var(--fy-ink); }
-.fy-region-note { font-size: 14px; line-height: 21px; color: var(--fy-muted); margin-block-start: 4px; }
+.fy-region-note { font-size: 14px; line-height: 21px; color: var(--fy-muted); margin-block-start: 4px; margin-block-end: 12px; }
+/* The third level of nesting, and the reference's own offset stacked-card edge:
+   a second dashed card peeking out behind the first, which is how that diagram
+   says "there are more of these than the one you can see". The overhang is 6px
+   inside a 16px region padding, so it can never reach the document edge. */
+.fy-stack { position: relative; margin-block-start: 12px; }
+.fy-stack::before {
+  content: ""; position: absolute; inset-block: 6px -6px; inset-inline: 6px -6px;
+  border: 1px dashed var(--fy-dash); border-radius: 8px; background: var(--fy-ground);
+}
+.fy-stack > * { position: relative; }
 .fy-repeat {
-  margin-block-start: 12px; border: 1px dashed var(--fy-dash); border-radius: 8px;
+  border: 1px dashed var(--fy-dash); border-radius: 8px;
   background: var(--fy-ground); padding: 12px;
+}
+/* The class-C group is the one place violet appears inside a region, and it is
+   the same violet the explorer's local cards use — the class encoding, again. */
+.fy-repeat[data-group="local"] {
+  border-color: var(--fy-edge-violet); background: var(--fy-tint-violet);
 }
 .fy-repeat-label {
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
@@ -471,7 +505,13 @@ main [id] { scroll-margin-top: 88px; }
 }
 .fy-node:hover, .fy-node[aria-expanded="true"] { border-color: var(--fy-muted); }
 .fy-node:focus-visible { outline: 2px solid var(--fy-ring); outline-offset: 3px; }
+/* The glyph carries the class, and so does its colour — the same four the key
+   above the explorer names. Not a texture, not four shades of the same grey. */
 .fy-node-icon { inline-size: 20px; block-size: 20px; flex: 0 0 auto; color: var(--fy-muted); }
+.fy-node-icon[data-cls="A"], .fy-node-icon[data-cls="Aprime"] { color: #4a90d9; }
+.fy-node-icon[data-cls="B"] { color: #6f6f74; }
+.fy-node-icon[data-cls="C"] { color: #8b62e0; }
+.fy-node-icon[data-cls="M"] { color: #262626; }
 .fy-node-label { font-family: var(--fy-mono); font-size: 13px; line-height: 22px; overflow-wrap: anywhere; }
 .fy-node-verdict {
   margin-inline-start: auto; font-family: var(--fy-mono); font-size: 11px;
@@ -1092,6 +1132,10 @@ export const RESPONSIVE_CSS = `
   .fy-ov-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .fy-ov-group { grid-template-columns: minmax(0, 1fr); }
   .fy-nodes { grid-template-columns: minmax(0, 1fr); }
+  /* The composition collapses to one column in PHASES order, which is the
+     source order — every slot rule is dropped rather than re-pointed. */
+  .fy-regions { grid-template-columns: minmax(0, 1fr); }
+  .fy-region[data-slot] { grid-column: 1; grid-row: auto; }
   .fy-network { padding: 16px; }
   .fy-annotate { font-size: 19px; }
 
