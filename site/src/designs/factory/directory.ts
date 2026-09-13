@@ -61,8 +61,34 @@ import {
   shareUrl,
 } from "../share-urls";
 import type { DesignCtx } from "../types";
-import { nestedDiagram, tableWrap } from "./components";
+import { chapterNav, nestedDiagram, tableWrap, type Chapter } from "./components";
 import { escapeHtml, page } from "./layout";
+
+/**
+ * The two secondary pages carry the same pill nav as home and methodology.
+ *
+ * They did not, and the measurement pass caught it: `nav.fy-chapters` returned
+ * null on both, so a reader who learned the navigation on the home page lost it
+ * the moment they opened a listing — on the longest page the site serves, where
+ * the controls table alone runs to 54 rows. Both lists are fixed rather than
+ * derived because both pages render exactly these sections, unconditionally;
+ * every conditional panel on the sheet (#merge, #coverage) is reachable from
+ * the section above it and would make a pill that sometimes points at nothing.
+ */
+const DIRECTORY_CHAPTERS: readonly Chapter[] = [
+  { id: "directory-search", no: "01", label: "Search" },
+  { id: "directory-listings", no: "02", label: "Listings" },
+  { id: "directory-key", no: "03", label: "The columns" },
+];
+
+const SHEET_CHAPTERS: readonly Chapter[] = [
+  { id: "sheet-record", no: "01", label: "The record" },
+  { id: "sheet-phases", no: "02", label: "Phases" },
+  { id: "sheet-diagram", no: "03", label: "What ran" },
+  { id: "exposure", no: "04", label: "Defences" },
+  { id: "sheet-lane", no: "05", label: "Who ran it" },
+  { id: "sheet-controls", no: "06", label: "All checks" },
+];
 
 const GRADE_ORDER: Readonly<Record<string, number>> = {
   "A+": 0, A: 1, B: 2, C: 3, D: 4, F: 5, NA: 6,
@@ -301,8 +327,6 @@ function phaseBars(phases: readonly PhaseScore[]): string {
 
 /* ══ the directory ═══════════════════════════════════════════════════════ */
 
-const DIR_EMPTY_SCRIPT = "";
-
 export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
   const lowestCoverage =
     records.length === 0
@@ -360,8 +384,12 @@ ${rows}
   <a href="${ctx.h("methodology/")}">published methodology</a>. A person reviewed every
   listing before it appeared.</p>
 </section>
+</div>
 
-<div class="fy-dir-controls">
+${chapterNav(DIRECTORY_CHAPTERS, { tight: true })}
+
+<div class="fy-wrapper">
+<div class="fy-dir-controls" id="directory-search">
   <label class="hp-search-label" for="dir-filter">Search — or type owner/repo to ask for a scan</label>
   <input type="search" id="dir-filter" class="hp-search-input" placeholder="owner/repo"
     aria-label="Search the directory, or submit a repository by typing owner/repo or a GitHub URL">
@@ -388,7 +416,7 @@ ${rows}
 </div>
 </div>
 
-<div class="fy-mediaframe">
+<div class="fy-mediaframe" id="directory-listings">
 ${tableWrap(table, "The directory listing")}
 </div>
 
@@ -404,6 +432,7 @@ ${tableWrap(table, "The directory listing")}
   }
   <button type="button" class="fy-clear" id="dir-clear">Clear the filters</button>
 </p>
+<section id="directory-key" aria-label="What the columns mean">
 <p class="fy-key">
   <span class="fy-key-label">Key</span>
   <span><span class="fy-swatch fy-swatch-pass"></span>pass</span>
@@ -412,8 +441,8 @@ ${tableWrap(table, "The directory listing")}
   <span>${LANE_CHIP.local} a maintainer ran this on their own machine and signed it</span>
 </p>
 ${directoryTermsNote(ctx.h)}
+</section>
 <script src="${ctx.h("filter.js")}" defer></script>
-${DIR_EMPTY_SCRIPT}
 </div>`;
   return page(ctx, { title: "Scan Directory", body });
 }
@@ -699,8 +728,12 @@ ${controlRows}
 <nav class="fy-crumbs" aria-label="Breadcrumb"><a href="${ctx.h(
     "directory/",
   )}">&larr; Directory</a></nav>
+</div>
 
-<section class="fy-repo-hero">
+${chapterNav(SHEET_CHAPTERS, { tight: true })}
+
+<div class="fy-wrapper">
+<section class="fy-repo-hero" id="sheet-record">
   ${gradeWithTag(r.score)}
   <div style="flex:1 1 320px;min-width:0">
     <h1 class="fy-repo-title">${escapeHtml(slug)}</h1>
@@ -743,7 +776,7 @@ ${
     ? `<p class="fy-note"><em>provisional</em> ${define("provisional")}</p>`
     : ""
 }
-<div style="padding-block:16px 40px">${phaseBars(r.score.phases)}</div>
+<div id="sheet-phases" style="padding-block:16px 40px">${phaseBars(r.score.phases)}</div>
 </div>
 
 <div class="fy-mediaframe">
@@ -759,12 +792,14 @@ ${nestedDiagram({
 
 <div class="fy-wrapper">
 ${exposurePanel(ctx.h, r)}
+<div id="sheet-lane">
 ${provenance(r, t, kind, ctx, lt)}
 ${lt && kind !== "local" ? localProvenance(r, lt, false, ctx) : ""}
+</div>
 ${factsSection(lookupFacts(ctx.facts, r), r.score)}
 ${coveragePanel(r, facts, ctx)}
 
-<section class="fy-section">
+<section class="fy-section" id="sheet-controls">
   <h2>All controls</h2>
   <p class="fy-body">Raw sscsb verdicts and every reclassification are shown. Being
   transparent about what was and was not verifiable is the product. The checks run in

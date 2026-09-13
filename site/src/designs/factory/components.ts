@@ -938,7 +938,10 @@ export interface Chapter {
  * was settled by measurement: holding a scroll position and re-reading always
  * returned a binary state.
  */
-export function chapterNav(chapters: readonly Chapter[]): string {
+export function chapterNav(
+  chapters: readonly Chapter[],
+  opts: { tight?: boolean } = {},
+): string {
   const items = chapters
     .map(
       (c) => `  <a href="#${c.id}"><span aria-hidden="true">${c.no}</span>${escapeHtml(
@@ -946,7 +949,11 @@ export function chapterNav(chapters: readonly Chapter[]): string {
       )}</a>`,
     )
     .join("\n");
-  return `<nav class="fy-chapters" aria-label="Sections">
+  // `tight` is the secondary pages' variant: on home and methodology the nav
+  // arrives after a full black block or a full-width figure and wants the
+  // reference's 160px of air; on the directory and the repo sheet it arrives
+  // two elements into the page, where 160px would be a hole.
+  return `<nav class="fy-chapters${opts.tight ? " fy-chapters-tight" : ""}" aria-label="Sections">
 ${items}
 </nav>`;
 }

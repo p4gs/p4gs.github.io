@@ -796,3 +796,56 @@ describe("A3 · the two pills stack instead of interpenetrating", () => {
     expect(CSS).toContain("main [id] { scroll-margin-top: 88px; }");
   });
 });
+
+describe("A4 + E2 · the pill nav is on all four pages, and every pill resolves", () => {
+  test("the repo sheet and the directory carry the nav they were missing", () => {
+    // Measured live on 178c8d2: `document.querySelector('nav.fy-chapters')`
+    // returned null on both, so a reader who learned the navigation on home
+    // lost it on the longest page the site serves.
+    expect(DETAIL).toContain('<nav class="fy-chapters');
+    expect(DIRECTORY).toContain('<nav class="fy-chapters');
+  });
+
+  test("every pill on every page points at an element that page renders", () => {
+    for (const [name, html] of PAGES) {
+      const nav = html.slice(
+        html.indexOf('<nav class="fy-chapters'),
+        html.indexOf("</nav>", html.indexOf('<nav class="fy-chapters')),
+      );
+      const hrefs = attrOfEach(nav, "a[href]", "href");
+      expect(hrefs.length, `${name}: pill count`).toBeGreaterThanOrEqual(3);
+      for (const href of hrefs) {
+        expect(href.startsWith("#"), `${name}: ${href} is not a hash`).toBe(true);
+        const id = href.slice(1);
+        expect(
+          html.includes(`id="${id}"`),
+          `${name}: pill ${href} points at nothing on the page`,
+        ).toBe(true);
+      }
+      // exactly one nav per page — the spy binds the first it finds
+      expect(countOf(html, '<nav class="fy-chapters'), `${name}: navs`).toBe(1);
+    }
+  });
+
+  test("the secondary pages' nav is the tight variant, and home's is not", () => {
+    expect(DETAIL).toContain('<nav class="fy-chapters fy-chapters-tight"');
+    expect(DIRECTORY).toContain('<nav class="fy-chapters fy-chapters-tight"');
+    expect(HOME).toContain('<nav class="fy-chapters" aria-label="Sections">');
+    expect(METHODOLOGY).toContain('<nav class="fy-chapters" aria-label="Sections">');
+    expect(CSS).toContain(".fy-chapters-tight { margin-block-start: 32px; }");
+  });
+
+  test("the sheet's six pills name the sheet's own sections", () => {
+    const labels = ["The record", "Phases", "What ran", "Defences", "Who ran it", "All checks"];
+    for (const label of labels) expect(DETAIL).toContain(`</span>${label}</a>`);
+    // and the ids they point at are on real containers, not invented anchors
+    for (const id of ["sheet-record", "sheet-phases", "sheet-diagram", "exposure", "sheet-lane", "sheet-controls"]) {
+      expect(countOf(DETAIL, `id="${id}"`), `${id}`).toBe(1);
+    }
+  });
+
+  test("the dead empty-state script placeholder is gone", () => {
+    expect(DIRECTORY).not.toContain("DIR_EMPTY_SCRIPT");
+    expect(attrOfEach(DIRECTORY, "script[src]", "src").length).toBe(1);
+  });
+});

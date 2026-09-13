@@ -375,6 +375,10 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   position: sticky; inset-block-start: 12px; overflow-x: auto;
 }
 .fy-chapters::-webkit-scrollbar { display: none; }
+/* The secondary pages' variant. On home the nav arrives after a full black
+   block and on methodology after a full-width figure, where the reference's
+   160px of air is the point; two elements into a directory it is a hole. */
+.fy-chapters-tight { margin-block-start: 32px; }
 /* 44px, not the reference's 40px. The reference is a launch page; this is a
    directory whose shared component layer enforces a 44px tap target on every
    other control, and a nav that is the only navigation on a 13,000px page is
