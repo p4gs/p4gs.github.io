@@ -79,9 +79,20 @@ export function statusChip(state: MarkState, label?: string): string {
   )}<span class="chip-word">${escapeHtml(label ?? MARK_WORD[state])}</span></span>`;
 }
 
-/** Glyph plus a number — the compact form used in table cells. */
+/**
+ * Glyph plus a number — the compact form used in table cells.
+ *
+ * `data-count` is what lets the stylesheet tie the glyph's CHROMA to the
+ * count. Round 2 dimmed a zero NUMERAL to grey but left its ring at full
+ * strength, so an all-passing directory still drew a saturated red fail ring
+ * and a saturated amber gap ring in every row — the two most expensive colours
+ * on a page where colour is data, spent on nothing, with the glyph loud and
+ * the numeral quiet inside one unit. At zero the ring drops to muted ink and
+ * the SHAPE carries the meaning; the legend keeps the full-chroma reference
+ * key, so no reader loses the mapping.
+ */
 export function countMark(state: MarkState, n: number): string {
-  return `<span class="cmark cmark-${state}" title="${escapeHtml(
+  return `<span class="cmark cmark-${state}" data-count="${n}" title="${escapeHtml(
     `${n} ${MARK_WORD[state].toLowerCase()}`,
   )}">${mark(state, 13)}<span class="cmark-n">${n}</span></span>`;
 }

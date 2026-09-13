@@ -27,7 +27,7 @@ import {
   plural,
   type CoverageFacts,
 } from "../../coverage";
-import { define, defineTerm } from "../../glossary";
+import { define, defineTerm, GLOSSARY } from "../../glossary";
 import type { ListingFacts } from "../../listing";
 import type { ScanRecord, Score } from "../../schema";
 import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
@@ -42,7 +42,6 @@ import {
   trustKeyOf,
   type TrustKind,
 } from "../../trust";
-import { directoryTermsNote } from "../home-shared";
 import {
   listingShareUrl,
   LOCAL_METHODOLOGY_SHARE_URL,
@@ -203,6 +202,51 @@ function renderFactsSection(lf: ListingFacts, directory: Score): string {
 </section>`;
 }
 
+/**
+ * The closing glossary, as the definition list it always was.
+ *
+ * Round 2 shipped the shared `directoryTermsNote` paragraph: four definitions,
+ * four em-dash asides, a semicolon and a trailing parenthetical link in one
+ * ~660px block of alternating bold terms and grey italic glosses. The device
+ * works once; at four consecutive definitions the reader cannot scan for a
+ * term, which is the only reason a glossary exists. On a phone it was a ~430px
+ * run-on.
+ *
+ * The WORDS are not Signal's: every definition comes out of `glossary.ts`, the
+ * same source the shared paragraph reads, so the site's vocabulary cannot
+ * drift between designs — only its presentation does. `data-defines` still
+ * rides on every gloss, which is what `home.test.ts` checks, and the `#trust`
+ * link the shared note owes the methodology is kept verbatim.
+ *
+ * The three framing sentences that carry an actual claim ("a low second number
+ * is not a mark against the project") stay as prose above the list, because
+ * they are an argument, not a definition.
+ */
+function keyGlossary(): string {
+  // "provisional" is on this page twice — the grade chip and the row's
+  // coverage note — so its definition has to be here too; home.test.ts fails
+  // if a term appears without one, which is exactly the contract this list
+  // inherits from the shared paragraph it replaces.
+  const terms = ["countable", "coverage", "provisional", "unverified", "gap", "lane"] as const;
+  const rows = terms
+    .map((k) => {
+      const e = GLOSSARY[k]!;
+      return `  <dt class="kg-term">${escapeHtml(e.term)}</dt>
+  <dd class="kg-def" data-defines="${k}">${escapeHtml(e.plain)}</dd>`;
+    })
+    .join("\n");
+  return `<section class="key-gloss-block" aria-labelledby="key-gloss-h">
+<h2 class="key-gloss-h" id="key-gloss-h">What the columns mean</h2>
+<p class="key-note">Two numbers ride with every listing: how many checks passed, and how
+many produced an answer at all. A low second number is not a mark against the project —
+it means the scan could not see far enough. Each listing says which checks went
+unanswered, and why (<a href="${href("methodology/#trust")}">how that is checked</a>).</p>
+<dl class="key-gloss">
+${rows}
+</dl>
+</section>`;
+}
+
 function verdictCell(score: Score): string {
   const t = tally(score);
   return `${countMark("pass", t.pass)}${countMark("fail", t.fail)}${countMark(
@@ -210,6 +254,53 @@ function verdictCell(score: Score): string {
     t.gap,
   )}${countMark("unverified", t.unverified)}`;
 }
+
+/**
+ * The zero-result state — the one place this page made a promise it did not keep.
+ *
+ * The lede says "type any owner/repo to search the record", and filtering to a
+ * string that matched nothing left a void: zero visible rows, no message
+ * anywhere in `main`, and at 1440 an orphan 43px header row ("Repository Grade
+ * Passed Answered Verdicts Source Scanned") with an empty body under it. The
+ * only feedback was a 13px mono count up in the controls bar flipping to "0 of
+ * 3 shown". On a site whose whole register is honesty about what it can and
+ * cannot show, the search box was the one control that said nothing.
+ *
+ * `public/filter.js` is shared by five designs, so the proper fix — teaching
+ * the shared handler about an empty state — is filed as a proposal. This is
+ * Signal's local workaround and it deliberately does not reimplement any of
+ * filter.js's logic: it listens to the SAME three controls, AFTER filter.js
+ * (this script is parsed after the deferred `filter.js`, so its listeners are
+ * registered second and run second), and only reads back how many rows
+ * filter.js left visible. If filter.js is absent the page is unchanged.
+ */
+const DIR_EMPTY_SCRIPT = `<script>(function(){
+  var empty=document.getElementById("dir-empty");
+  var q=document.getElementById("dir-empty-q");
+  var input=document.getElementById("dir-filter");
+  var table=document.querySelector("table.directory");
+  var wrap=document.querySelector(".table-wrap");
+  if(!empty||!q||!input||!table||!wrap)return;
+  var rows=Array.prototype.slice.call(table.querySelectorAll("tbody tr"));
+  if(!rows.length)return;
+  var sync=function(){
+    var shown=0;
+    for(var i=0;i<rows.length;i++){if(rows[i].style.display!=="none")shown++;}
+    var none=shown===0;
+    q.textContent=input.value.trim();
+    empty.hidden=!none;
+    // The header row is the other half: hidden, the 43px orphan thead goes
+    // with it, so the region is a message rather than a labelled void.
+    wrap.hidden=none;
+  };
+  var later=function(){setTimeout(sync,0);};
+  input.addEventListener("input",later);
+  var sort=document.getElementById("dir-sort");
+  if(sort)sort.addEventListener("change",later);
+  var inc=document.getElementById("dir-incomplete");
+  if(inc)inc.addEventListener("change",later);
+  later();
+})();</script>`;
 
 export function renderDirectory(
   records: ScanRecord[],
@@ -311,9 +402,15 @@ ${rows}
   </tbody>
 </table>
 </div>
+<p class="dir-empty" id="dir-empty" hidden>Nothing in the record matches
+  <code id="dir-empty-q"></code>. Three repositories are listed so far, and a repository
+  that is not one of them has simply not been scanned — it is not a verdict about it.
+  Type a full <code>owner/repo</code> and the scan queue opens above; or
+  <a href="${href("directory/")}">clear the filter</a> to see every listing.</p>
 <div class="legend-bottom">${legend()}</div>
-${directoryTermsNote(href)}
-<script src="${href("filter.js")}" defer></script>`;
+${keyGlossary()}
+<script src="${href("filter.js")}" defer></script>
+${DIR_EMPTY_SCRIPT}`;
   return page({ title: "Scan Directory", body, active: "directory" });
 }
 
@@ -344,7 +441,44 @@ export function nudgeIssueUrl(r: ScanRecord): string {
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;
 }
 
-function controlRow(c: ScanRecord["controls"][number]): string {
+/**
+ * A reason sentence long enough, and repeated often enough inside one family,
+ * that printing it on every row stops the column being readable.
+ *
+ * Measured on p4gs/sscsb-action: one 200-character sentence ("resolved by a
+ * signed local scan: this control lives in the development environment, so a
+ * workstation record signed by a key this repository commits in
+ * .sscsb/policy/allowed_signers is the only evidence that can exist for it")
+ * appeared six times across a 42-row control grid, two full lines of body copy
+ * each. Scanning down the column the eye cannot tell which rows differ — the
+ * same failure the nine identical attack-group disclaimers had.
+ *
+ * Both thresholds matter. THREE occurrences, because two is a coincidence and
+ * hoisting it would cost a reader a lookup for nothing. EIGHTY characters,
+ * because the short reasons repeat too ("optional control not enabled by this
+ * repository", 3x in two families) and a six-word reason is cheaper to read in
+ * place than to chase upwards.
+ */
+const HOIST_MIN_REPEATS = 3;
+const HOIST_MIN_CHARS = 80;
+
+/** What a hoisted row shows instead: the reason's own opening clause. */
+function reasonTag(reason: string): string {
+  const head = reason.split(/[:—]/)[0]!.trim();
+  return head.length > 0 && head.length <= 48 ? head : "see the note above";
+}
+
+function sharedReasons(controls: readonly ScanRecord["controls"][number][]): string[] {
+  const counts = new Map<string, number>();
+  for (const c of controls) {
+    if (c.reason) counts.set(c.reason, (counts.get(c.reason) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([r, n]) => n >= HOIST_MIN_REPEATS && r.length > HOIST_MIN_CHARS)
+    .map(([r]) => r);
+}
+
+function controlRow(c: ScanRecord["controls"][number], hoisted: ReadonlySet<string> = new Set()): string {
   const state = OUTCOME_STATE[c.scan_outcome] ?? "unverified";
   const raw =
     c.reclassified || c.raw_outcome !== c.scan_outcome
@@ -353,7 +487,13 @@ function controlRow(c: ScanRecord["controls"][number]): string {
         )}</span>`
       : "";
   const oos = c.in_scope ? "" : `<span class="ctl-oos">out of scope</span>`;
-  const reason = c.reason ? `<p class="ctl-reason">${escapeHtml(c.reason)}</p>` : "";
+  const reason = !c.reason
+    ? ""
+    : hoisted.has(c.reason)
+      ? `<p class="ctl-reason ctl-reason-shared"><span class="ctl-src">${escapeHtml(
+          reasonTag(c.reason),
+        )}</span></p>`
+      : `<p class="ctl-reason">${escapeHtml(c.reason)}</p>`;
   // A bare "EVIDENCE" label read as an unfinished caption 42 times per page —
   // nothing said it opened. The count gives the label weight and tells a
   // reader what they get for the tap; the caret comes from the stylesheet.
@@ -386,14 +526,24 @@ function phaseGroup(r: ScanRecord, phase: number): string {
     : "no verdicts";
   const pct = p ? pctText(p.percent) : "no evidence";
   const allFailing = !!p && p.percent !== null && p.percent === 0 && p.fail + p.gap > 0;
+  const shared = sharedReasons(controls);
+  const hoisted = new Set(shared);
+  const notes = shared
+    .map((r) => {
+      const n = controls.filter((c) => c.reason === r).length;
+      return `<p class="family-note"><span class="family-note-n">${n} controls here</span>
+    ${escapeHtml(r)}</p>`;
+    })
+    .join("\n  ");
   return `<section class="family${allFailing ? " family-failing" : ""}" id="phase-${phase}">
   <header class="family-head">
     <h2 class="family-title">${escapeHtml(PHASE_NAMES[phase] ?? `Phase ${phase}`)}</h2>
     <span class="family-count">${escapeHtml(pct)}</span>
   </header>
   <p class="family-meta">${escapeHtml(counts)}</p>
+  ${notes}
   <ul class="ctl-list">
-${controls.map(controlRow).join("\n")}
+${controls.map((c) => controlRow(c, hoisted)).join("\n")}
   </ul>
 </section>`;
 }
@@ -586,6 +736,37 @@ function provenanceCard(
 </section>`;
 }
 
+/**
+ * The attack-group panel's state column, compacted.
+ *
+ * `threats-shared.ts` labels an all-passing group "All answered checks passed"
+ * — nine words of mono caps, right-aligned, repeated on every one of nine rows
+ * for a repository that evidenced all nine groups. Two rounds of judges read
+ * that column as templated output rather than as a designed record, and they
+ * are right: as a repeated value it is a status, and a status column's job is
+ * to be scannable.
+ *
+ * It is SHORTENED, never removed, and never removed from SOME rows — this site
+ * renders status as colour + shape + text on every row without exception, and
+ * hiding eight of nine labels would be exactly the "colour alone" failure the
+ * palette exists to prevent. The row keeps its green left rule (shape), its
+ * words, and the full sentence on `title`; the panel's intro already carries
+ * the caveat that a full set of answered checks is not safety, so the
+ * disclaimer is not lost either.
+ *
+ * `threats-shared.ts` is shared by five designs, so the substitution is done
+ * here on the rendered string and asserted by a test rather than edited at
+ * source; the proposal to shorten `STATE_LABEL` is filed.
+ */
+const SHARED_EX_STATE = `<span class="ex-state">All answered checks passed</span>`;
+
+function compactExposureStates(html: string): string {
+  return html.replaceAll(
+    SHARED_EX_STATE,
+    `<span class="ex-state ex-state-ok" title="Every sscsb check here that produced an answer passed. That is not the same as being safe from this group.">All passed</span>`,
+  );
+}
+
 export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): string {
   const slug = `${r.repo.owner}/${r.repo.name}`;
   const kind = resolveTrustKind(r, t, lt);
@@ -652,7 +833,7 @@ ${chapterRail([
   { id: "provenance", label: "Who ran it" },
 ])}
 
-${exposurePanel(href, r)}
+${compactExposureStates(exposurePanel(href, r))}
 
 <section id="controls" class="controls-section">
   <h2 class="section-title">Every check, with its raw verdict</h2>

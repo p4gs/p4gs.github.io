@@ -28,6 +28,51 @@ const GRADE_PILL_ROW = (["A+", "A", "B", "C", "D", "F", "NA"] as const)
   .map((g) => gradePill(g, { size: "lg" }))
   .join("\n    ");
 
+/**
+ * The Scorecard crosswalk's "sscsb has nothing here" cell.
+ *
+ * `compare-shared.ts` emits a bare `<span class="cmp-none">—</span>` for it —
+ * no `.cmp-mark`, so the pill's `border: 1px solid` / `radius: 999px` never
+ * applies and only `border-style: dashed` does. The initial values fill in the
+ * rest: `border-width: medium` (3px in Chrome) in `currentColor`, no radius.
+ * Measured at BOTH widths: a 21x25 three-pixel dashed SQUARE around an em
+ * dash, which reads as a missing-glyph tofu box — and which borrows this
+ * design's dashed "nobody could answer" shape for a cell that carries no
+ * status at all, the one thing this palette may not do.
+ *
+ * The stylesheet defuses the border (styles.ts, D15/D30). This replaces the
+ * dash itself with WORDS, because the site's own non-negotiable is colour +
+ * shape + text and a screen reader announced this one as "dash". The
+ * substitution is exact and asserted by a test, so if the shared markup ever
+ * changes the test fails rather than the page quietly reverting to a tofu box.
+ * `compare-shared.ts` is shared by five designs, so emitting the label at
+ * source is filed as a proposal rather than taken here.
+ */
+export const SHARED_NONE_SPAN = `<span class="cmp-none">—</span>`;
+const NONE_LABEL = `<span class="cmp-nil">No sscsb equivalent</span>`;
+
+/**
+ * The nine attack-group incident disclosures.
+ *
+ * The section's own intro promises that every incident links to a primary
+ * source, and round 2 shipped all nine `<details>` closed with a summary that
+ * named no count — so a reader met none of them: xz, event-stream,
+ * Shai-Hulud, Ultralytics, torchtriton. They open by default now, and the
+ * summary carries how many incidents it holds, so the disclosure says what it
+ * is worth before it is touched.
+ */
+function openIncidents(html: string): string {
+  return html.replace(
+    /<details class="tx-details">\s*<summary>([^<]*)<\/summary>\s*<ul class="tx-incidents">([\s\S]*?)<\/ul>/g,
+    (_m, label: string, list: string) => {
+      const n = (list.match(/<li class="tx-incident"/g) ?? []).length;
+      return `<details class="tx-details" open>
+      <summary>${label} · ${n === 1 ? "1 incident" : `${n} incidents`}</summary>
+      <ul class="tx-incidents">${list}</ul>`;
+    },
+  );
+}
+
 export function renderMethodology(): string {
   const classTable = Object.entries(EVIDENCE_CLASS_RULES)
     .map(([key, d]) => {
@@ -94,8 +139,8 @@ ${chapterRail([
   </ol>
 </section>
 
-${threatsSection(href)}
-${compareSection(href)}
+${openIncidents(threatsSection(href))}
+${compareSection(href).replaceAll(SHARED_NONE_SPAN, NONE_LABEL)}
 
 <section class="method-section prose" id="evidence-classes">
   <h2>Evidence classes</h2>

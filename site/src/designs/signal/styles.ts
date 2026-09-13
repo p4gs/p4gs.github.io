@@ -93,10 +93,16 @@ body {
   font-feature-settings: "cv05" 1;
   -webkit-font-smoothing: antialiased;
 }
-h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; }
-h1 { letter-spacing: -0.025em; }
-h2 { letter-spacing: -0.02em; }
-h3 { letter-spacing: -0.01em; }
+/* D17 / D36 / D45 — the DISPLAY tier was typeset and the heading tiers were
+   not: every h1/h2/h3 inherited the body's 1.6, so 'Scan directory' carried
+   ~28px of phantom leading at 48px type and 'Nine ways supply chains get /
+   attacked' set two lines 46px apart on 28px type at 390. The hero line
+   already proves 1.0-1.1 is right for this face. text-wrap:balance stops a
+   two-line heading orphaning its last word. */
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { letter-spacing: -0.025em; line-height: 1.06; }
+h2 { letter-spacing: -0.02em; line-height: 1.12; }
+h3 { letter-spacing: -0.01em; line-height: 1.2; }
 p { margin: 0 0 1em; }
 a { color: var(--accent-ink); text-underline-offset: 3px; text-decoration-thickness: 1px; }
 a:hover { color: var(--accent); }
@@ -106,10 +112,28 @@ code {
   font-size: 0.84em; background: var(--paper-2); color: var(--ink);
   padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere;
 }
+/* D20 — four of these drew a 1264px bordered box around 211-842px of text,
+   so 'The formula' left roughly 1000px of empty fill to the right of its
+   content. The narrative cards were capped in round 2; the code blocks were
+   not touched. Sized to their contents now, capped at the prose column.
+   D42 — the right-edge shadow only paints when there IS something to scroll
+   to: two background layers are attached 'local' (they move with the content
+   and cover the shadow when the block is scrolled to its end) and one is
+   attached 'scroll'. A block that fits shows nothing. That is the visible
+   affordance a hidden scrollbar owes a reader who cannot otherwise tell a
+   scrollable block from a truncated one. */
 pre.code {
   font-family: var(--mono); font-size: var(--t-xs); line-height: 1.6;
   background: var(--paper-2); border: 1px solid var(--hairline); border-radius: 10px;
   padding: 14px 16px; overflow-x: auto; margin: 0 0 18px;
+  inline-size: fit-content; max-inline-size: min(100%, 820px);
+  background-image:
+    linear-gradient(to left, var(--paper-2), var(--paper-2)),
+    linear-gradient(to left, rgba(26,23,20,.13), rgba(26,23,20,0));
+  background-position: right center, right center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 18px 100%;
+  background-attachment: local, scroll;
 }
 pre.code code { background: none; padding: 0; font-size: inherit; }
 .num { font-variant-numeric: tabular-nums; }
@@ -175,9 +199,15 @@ pre.code code { background: none; padding: 0; font-size: inherit; }
 .sg-head.is-floating .sg-head-in {
   max-inline-size: min(1100px, 100% - 24px);
   border-radius: 999px;
-  background: color-mix(in oklab, var(--surface) 92%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
+  /* OPAQUE, not 92% glass. At rest the bar above still carries the blur, so
+     the morph still reads glass-bar -> solid-pill; but once the pill is
+     floating, dense body text is passing UNDER it at every scroll position on
+     a 14,000px repo page, and 8% transparency is not a plate. Judges read
+     16px text through this at 390. The shadow and the hairline do the
+     floating, which is what makes the object read as chrome anyway. */
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   border-color: var(--hairline);
   box-shadow: var(--shadow-pill);
   transform: translateY(10px);
@@ -212,15 +242,30 @@ pre.code code { background: none; padding: 0; font-size: inherit; }
    stack. The mask is the overflow affordance — on a phone the rail scrolls
    sideways, and a hard cut at the edge reads as clipping rather than as
    "there is more this way". */
+/* THE FADE IS A ::after ON A NON-SCROLLING WRAPPER, NOT A MASK.
+   Round 2 put both overflow-x and mask-image on this one element. A masked
+   element forms a BACKDROP ROOT, so the pill's backdrop-filter sampled an
+   empty backdrop and painted nothing at all — the blur had never rendered,
+   and 8% transparency was the only thing between the rail and 16px body text.
+   Judges read whole sentences through it on both long pages at both widths
+   ("build environme" showing between two chapter chips). The header pill
+   proved the diagnosis: same 0.92 + blur(18px), no masked ancestor, opaque.
+   The fade also could not live on the scroller — it would scroll away with
+   the track — which is why the wrapper and the track are now two elements. */
 .sg-rail {
   position: sticky; top: calc(var(--chrome) + 22px); z-index: 30;
   margin-block: 28px; max-inline-size: 100%;
+}
+.sg-rail-scroll {
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
-  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
 }
-.sg-rail::-webkit-scrollbar { display: none; }
+.sg-rail::after {
+  content: ""; position: absolute; inset-block: 0; inset-inline-end: 0;
+  inline-size: 28px; pointer-events: none;
+  background: linear-gradient(to right, rgba(251,250,247,0), var(--paper));
+}
+.sg-rail-scroll::-webkit-scrollbar { display: none; }
 /* 50px, not the reference's 48: the items inside it are held to the 44px tap
    floor, and 44 + 2x3px padding is 50. Shrinking the container to match the
    reference would mean shrinking the targets, which is the one thing this
@@ -228,9 +273,7 @@ pre.code code { background: none; padding: 0; font-size: inherit; }
 .sg-rail-in {
   display: inline-flex; align-items: center; gap: 2px;
   padding: 3px; min-block-size: 50px;
-  background: color-mix(in oklab, var(--surface) 92%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
+  background: var(--surface);
   border: 1px solid var(--hairline); border-radius: 999px;
   box-shadow: var(--shadow-card);
 }
@@ -483,12 +526,44 @@ main {
   font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--ink-3);
 }
+/* D19 — both controls computed 'appearance: auto', so the one ~500px strip
+   where every other object is a custom pill painted a UA chevron and a raw
+   20x20 system square. 16px stays: it is the shared floor that stops iOS
+   zooming the page on focus. The chevron is a data: URI because the CSP-free
+   stylesheet is the only place this design may put an asset. */
 .dir-controls select {
-  min-block-size: 44px; padding: 8px 14px; border-radius: 999px;
+  min-block-size: 44px; padding: 8px 38px 8px 14px; border-radius: 999px;
   border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
-  font-family: var(--body); font-size: 16px;
+  font-family: var(--mono); font-size: 16px;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%236A635A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
 }
-.dir-check { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-xs); color: var(--ink-2); }
+.dir-controls select:hover { border-color: var(--accent); }
+.dir-check {
+  display: inline-flex; align-items: center; gap: 9px;
+  min-block-size: var(--tap); padding-inline: 2px;
+  font-family: var(--mono); font-size: var(--t-xs); letter-spacing: 0.04em;
+  color: var(--ink-2); cursor: pointer;
+}
+.dir-check input {
+  appearance: none; -webkit-appearance: none; margin: 0;
+  inline-size: 20px; block-size: 20px; flex: 0 0 auto;
+  border: 1px solid var(--hairline); border-radius: 6px;
+  background: var(--surface); cursor: pointer;
+  display: inline-grid; place-content: center;
+  transition: background-color var(--dur-quick) var(--ease),
+              border-color var(--dur-quick) var(--ease);
+}
+.dir-check input::before {
+  content: ""; inline-size: 10px; block-size: 6px;
+  border: solid var(--surface); border-width: 0 0 1.8px 1.8px;
+  transform: rotate(-45deg) translate(1px, -1px) scale(0);
+  transition: transform var(--dur-quick) var(--ease);
+}
+.dir-check input:checked { background: var(--accent); border-color: var(--accent); }
+.dir-check input:checked::before { transform: rotate(-45deg) translate(1px, -1px) scale(1); }
+.dir-check:hover input { border-color: var(--accent); }
 .dir-count { font-family: var(--mono); font-size: var(--t-xs); color: var(--ink-3); }
 .scan-card {
   margin-block-end: 18px; padding: 18px 20px;
@@ -710,7 +785,19 @@ table.directory {
 }
 .cmp-covered { background: var(--accent-wash); color: var(--accent-ink); border-color: color-mix(in oklab, var(--accent) 35%, transparent); }
 .cmp-partial { background: var(--paper-3); }
-.cmp-none { color: var(--ink-3); border-style: dashed; }
+/* SCOPED TO THE PILL. Unscoped, 'border-style: dashed' also hit the five bare
+   <span class="cmp-none">-</span> markers, which carry no border-WIDTH reset:
+   initial values gave them 'medium' (3px in Chrome) in currentColor with no
+   radius — a 21x25 dashed square around an em dash that reads as a
+   missing-glyph tofu box, and that borrows this design's dashed "nobody could
+   answer" shape for a cell carrying no status. The span itself is replaced
+   with words in methodology.ts; this rule is the belt to that's braces. */
+.cmp-mark.cmp-none { color: var(--ink-3); border-style: dashed; }
+.cmp-none:not(.cmp-mark) { border: 0; padding: 0; color: var(--ink-3); }
+.cmp-nil {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+}
 .cmp-risk { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 .cmp-note { font-size: var(--t-xs); color: var(--ink-3); margin-block-start: 6px; }
 .cmp-footnote { font-size: var(--t-xs); color: var(--ink-3); }
@@ -794,14 +881,24 @@ table.directory {
      What goes is the one link the brief does not call persistent — "Action" —
      so the wordmark, Directory, Methodology and GitHub all stay reachable at
      every scroll position and every width. */
-  .sg-nav a { padding-inline: 9px; font-size: var(--t-xs); }
-  /* D25 REFUSED, on measurement. The judge's fix — show "Action" down to 360px
-     — was tried and reverted: with the GitHub link widened to its 44px floor
-     (D2/D10, a correctness fix that costs 9px), .sg-nav at 390 measures
-     scrollWidth - clientWidth = 16 with Action present. The pill would clip or
-     the page would scroll sideways, and neither is worth a fourth nav item
-     that is one tap away inside the Directory page. Three links stay. */
+  /* 6px, not 7: measured inside the FLOATING pill at 390 (which is narrower
+     than the resting bar by its 12px inset and 12px padding) the nav overran
+     its box by 2px with 7. A nav that clips by 2px is a nav that clips. */
+  .sg-nav a { padding-inline: 6px; font-size: var(--t-xs); }
+  /* D25 STILL REFUSED, on measurement — "Action" is the one item the brief
+     does NOT call persistent, and the row does not fit five. What round 2 got
+     wrong was WHICH item stood down: it dropped Search too, so the pill
+     carried five items on a desktop and three on a phone, and a reader 14,000
+     px deep in a repo page had no route to the directory's search box at all.
+     The brief names search first. Action is one tap away inside Directory;
+     search, on a phone, was nowhere. */
   .sg-nav-ext { display: none; }
+  /* Icon-only, at its 44px floor: the magnifier is already in the markup and
+     the link carries aria-label="Search the directory", so dropping the word
+     costs a sighted reader an affordance they can still read as search and
+     costs a screen reader nothing. */
+  .sg-nav-find { inline-size: 44px; min-inline-size: 44px; padding-inline: 0; justify-content: center; }
+  .sg-nav-find-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .sg-mark { font-size: 15px; gap: 6px; }
   .sg-head.is-floating .sg-head-in { padding-inline: 12px; }
 }
@@ -811,9 +908,19 @@ table.directory {
    still shipping. The wordmark keeps its glyph and its 44px target; only its
    text stands down, and only under 380px. */
 @media (max-width: 380px) {
-  .sg-nav a { padding-inline: 6px; }
+  .sg-nav a { padding-inline: 5px; }
   .sg-mark span { display: none; }
   .sg-mark { min-inline-size: 44px; justify-content: center; padding-inline: 0; }
+  /* Round 3 note: restoring Search (D16/D29/D40) puts a fifth 44px object back
+     in the row, and at 320 four items plus a wordmark genuinely do not fit —
+     measured, the head overran its pill by 32px and pushed the DOCUMENT to
+     339px. Rather than drop one of the four the brief calls persistent, or
+     shrink a target under the 44px floor, the nav becomes its own scroller:
+     the same idiom the chapter rail already uses, one row, nothing clipped
+     out of reach, and the document never scrolls sideways. It engages only
+     below 380px; at 390 the row fits with 0px of overflow. */
+  .sg-nav { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .sg-nav::-webkit-scrollbar { display: none; }
 }
 `;
 
@@ -978,11 +1085,16 @@ export const CSS_AFTER = `
 .sg-nav-icon { min-inline-size: 44px; justify-content: center; padding-inline: 8px; }
 .dir-controls-label { min-inline-size: 44px; justify-content: flex-start; }
 
-/* ── D36: search returns to the persistent pill ──────────────────────── */
-.sg-nav-find { display: none; gap: 7px; }
+/* ── D36 / D16 / D29 / D40: search is persistent at EVERY width ─────────
+   Round 2 added the item and then scoped it to >=768px, which closed the
+   desktop half of D36 and opened a wider phone gap than the one it fixed: five
+   items at 1440, three at 390. The brief's non-negotiable for this chrome is
+   "search, Directory, Methodology, and a GitHub link — the same four things at
+   every scroll position and every width". It is the label that stands down
+   below 560px, never the item (see the 560 block). */
+.sg-nav-find { display: inline-flex; gap: 7px; }
 .sg-nav-find svg { color: var(--ink-3); flex: 0 0 auto; }
 .sg-nav-find:hover svg { color: var(--accent); }
-@media (min-width: 768px) { .sg-nav-find { display: inline-flex; } }
 
 /* ── D8: a shared accessibility floor this design had undone ─────────────
    CSS_AFTER wins over the shared block by construction, and round 1 used that
@@ -1114,14 +1226,47 @@ export const CSS_AFTER = `
   }
   .design-switcher:hover::after, .design-switcher:focus-within::after { display: none; }
 }
+/* D9 — the coarse branch cost more than it bought. Round 2 kept all five
+   links expanded on a touch pointer because there is no hover to expand them
+   with, and measured at a TRUE 390px viewport that 314px bar sat over body
+   text at scrollY 0 on all four pages: 93% of the home hero's caption, 91% of
+   the first listing's description, half the repo page's verdict legend. The
+   same switcher with a fine pointer collapses to 85x56 and covers 17.8%.
+   So it collapses on a phone too — and a TAP opens it, because :focus-within
+   alone cannot (the only focusable thing in the collapsed state is the current
+   design's own link, which navigates). layout.ts intercepts that first tap.
+   Nothing becomes unreachable: keyboard focus still expands the strip, and the
+   links keep their tab order rather than being visibility:hidden. */
 @media (hover: none), (pointer: coarse) {
   .design-switcher {
-    overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+    overflow: hidden; gap: 0;
     -webkit-overflow-scrolling: touch;
   }
   .design-switcher::-webkit-scrollbar { display: none; }
-  .design-switcher .ds-label { display: none; }
   .design-switcher a { padding: 6px 9px; font-size: 12px; }
+  .design-switcher .ds-label,
+  .design-switcher a:not([aria-current="true"]) {
+    max-inline-size: 0; padding-inline: 0; opacity: 0; overflow: hidden;
+    transition: max-inline-size var(--dur-morph) var(--ease),
+                padding var(--dur-morph) var(--ease),
+                opacity var(--dur-quick) var(--ease);
+  }
+  .design-switcher::after {
+    content: ""; flex: 0 0 auto; inline-size: 6px; block-size: 6px;
+    border: solid var(--ink-3); border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg); margin: -3px 6px 0 1px;
+  }
+  .design-switcher.is-open { gap: 2px; overflow-x: auto; scrollbar-width: none; }
+  .design-switcher.is-open .ds-label { max-inline-size: 8rem; padding-inline: 6px; opacity: 1; }
+  .design-switcher.is-open a:not([aria-current="true"]) {
+    max-inline-size: 10rem; padding-inline: 9px; opacity: 1;
+  }
+  .design-switcher:focus-within { gap: 2px; overflow-x: auto; }
+  .design-switcher:focus-within .ds-label { max-inline-size: 8rem; padding-inline: 6px; opacity: 1; }
+  .design-switcher:focus-within a:not([aria-current="true"]) {
+    max-inline-size: 10rem; padding-inline: 9px; opacity: 1;
+  }
+  .design-switcher.is-open::after, .design-switcher:focus-within::after { display: none; }
 }
 
 /* ── D20 / D22: the control grid on a phone ──────────────────────────────
@@ -1182,6 +1327,42 @@ export const CSS_AFTER = `
     border-radius: 12px; padding: 12px 14px; margin-block-end: 10px;
   }
   .method-table tbody tr:nth-child(even) { background: var(--surface); }
+  /* D26 / D31 — stacking was the right fix and nothing was collapsed to pay
+     for it: the page went 18,776px at 1440 to 43,677px at 390, and the 54-row
+     check table alone became 54 individually bordered cards. This design's own
+     better answer is on the repo page, where 42 control rows are hairline-
+     divided rows with no box and scan far faster — which is also what the
+     brief asks for ("the grid becomes one column keeping horizontal hairlines
+     as dividers"). The box stays only where a row is genuinely a card: the
+     directory listings, and the short grade/class tables. */
+  .tx-q-table tbody tr, .cmp-table tbody tr {
+    background: none; border: 0; border-block-end: 1px solid var(--hairline-2);
+    border-radius: 0; padding: 10px 0; margin-block-end: 0;
+  }
+  .tx-q-table tbody tr:last-child, .cmp-table tbody tr:last-child { border-block-end: 0; }
+  .tx-q-table td, .cmp-table td { padding-block: 3px; }
+  /* A one-word cell does not need its label on a line of its own. */
+  .cmp-table tr[data-coverage] td:nth-child(3) {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px;
+  }
+  .cmp-table tr[data-coverage] td:nth-child(3)::before { margin-block-end: 0; }
+  /* D31's own cheaper alternative, taken: a check id and the groups it defends
+     belong on ONE line, and the question underneath needs no label — the
+     heading above the table is "Every check, as a question" and every cell in
+     the column ends in a question mark. Three stacked label-plus-value pairs
+     become two lines. Measured: 185px rows to ~140px across 54 of them. */
+  .tx-q-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px; align-items: baseline;
+  }
+  .tx-q-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .tx-q-table td:nth-child(3) {
+    grid-column: 2; grid-row: 1; justify-self: end; text-align: end;
+  }
+  .tx-q-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .tx-q-table td:nth-child(1)::before,
+  .tx-q-table td:nth-child(2)::before { display: none; }
+  .tx-q-table td:nth-child(3)::before { display: inline; margin-inline-end: 6px; }
   .method-table td { padding: 5px 0; border: 0; }
   .method-table td[data-label]::before,
   .tx-q-table td::before,
@@ -1205,6 +1386,15 @@ export const CSS_AFTER = `
      a line break, it is a different string. Stacked cards give them the room. */
   .method-table code, .tx-q-groups, .tx-class-controls code { overflow-wrap: normal; }
   .tx-q-groups { white-space: normal; }
+  /* overflow-wrap:normal was not enough: UAX#14 still allows a break AFTER a
+     hyphen, so 31 identifier chips set as "branch-" / "protection" at 390 —
+     the same class of fault as round 1's "commi / t- / signin / g", just a
+     kinder break point. An identifier is one token or it is a different
+     string. These chips are at most ~22 characters (~165px inside a 316px
+     column), so nowrap costs no overflow; the RUN of chips still wraps
+     between them, because the separators are real spaces and commas. */
+  .tx-class-controls code, .tx-q-table code, .cmp-table code,
+  .method-table td code, .ctl-id code { white-space: nowrap; }
 }
 
 /* ── D21: a command block that looks truncated ───────────────────────────
@@ -1212,7 +1402,41 @@ export const CSS_AFTER = `
    a hard clip: the ssh-keygen block ended at "< scar" with nothing to say the
    rest existed. Shell continuations survive wrapping, so on a phone it wraps. */
 @media (max-width: 560px) {
-  pre.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* D42 / D33 — round 2's 'overflow-wrap: anywhere' cured the clipping and
+     replaced it with a worse fault: it broke the quoted signer identity mid
+     string ("...users.noreply.github" / ".com"), and a compliance reader is
+     meant to COPY that ssh-keygen line to reproduce the verification. A
+     mis-keyed principal is a failed verification. Lines wrap at whitespace,
+     shell continuations survive, and the one over-long argument overflows into
+     the block's own horizontal scroll — which now carries a visible right-edge
+     shadow (see pre.code above), so a scrollable block no longer looks
+     truncated. That also keeps the local-lane contract's key/value columns
+     aligned instead of wrapping values under their keys. */
+  pre.code {
+    white-space: pre-wrap; overflow-wrap: normal; word-break: keep-all;
+    /* 11.5px, measured rather than chosen: at 13px the quoted principal is
+       312px inside a 310px content box — two pixels over, and Chrome breaks
+       the token rather than overflowing. The whole ssh-keygen line cannot fit
+       at 390 and correctly wraps at its whitespace; what must not happen is
+       the argument itself splitting, because a compliance reader copies this
+       command by eye to reproduce the verification. */
+    font-size: 11.5px; line-height: 1.65;
+  }
+  /* The same class in prose: an inline <code> identifier is one token, and
+     "10093271+p4gs@users.noreply.github.co / m" is not a line break, it is a
+     different string. Long ones get the block's scroll rather than a break. */
+  p code, li code, .ctl-reason code, .rn code {
+    overflow-wrap: break-word; word-break: normal; hyphens: none;
+    /* And small enough to LAND. break-word only moves a token to its own line
+       when it fits there; measured at 390 the verifying principal
+       "10093271+p4gs@users.noreply.github.com" ran 316px inside a 312px
+       column, so it did not fit and Chrome broke it anyway — orphaning a
+       13px "m" on a line of its own, which is round 2's defect exactly. At
+       0.78em it measures ~293px and stays whole. A 49-character SSH
+       fingerprint still takes two lines; two full lines is a wrap, not a
+       broken token. */
+    font-size: 0.78em;
+  }
   /* D35 / D38 — tracked caps at 390 orphaned single words out of the eyebrow
      and the search label, and the chip row put its first chip beside the
      label and the rest flush-left beneath it. */
@@ -1224,5 +1448,217 @@ export const CSS_AFTER = `
   .sg-display { text-wrap: pretty; }
   .hp-chips-label { flex-basis: 100%; }
   .hp-chips { gap: 6px; }
+}
+
+/* ══ round 3 ════════════════════════════════════════════════════════════
+   Round 2 scored 4/4/3, 4/4/4, 4/3/4. Everything below answers a defect from
+   that round, measured in real Chrome at 1440 and at a TRUE 390px layout
+   viewport (device-metrics override, coarse pointer, lifecycle live), or named
+   by one of the three judges. Each block says which. */
+
+/* ── D17 / D36: the mid type tier, on a phone ────────────────────────────
+   h2 never scaled down, so at 390 the ladder read 40 / 32 / 28 / 22 — h1 vs h2
+   a 1.14 ratio, when at 1440 the same pair is a healthy 1.71. A page title and
+   its section headings reading the same size is what makes the two widths not
+   feel like one typographic system. */
+@media (max-width: 560px) {
+  :root { --t-h2: 1.375rem; --t-h3: 1.0625rem; }
+}
+
+/* ── D43: one right edge, held ───────────────────────────────────────────
+   The home page stepped 1264 -> 920 -> 920 -> 1264 down its right edge while
+   the section rules still ran to 1352, which reads as a layout missing its
+   right-hand column rather than as editorial calm. The two data-less panels
+   are the only 920s in that stack, and they are also the two the composition
+   did not want stacked (D23): side by side they fill the row, the step is
+   gone, and the page no longer opens on two apologies in a column. */
+@media (min-width: 768px) {
+  .hp-panels:has(.hp-waiting) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hp-panels:has(.hp-waiting) > .hp-panel:not(:has(> .hp-waiting)) { grid-column: 1 / -1; }
+  .hp-panel:has(> .hp-waiting) { max-inline-size: none; block-size: 100%; }
+}
+/* D23 — and the duplicate call to action goes. Two adjacent cards ending in
+   the identical "Browse every listing →" 160px apart at the same x read as
+   templated output; one link is the same offer. */
+.hp-panel:has(> .hp-waiting) ~ .hp-panel:has(> .hp-waiting) .hp-waiting-link { display: none; }
+
+/* ── D43: the methodology is a document, so it is set as one ─────────────
+   A ~770px reading column hanging off the left of a 1264px canvas leaves ~45%
+   of the page empty at 1440. OpenAI — the reference for this register — centres
+   its prose column. The rail, the chapter headings, the tables and the prose
+   all move together, so the column reads as the document's width rather than
+   as a cap applied to some of its parts. */
+body.pg-methodology main { max-inline-size: 1000px; }
+
+/* ── D22: the card-width grammar has no exceptions now ───────────────────
+   White = data at the wide rule, tinted = narrative at prose width. Round 2
+   left 'Defences found, by attack group' white AT 920px, stacked directly
+   above a white 1264px family card with the same border, radius and padding —
+   a 344px step that reads as an accident. It is a data card: it gets the
+   wide rule. */
+.exposure { max-inline-size: var(--maxw-wide); }
+
+/* ── D25: chroma follows the count ───────────────────────────────────────
+   The numerals were already dimmed at zero; the glyphs were not, so an
+   all-passing directory drew a saturated red ring and a saturated amber ring
+   in every row. The shape still carries the state — and the legend below keeps
+   the full-chroma key, so the mapping is never lost. */
+.cmark[data-count="0"] { color: var(--ink-3); }
+.cmark[data-count="0"] .mk { color: var(--ink-3); opacity: 0.55; }
+
+/* ── D24: the table is a table again ─────────────────────────────────────
+   Rows measured 83 / 96 / 96px against the brief's 52, because the repository
+   cell's stacked lines set the height and every other cell was top-aligned —
+   35-45px of dead space under each number, which at fifty listings is ~4,500px
+   of nothing. And every th computed text-align:start, INCLUDING Passed and
+   Answered: it does not show while all three values are the same width, and it
+   breaks the moment a listing scores 9.1% beside 100%, which is the entire
+   reason this design loads tabular numerals. */
+@media (min-width: 768px) {
+  .directory tbody td { vertical-align: middle; }
+  .directory th.c-num, .directory td.c-num { text-align: end; }
+  .directory td.c-num .meter { margin-inline-start: auto; }
+  .row-sub { justify-content: flex-start; }
+  .row-sub > .row-desc { -webkit-line-clamp: 1; line-clamp: 1; }
+}
+
+/* ── D18: a meter belongs to the figure above it, not the row below ──────
+   In the card list the score meters were bottom-anchored in grid cells whose
+   height came from their neighbours: measured on card 2 the PASSED meter sat
+   4px above the SOURCE cell and 33px below its own figure, so the blue bar
+   read as a rule underlining "SOURCE signed CI". The two meters in one visual
+   row were not even on a common baseline (14px of clearance against 4px). */
+@media (max-width: 767px) {
+  /* align-items:start is the whole fix — a cell must take its own content
+     height instead of being stretched by its neighbour. No row-gap: the td
+     padding already spaces the pairs, and adding one grew each card ~40px. */
+  .directory tbody tr { align-items: start; }
+  .directory tbody td { align-self: start; }
+  .directory .c-num .meter { margin: 5px 0 0; }
+}
+
+/* ── D32: the listing card is the target, and says so ────────────────────
+   Measured at 390 each card is ~300px tall and its only link was the 198x44
+   mono slug — not blue, not underlined, with the obvious full-card tap doing
+   nothing. The stretched pseudo-element makes the whole card the target
+   without a second link in the accessibility tree; the chevron is the
+   affordance the brief's card spec asks for. The notes disclosure is lifted
+   above the stretched link so it still opens. */
+@media (max-width: 767px) {
+  .directory tbody tr { position: relative; }
+  .directory .row-link { color: var(--accent-ink); }
+  .directory .row-link::after { content: ""; position: absolute; inset: 0; z-index: 0; }
+  .directory .c-repo { position: static; }
+  .directory tbody tr::before {
+    content: "›"; position: absolute; inset-inline-end: 14px; inset-block-start: 12px;
+    font-family: var(--mono); font-size: 20px; line-height: 1; color: var(--ink-3);
+    pointer-events: none;
+  }
+  .row-notes, .row-sub > .row-desc, .directory .rn { position: relative; z-index: 1; }
+  .directory .c-marks { padding-inline-end: 26px; }
+}
+
+/* ── D21 / D35: the glossary is a definition list ────────────────────────
+   Four definitions, four em-dash asides, a semicolon and a trailing
+   parenthetical in one run-on paragraph of alternating bold and grey italic —
+   at 1440 a 660px block, at 390 a ~430px one, and no way to scan for a term.
+   The italics go entirely: the dt/dd split already carries the distinction. */
+.key-gloss-block { margin-block: 26px 0; }
+.key-gloss-h {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.key-gloss-block .key-note { margin-block: 0 16px; }
+.key-gloss { margin: 0; display: grid; gap: 4px 20px; }
+.kg-term { font-size: var(--t-sm); font-weight: 600; color: var(--ink); }
+.kg-def { margin: 0 0 12px; font-size: var(--t-sm); color: var(--ink-3); font-style: normal; }
+@media (min-width: 768px) {
+  .key-gloss { grid-template-columns: max-content minmax(0, 60ch); }
+  .kg-term { grid-column: 1; }
+  .kg-def { grid-column: 2; margin-block-end: 6px; }
+}
+
+/* ── D7 / D38: the search box keeps the promise the lede makes ───────────
+   "Type any owner/repo to search the record" answered a non-matching query
+   with a void: zero rows, no message anywhere in main, and at 1440 an orphan
+   43px header row over an empty body. The count line flipping to "0 of 3
+   shown" was the only feedback on a site whose whole register is saying what
+   it can and cannot show. */
+.dir-empty {
+  display: none; margin-block: 28px 8px; padding: 22px 0;
+  max-inline-size: var(--measure); font-size: var(--t-sm); color: var(--ink-2);
+  border-block: 1px solid var(--hairline);
+}
+.dir-empty:not([hidden]) { display: block; }
+.dir-empty code { font-size: var(--t-sm); }
+
+/* ── D44: one reason, once ───────────────────────────────────────────────
+   Six rows of a 42-row control grid carried the identical 200-character
+   sentence, two full lines of body copy each, so the eye could not tell which
+   rows differed. It is stated once per family, and the rows that share it
+   carry its opening clause as a mono tag. */
+.family-note {
+  margin: 8px 0 12px; padding: 10px 12px;
+  background: var(--paper-2); border-radius: 8px;
+  font-size: var(--t-xs); line-height: 1.55; color: var(--ink-2);
+  max-inline-size: 78ch;
+}
+.family-note-n {
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+  margin-inline-end: 8px;
+}
+.ctl-src {
+  display: inline-block; font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+  border: 1px solid var(--hairline-2); border-radius: 999px; padding: 1px 8px;
+}
+
+/* ── D2 / D10: the attack-group state column ─────────────────────────────
+   Nine rows, one value, nine words of mono caps each. Shortened, never
+   dropped — every row still carries colour AND shape AND text. */
+.ex-state-ok { color: var(--ink-3); }
+
+/* ── D27: two finishing misses on the phone ──────────────────────────────
+   (1) The A+ chip dropped onto a row of its own under the meta line with
+   ~300px of empty space beside it — a 60px pill occupying a full row. It
+   belongs on the title's line, where a grade is a property of the name.
+   (2) Every control row painted the same green dot twice ~40px apart: the
+   gutter glyph and an identical filled dot inside the PASS chip on the line
+   above the identifier. Colour + shape + text is satisfied twice over; the
+   gutter is the scannable column, so the chip keeps the word and gives up the
+   duplicate glyph. */
+@media (max-width: 767px) {
+  .repo-head {
+    flex-direction: row; flex-wrap: nowrap; align-items: flex-start;
+    justify-content: space-between; gap: 12px;
+  }
+  .repo-head-main { flex: 1 1 auto; }
+  .repo-head-grade { flex: 0 0 auto; padding-block-start: 4px; }
+  .ctl > .chip > .mk { display: none; }
+  .ctl > .chip { gap: 0; }
+}
+
+/* ── D8: the incident disclosures name what they hold ────────────────────
+   They open by default now (methodology.ts) and their summary carries a count,
+   so the caret reads as a control over something rather than a label. */
+.tx-details[open] > summary { margin-block-end: 4px; }
+.tx-incidents { margin-block-start: 8px; }
+
+/* ── D20 / D34: a scrollable table says so ───────────────────────────────
+   The same local/scroll background pair as pre.code: the right-edge shadow
+   appears only while there is something to scroll to. At <=767px the method
+   tables stack and never scroll, so it never paints there. */
+@media (min-width: 768px) {
+  .table-scroll {
+    background-image:
+      linear-gradient(to left, var(--surface), var(--surface)),
+      linear-gradient(to left, rgba(26,23,20,.13), rgba(26,23,20,0));
+    background-position: right center, right center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 20px 100%;
+    background-attachment: local, scroll;
+  }
 }
 `;

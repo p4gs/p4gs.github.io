@@ -141,7 +141,14 @@ const RAIL_SCRIPT = `<script>(function(){
   // script quietly does nothing — measured live as an active pill that never
   // left chapter 01 no matter where the page was scrolled.
   var boot=function(){
-  var rail=document.querySelector(".sg-rail");
+  // The SCROLLER, not the sticky wrapper. Round 2 put overflow-x on .sg-rail
+  // itself and faded its right edge with mask-image — and a masked ancestor
+  // forms a backdrop root, so the pill's backdrop-filter sampled an empty
+  // backdrop and painted nothing. Body text read straight through the rail at
+  // every scroll position. The fade now lives on a ::after of the non-scrolling
+  // wrapper (it must not scroll away with the track) and the track is its own
+  // element, which is the thing scrollLeft has to move.
+  var rail=document.querySelector(".sg-rail-scroll");
   if(!rail)return;
   var links=Array.prototype.slice.call(rail.querySelectorAll("a[data-target]"));
   var pairs=[];
@@ -193,6 +200,42 @@ const RAIL_SCRIPT = `<script>(function(){
   else{boot();}
 })();</script>`;
 
+/**
+ * The design switcher's tap affordance — Signal's own chrome behaviour.
+ *
+ * The switcher is the validation harness's, shared by five designs, and each
+ * design may place and shape it. With a FINE pointer Signal already collapses
+ * it to the current design and expands it on hover or keyboard focus: ~85px of
+ * the corner instead of ~314px. With a COARSE pointer there is no hover, so
+ * round 2 left every link expanded — and measured at a true 390px viewport
+ * that 314px bar covered 93% of the home page's hero caption at scrollY 0, on
+ * every page, at every scroll position.
+ *
+ * Collapsing it on a phone as well is only safe if a tap can still open it,
+ * and CSS alone cannot do that: `:focus-within` needs a focusable descendant,
+ * and the only one in the collapsed state is the current design's own link,
+ * which navigates on tap. So the first tap on that link OPENS the switcher
+ * instead of reloading the page the reader is already on; the second tap (or a
+ * tap anywhere else) closes it. Nothing is hidden from a keyboard: the links
+ * keep their tab order and `:focus-within` still expands the strip.
+ */
+const SWITCHER_TAP_SCRIPT = `<script>(function(){
+  var nav=document.querySelector(".design-switcher");
+  if(!nav||!window.matchMedia)return;
+  var coarse=window.matchMedia("(hover: none), (pointer: coarse)");
+  var here=nav.querySelector('a[aria-current="true"]');
+  if(!here)return;
+  here.addEventListener("click",function(e){
+    if(!coarse.matches)return;
+    if(nav.classList.contains("is-open"))return;
+    e.preventDefault();
+    nav.classList.add("is-open");
+  });
+  document.addEventListener("click",function(e){
+    if(nav.classList.contains("is-open")&&!nav.contains(e.target))nav.classList.remove("is-open");
+  },true);
+})();</script>`;
+
 /** One numbered chapter pill. */
 export interface Chapter {
   id: string;
@@ -217,7 +260,7 @@ export function chapterRail(chapters: readonly Chapter[]): string {
       )}</a>`,
     )
     .join("");
-  return `<nav class="sg-rail" aria-label="Sections"><div class="sg-rail-in">${items}</div></nav>
+  return `<nav class="sg-rail" aria-label="Sections"><div class="sg-rail-scroll"><div class="sg-rail-in">${items}</div></div></nav>
 ${RAIL_SCRIPT}`;
 }
 
@@ -244,13 +287,13 @@ export function page(opts: {
 ${FONTS_HEAD}
 <link rel="stylesheet" href="${href("style.css")}">
 </head>
-<body>
+<body class="pg-${active || "home"}">
 <a class="sg-skip" href="#main">Skip to content</a>
 <header class="sg-head">
   <div class="sg-head-in">
     <a class="sg-mark" href="${href("")}">${MARK}<span>sscsb</span></a>
     <nav class="sg-nav" aria-label="Site">
-      <a class="sg-nav-find" href="${href("directory/#dir-filter")}">${SEARCH_GLYPH}<span>Search</span></a>
+      <a class="sg-nav-find" href="${href("directory/#dir-filter")}" aria-label="Search the directory">${SEARCH_GLYPH}<span class="sg-nav-find-label">Search</span></a>
       ${nav("directory", "Directory", "directory/")}
       ${nav("methodology", "Methodology", "methodology/")}
       <a class="sg-nav-ext" href="${ACTION_REPO_URL}">Action</a>
@@ -269,6 +312,7 @@ ${opts.body}
 </footer>
 ${NAV_SCRIPT}
 ${ctx.switcher}
+${ctx.switcher ? SWITCHER_TAP_SCRIPT : ""}
 </body>
 </html>`;
 }
