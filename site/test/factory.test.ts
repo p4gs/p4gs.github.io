@@ -36,10 +36,17 @@ import {
   MOTION_CSS,
   MOTION_SCRIPT,
 } from "../src/designs/factory/motion";
-import { LOOP_EDGE_PATH, MAZE_GRID, mazeRoute, slotForPhases } from "../src/designs/factory/components";
+import {
+  LOOP_EDGE_PATH,
+  MAZE_GRID,
+  mazeRoute,
+  slotForPhases,
+  VERDICT_STATES,
+  VERDICT_WORD,
+} from "../src/designs/factory/components";
 import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
 import { CLASS_SHORT } from "../src/designs/factory/components";
-import { COVERAGE_FLOOR_PROVISIONAL, PHASES } from "../src/scoring";
+import { COVERAGE_FLOOR_PROVISIONAL, PHASES, PHASE_NAMES } from "../src/scoring";
 import { ATTACK_CLASSES, controlsDefending, type AttackClassId } from "../src/threats";
 import { LANE_TITLE } from "../src/trust";
 import { ctxFor, rec, RECORDS } from "./fixtures";
@@ -2147,5 +2154,257 @@ describe("what the self-check found, and what keeps it found", () => {
     // blockify the link out of the inline exception
     expect(DETAIL).toContain('<span class="fy-verdict-cell">');
     expect(CSS).toContain(".fy-verdict-cell { display: inline; }");
+  });
+});
+
+/* ══ round 2 — the rest of the list, each item against the thing it fixes ═══ */
+
+describe("R3 · one verdict vocabulary, on every surface that names a state", () => {
+  test("the three keys are the same set of words, drawn as the page draws them", () => {
+    const words = VERDICT_STATES.map((v) => v.word);
+    // the sheet's key, the directory's key, and the explorer's Record card
+    for (const [name, html] of [["detail", DETAIL], ["directory", DIRECTORY], ["home", HOME]] as const) {
+      for (const w of words) {
+        expect(html, `${name}: the key must name "${w}"`).toContain(`>${w}</span>`);
+      }
+    }
+    // and they are the real pills, not swatches that match nothing on the page
+    for (const v of VERDICT_STATES) {
+      expect(DETAIL).toContain(`<span class="fy-outcome fy-oc-${v.key}">${v.word}</span>`);
+    }
+    // the vocabulary is ONE table, so a sixth state cannot be added to a chip
+    // without appearing in every key
+    expect(VERDICT_WORD.info).toBe("out of scope");
+    expect(VERDICT_WORD.fail).toBe("did not pass");
+  });
+
+  test("gap is amber everywhere, and red is the fail state and nothing else", () => {
+    expect(CSS).toMatch(/\.fy-oc-gap \{[^}]*color: var\(--fy-warn\)/);
+    expect(CSS).toMatch(/\.fy-node\[data-verdict="gap"\] \.fy-node-verdict \{[^}]*color: var\(--fy-warn\)/);
+    // T14 · the tint register, with the full-strength hue kept for the word
+    expect(CSS).toContain("--fy-tint-pass: #edf8f1;");
+    expect(CSS).toMatch(/\.fy-oc-pass \{[^}]*background: var\(--fy-tint-pass\)/);
+    // the ONLY things --fy-fail may paint are the fail verdict and the fail
+    // swatch — never a provenance fact
+    const failRules = CSS.split("\n").filter((l) => l.includes("--fy-fail)") && !l.includes("--fy-fail:"));
+    expect(failRules.length).toBeGreaterThan(3);
+    for (const r of failRules) {
+      expect(
+        // the verdict itself, its swatch, its grade ring, its lane chip — and
+        // the one bridge line that hands the token to the shared layer
+        /fy-oc-fail|fy-seg-fail|fy-swatch-fail|fy-g-f|fy-lane|data-verdict="fail"|--hp-fail:/.test(r),
+        `--fy-fail on a non-verdict rule: ${r.trim()}`,
+      ).toBe(true);
+    }
+  });
+});
+
+describe("R6 · the three small honesty items", () => {
+  test("the re-verify links say what the signed bytes still carry", () => {
+    expect(HONEST_DETAIL).toContain(
+      "The signed bytes are republished verbatim, and contain the workstation paths",
+    );
+    expect(HONEST_DETAIL).toContain("this page redacts.");
+  });
+
+  test("two identical grades are never separated by a vs", () => {
+    // "vs" between equal values reads as a grade dispute where there is none,
+    // and the sheet already resolves the same pair as "Both score A+."
+    expect(DIRECTORY).not.toMatch(/A\+ 100% vs this listing A\+ 100%/);
+    const both = factory.renderDirectory(RECORDS, {
+      ...ctxFor("factory", "directory", "directory/"),
+      facts: new Map(
+        RECORDS.map((r) => [
+          `${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}`,
+          { ...HONEST_FACTS },
+        ]),
+      ),
+    } as never);
+    expect(both).toContain("both score A+ 100%");
+    expect(both).not.toContain(" vs this listing");
+  });
+
+  test("16 in the standard set is reconciled with the ten or eleven in scope", () => {
+    expect(HOME).toContain("Ten or eleven are in scope on a typical repository.");
+    expect(HOME).toContain(`of the standard ${CONTROL_COUNT} only a maintainer&#39;s own machine can answer`);
+  });
+});
+
+describe("S · the 390 structure, in the rules that produce it", () => {
+  test("S1 · the chapter rail spans the gutters rather than a 278px cap", () => {
+    expect(MOBILE).toContain("inline-size: calc(100% - 40px); max-inline-size: none;");
+    expect(MOBILE).not.toContain("max-inline-size: calc(100% - var(--fy-gutter) * 2 - 64px)");
+  });
+
+  test("S2 · the shared scroll containers get the mask, a tab stop and a cue", () => {
+    expect(CSS).toMatch(/\.table-scroll \{[^}]*--fy-mask-start/);
+    expect(CSS).toContain('.table-scroll[data-overflow-end="true"] { --fy-mask-end: rgba(0, 0, 0, 0); }');
+    expect(CSS).toMatch(/\.table-scroll:focus-visible \{[^}]*outline: 2px solid var\(--fy-ring\)/);
+    expect(CSS).toMatch(/\.fy-swipe \{/);
+    // the script is what applies them, to BOTH families
+    expect(MOTION_SCRIPT).toContain('querySelectorAll(".fy-wrap, .table-scroll")');
+    expect(MOTION_SCRIPT).toContain('cue.className = "fy-swipe"');
+    expect(MOTION_SCRIPT).toContain('wrap.setAttribute("tabindex", "0")');
+    // methodology is the page that carries them
+    expect(countOf(METHODOLOGY, 'class="table-scroll"')).toBeGreaterThanOrEqual(2);
+  });
+
+  test("S3 · the compact rail interleaves connectors, and the order is derived", () => {
+    // Cards and connectors live in two sibling containers; flattening both is
+    // the only way a connector lands BETWEEN two cards.
+    expect(MOBILE).toContain(".fy-loop-cards, .fy-connections { display: contents; }");
+    expect(MOBILE).toContain(".fy-loop-card, .fy-connector { order: var(--fy-rail-order, 0); }");
+    // …and the order is a property of the data, not five literals in CSS
+    const cardOrders = [...HOME.matchAll(/class="fy-loop-card"[^>]*--fy-rail-order:(\d+)/g)].map((m) => Number(m[1]));
+    const edgeOrders = [...HOME.matchAll(/class="fy-connector"[^>]*--fy-rail-order:(\d+)/g)].map((m) => Number(m[1]));
+    expect(cardOrders).toEqual([1, 3, 5, 7, 9]);
+    expect(edgeOrders).toEqual([2, 4, 6, 8, 10]);
+    // the return bracket, and the symmetric gutter it lives in
+    expect(MOBILE).toContain("gap: 10px; padding-inline: 20px;");
+    expect(MOBILE).toMatch(/\.fy-connector\[data-loop-edge="rescan"\]::after \{[^}]*transform: rotate\(-45deg\)/);
+    expect(countOf(HOME, 'class="fy-connector"')).toBe(5);
+  });
+
+  test("S4 · every label-plus-items row is a list at 390", () => {
+    expect(MOBILE).toMatch(
+      /\.fy-legend, \.fy-trace-legend, \.fy-verdict-key, \.fy-phase-names, \.fy-key \{\s*\n?\s*flex-direction: column/,
+    );
+    expect(MOBILE).toContain(".fy-ctl-bar .fy-key-label, :root .design-switcher .ds-label { flex: 0 0 100%; }");
+  });
+
+  test("S5 · every chart label is HTML, positioned from the plot's own geometry", () => {
+    const chart = HOME.slice(HOME.indexOf('class="fy-chart-grid"'), HOME.indexOf("</figure>", HOME.indexOf('class="fy-chart-grid"')));
+    // no SVG text left to be scaled by a viewBox
+    expect(chart).not.toContain("<text");
+    expect(countOf(chart, 'class="fy-chart-value"')).toBe(ATTACK_CLASSES.length);
+    expect(countOf(chart, "<span>A")).toBe(ATTACK_CLASSES.length);
+    expect(chart).toContain('<p class="fy-chart-axis" aria-hidden="true">Attack group</p>');
+    expect(chart).toContain('class="fy-chart-ylabel"');
+    // the id row's columns ARE the bars' columns, derived from the same numbers
+    expect(CSS).toContain("column-gap: calc(12 / 584 * 100%);");
+    expect(CSS).toContain("padding-inline: calc(60 / 584 * 100%) calc(32 / 584 * 100%);");
+    // mono, like every other identifier on the site
+    expect(CSS).toMatch(/\.fy-chart-ids \{[^}]*font-family: var\(--fy-mono\)/);
+    // the mobile stretch is the wrap's aspect-ratio, so type does not stretch
+    expect(MOBILE).toContain(".fy-plot-wrap { aspect-ratio: 584 / 432; }");
+    expect(CSS).not.toContain("--fy-stretch");
+  });
+
+  test("S6 · the ranked figure's labels are HTML, placed off the trace", () => {
+    const tri = HOME.slice(HOME.indexOf('class="fy-figure fy-triangle"'), HOME.indexOf("</figure>", HOME.indexOf('class="fy-figure fy-triangle"')));
+    expect(countOf(tri, 'class="fy-speed-label"')).toBe(3);
+    expect(tri).toContain('data-place="above-center"');
+    expect(tri).toContain('data-place="above-start"');
+    expect(tri).toContain('data-place="below-end"');
+    // T19 · hollow AND dashed, which D7 asked for and only half of which landed
+    expect(CSS).toContain(".fy-figure .fy-speed-node.fy-node-hollow { stroke-dasharray: 3 3; }");
+  });
+
+  test("S7 + S8 · nested chips, counters and the kicker at 390", () => {
+    expect(MOBILE).toContain(".fy-node { flex-wrap: wrap; }");
+    expect(MOBILE).toContain(".fy-node-label { overflow-wrap: normal; }");
+    expect(MOBILE).toContain(".fy-metrics { grid-template-columns: minmax(0, 1fr); gap: 24px; }");
+    expect(MOBILE).toContain(".fy-kicker .fy-sep { display: none; }");
+    expect(HOME).toContain('<span class="fy-sep"');
+    expect(CSS).toMatch(/\.fy-repeat-count \{[^}]*white-space: nowrap/);
+  });
+
+  test("S9 · the directory prints P1-P6 against the names they stand for", () => {
+    expect(DIRECTORY).toContain('class="fy-key fy-phase-names"');
+    for (const [n, name] of Object.entries(PHASE_NAMES)) {
+      expect(DIRECTORY, `P${n} needs its name in visible text`).toContain(
+        `<span class="fy-phase-id">P${n}</span>${name.replaceAll("&", "&amp;")}`,
+      );
+    }
+    // …and it is the ONE page that draws the bars without them, so this is not
+    // a nicety: a title attribute never renders at all on a touch device.
+    expect(countOf(DIRECTORY, 'class="fy-phase-name"')).toBe(Object.keys(PHASE_NAMES).length);
+  });
+});
+
+describe("T · the polish class, in the rules that carry it", () => {
+  test("T1 · nothing in this tree is bolder than 500", () => {
+    expect(CSS).toContain("strong, b { font-weight: 500; }");
+    // …including the shared layer's own six 600/700 declarations
+    expect(CSS).toContain(":root .hp-card-name, :root .hp-waiting-link, :root .hp-more,\n:root .ex-name, :root .tx-chip-id { font-weight: 500; }");
+    // The concatenated sheet still CONTAINS the shared layer's own six heavy
+    // declarations — that layer is not this design's to rewrite — and each one
+    // is re-declared at 500 by the rule above. Six is the number: a seventh
+    // means the shared layer grew one this override does not cover, and the
+    // browser probe (0 elements over 500 on all four pages) is what closes it.
+    const overWeight = [...CSS.matchAll(/font-weight: (\d+)/g)]
+      .map((m) => Number(m[1]))
+      .filter((w) => w > 500);
+    expect(overWeight.length, "an uncovered heavy weight entered the shared layer").toBe(6);
+  });
+
+  test("T2 · the pull-quote is the reference's, and the dark chapter is unboxed", () => {
+    expect(CSS).toMatch(/\.fy-pullquote \{[^}]*text-align: center;/);
+    expect(CSS).toMatch(/\.fy-pullquote \{[^}]*padding: 0; border: 0;/);
+    expect(HOME).toContain('<span class="fy-quote-by">');
+  });
+
+  test("T3 · both disclosure systems carry a marker that moves with the state", () => {
+    expect(HOME).toContain('class="fy-chevron"');
+    expect(countOf(HOME, 'class="fy-chevron"')).toBe(ATTACK_CLASSES.length);
+    expect(CSS).toContain('.fy-attack-trigger[aria-expanded="true"] .fy-chevron { transform: rotate(180deg); color: var(--fy-accent); }');
+    expect(CSS).toContain(":root .tx-details > summary { cursor: pointer; }");
+    expect(CSS).toMatch(/:root \.tx-details > summary::before \{[^}]*transform: rotate\(45deg\)/);
+    expect(CSS).toContain(":root .tx-details[open] > summary::before { transform: rotate(-135deg); margin-block-start: 3px; }");
+  });
+
+  test("T4 · every separator is a ::before on the item that follows it", () => {
+    expect(CSS).toContain('.fy-sl > span + span::before { content: "\\B7\\A0"; }');
+    // …and every site the judge caught stranding one is a sepList now
+    expect(DIRECTORY).toContain('<span class="fy-sl"><span>100% passed</span>');
+    expect(HOME).toContain('<span>Open source</span> <span>Apache-2.0</span>');
+    expect(HOME).toContain('<span>scan-record.json</span> <span>signed when the lane can sign it</span>');
+    expect(HOME).toContain('<span>A grade</span> <span>6 phase bars</span>');
+    expect(DETAIL).toContain('<span>13 checks belong to this phase</span>');
+    // every page uses the component, on the lines that used to strand one
+    for (const [name, html] of PAGES) {
+      expect(countOf(html, 'class="fy-sl"'), `${name}`).toBeGreaterThan(0);
+    }
+    // the metadata line's own separators moved from a trailing ::after
+    expect(CSS).toContain(".fy-rm + .fy-rm::before { content: \"· \"; }");
+    expect(CSS).not.toContain('.fy-rm:not(:last-child)::after');
+  });
+
+  test("T8 + T9 · the search field is a pill and the wordmark is a mark", () => {
+    expect(CSS).toMatch(/:root \.hp-search-input \{[^}]*border-radius: 999px;/);
+    expect(CSS).toMatch(/:root \.hp-search-input \{[^}]*max-inline-size: 520px;/);
+    expect(CSS).not.toMatch(/:root \.hp-search-input \{[^}]*border-radius: 8px/);
+    expect(CSS).toMatch(/\.fy-wordmark \{[^}]*font-family: var\(--fy-display\); font-weight: 500; font-size: 16px; letter-spacing: -0\.02em;/);
+  });
+
+  test("T10 + T11 + T12 + T13 · prose rhythm, counts, legend, measure", () => {
+    expect(CSS).toMatch(/\.fy-method-section p \{ margin-block-start: 42px;/);
+    expect(CSS).toContain(".fy-method-section h2 + p, .fy-method-section h3 + p { margin-block-start: 16px; }");
+    expect(CSS).toMatch(/:root \.term-def \{[^}]*font-style: normal; color: var\(--fy-muted\)/);
+    expect(CSS).toMatch(/\.fy-attack-checks \{[^}]*display: grid; grid-template-columns: auto minmax\(0, 1fr\)/);
+    expect(CSS).toMatch(/\.fy-ov-count \{[^}]*min-inline-size: 2\.4ch; text-align: end;/);
+    expect(CSS).toMatch(/\.fy-trace-legend \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+    expect(CSS).toMatch(/\.fy-panel \{[^}]*max-inline-size: calc\(var\(--fy-prose\) \+ 48px\)/);
+    expect(CSS).toMatch(/:root \.tx-reported \{[^}]*border-radius: 999px/);
+  });
+
+  test("T16 + T17 + T18 · the nav's plate, its clearance, and its guard", () => {
+    expect(CSS).toMatch(/\.fy-chapters \{[\s\S]*?box-shadow: 0 1px 3px rgba\(0, 0, 0, 0\.08\);/);
+    expect(CSS).toContain("#directory-search, #sheet-record, #ch-record, #protocol { scroll-margin-top: 124px; }");
+    // the belt exists only where scrollend does not
+    expect(MOTION_SCRIPT).toContain('if ("onscrollend" in window) {');
+    expect(MOTION_SCRIPT).toContain("} else {\n            navTimer = setTimeout(settle, 700);");
+    expect(MOTION_SCRIPT).not.toMatch(/navTimer = setTimeout\(settle, 700\);\n          if \("onscrollend"/);
+  });
+
+  test("B14 + B15 + B19 · print, the count's name, and the conditional will-change", () => {
+    // the opening panel carries the page's only h1
+    const print = blockAfter(CSS, "@media print");
+    expect(print).not.toContain(".fy-aperture");
+    expect(print).toContain(".fy-chapters, .fy-find, .fy-bars, .fy-response { display: none; }");
+    expect(HOME).toContain('<span class="fy-attack-mark">');
+    expect(HOME).not.toContain('<span class="fy-attack-mark" aria-hidden="true">');
+    expect(MOTION_SCRIPT).toContain('querySelectorAll(".fy-track[data-window-in-view]")');
+    expect(MOTION_SCRIPT).toContain('track.setAttribute("data-window-in-view", en.isIntersecting ? "true" : "false");');
   });
 });
