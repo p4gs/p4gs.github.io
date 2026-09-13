@@ -1067,13 +1067,29 @@ export const PAGES_CSS = `
    Boxed to 190px in a table cell, the card's bars were a different instrument
    from the sheet's, drawn from the same numbers. */
 .fy-phasebar { display: grid; gap: 4px; inline-size: 100%; min-inline-size: 190px; }
-.fy-phaserow { display: grid; grid-template-columns: 30px minmax(60px, 1fr) 52px; gap: 8px; align-items: center; }
+.fy-phasebar > * + * { margin-block-start: 6px; }
+.fy-phase-key {
+  display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center;
+  font-size: 12px; line-height: 18px; color: var(--fy-muted); margin-block-end: 10px;
+}
+.fy-phase-key .fy-swatch { inline-size: 10px; block-size: 10px; margin-inline-end: 6px; }
+.fy-phaserow {
+  display: grid; grid-template-columns: 30px minmax(60px, 1fr) 52px;
+  gap: 2px 8px; align-items: center;
+}
 .fy-phase-id { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); }
+/* THE TRACK IS THE ANSWERED SET, and nothing that was never answered is drawn
+   inside it: a third state painted as the empty tail of a pass-green bar is the
+   visual grammar of shortfall. The count that used to be that tail is a line of
+   its own underneath, in words. */
 .fy-phase-track { block-size: 8px; border-radius: 999px; overflow: hidden; display: flex; background: var(--fy-surface-2); }
 .fy-seg-pass { background: var(--fy-pass); }
 .fy-seg-fail { background: var(--fy-fail); }
-.fy-seg-unv { background-image: var(--fy-hatch); background-color: var(--fy-surface-2); }
 .fy-phase-pct { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); font-variant-numeric: tabular-nums; text-align: end; }
+.fy-phase-note {
+  grid-column: 2 / -1; font-size: 12px; line-height: 18px; color: var(--fy-muted);
+  font-variant-numeric: tabular-nums;
+}
 .fy-phase-none { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); }
 .fy-empty { padding: 24px 0; font-size: 15px; color: var(--fy-quiet); }
 .fy-clear {

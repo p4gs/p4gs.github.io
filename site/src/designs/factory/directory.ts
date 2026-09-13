@@ -291,38 +291,70 @@ function phaseLabel(p: PhaseScore): string {
 }
 
 /**
- * The three-state bar. The span is pass + fail + gap + unverified, so a bar can
- * read 100% beside a hatched stretch showing exactly what nobody could check —
- * which is the whole point of splitting the two numbers.
+ * The phase bars — and the two numbers they hold are kept apart.
+ *
+ * WHAT THIS USED TO DO, AND WHY IT WAS THE WORST THING ON THE PAGE. The track
+ * spanned pass + fail + gap + unverified, so a phase with five answered checks
+ * and two nobody could answer drew a green bar filled to 71.4 % with a hatched
+ * remainder — and printed **100%** at the end of it. A sighted reader had no
+ * legend, no count and no label for the hatch: they either read the bar as a
+ * proportion and concluded the number was inflated, or read the number and
+ * concluded the bar meant nothing. And the hatch WAS the unanswered set, drawn
+ * as the empty tail of a pass-green progress bar — the visual grammar of
+ * shortfall, which is precisely the third state rendered as a deficit that
+ * `threats.ts` forbids. The sentence that explained it existed, written well,
+ * in an `aria-label`, where no sighted desktop reader and no touch reader will
+ * ever meet it.
+ *
+ * So: the green segment is the phase's OWN percent of a track that is the
+ * answered set and nothing else, and the unanswered count is a separate line
+ * underneath, in the aria-label's own words, on the visible layer.
  */
-function phaseBars(phases: readonly PhaseScore[]): string {
+function phaseBars(phases: readonly PhaseScore[], opts: { legend?: boolean } = {}): string {
+  const legend = opts.legend
+    ? `<span class="fy-phase-key" aria-hidden="true">
+      <span><span class="fy-swatch fy-swatch-pass"></span>pass</span>
+      <span><span class="fy-swatch fy-swatch-fail"></span>did not pass</span>
+      <span><span class="fy-swatch fy-swatch-unv"></span>no answer, never counted</span>
+    </span>\n`
+    : "";
   const rows = phases
     .map((p) => {
       const name = PHASE_NAMES[p.phase] ?? `Phase ${p.phase}`;
       const failGap = p.fail + p.gap;
-      const total = p.pass + failGap + p.unverified;
-      const aria = `${name}: ${phaseLabel(p)}${
-        p.unverified > 0 ? ` (${p.unverified} unverified — not counted)` : ""
-      }`;
-      const w = (n: number) => ((100 * n) / total).toFixed(1);
+      const answered = p.pass + failGap;
+      // The track is the ANSWERED set. Its two segments are the phase's own
+      // percent and its complement, so the green bar's width IS its own number.
+      const w = (n: number) => ((100 * n) / answered).toFixed(1);
       const seg = (cls: string, n: number, title: string) =>
         n === 0 ? "" : `<span class="${cls}" style="width:${w(n)}%" title="${title}: ${n}"></span>`;
-      const track =
-        total === 0
-          ? `<span class="fy-phase-none">no checks in scope</span>`
+      const empty = answered === 0 && p.unverified === 0;
+      const track = empty
+        ? `<span class="fy-phase-none">no checks in scope</span>`
+        : answered === 0
+          ? `<span class="fy-phase-none">nothing answered</span>`
           : `<span class="fy-phase-track">${seg("fy-seg-pass", p.pass, "pass")}${seg(
               "fy-seg-fail",
               failGap,
-              "fail or gap",
-            )}${seg("fy-seg-unv", p.unverified, "unverified")}</span>`;
+              "did not pass",
+            )}</span>`;
+      const note = empty
+        ? "no checks in scope for this listing"
+        : answered === 0
+          ? `${plural(p.unverified)} with no answer (not counted)`
+          : `${phaseLabel(p)} of ${answered} answered${
+              p.unverified > 0 ? ` &middot; ${p.unverified} no answer (not counted)` : ""
+            }`;
+      const aria = `${name}: ${note.replaceAll("&middot;", ",")}`;
       return `<span class="fy-phaserow" role="img" aria-label="${escapeHtml(aria)}">
       <span class="fy-phase-id" aria-hidden="true" title="${escapeHtml(name)}">P${p.phase}</span>
       ${track}
       <span class="fy-phase-pct" aria-hidden="true">${phaseLabel(p)}</span>
+      <span class="fy-phase-note" aria-hidden="true">${note}</span>
     </span>`;
     })
     .join("\n");
-  return `<span class="fy-phasebar">\n${rows}\n</span>`;
+  return `<span class="fy-phasebar">\n${legend}${rows}\n</span>`;
 }
 
 /* ══ the directory ═══════════════════════════════════════════════════════ */
@@ -777,7 +809,9 @@ ${
     ? `<p class="fy-note"><em>provisional</em> ${define("provisional")}</p>`
     : ""
 }
-<div id="sheet-phases" style="padding-block:16px 40px">${phaseBars(r.score.phases)}</div>
+<div id="sheet-phases" style="padding-block:16px 40px">${phaseBars(r.score.phases, {
+    legend: true,
+  })}</div>
 </div>
 
 <div class="fy-mediaframe">

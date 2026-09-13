@@ -1477,3 +1477,50 @@ describe("D1 · the aperture's honesty half is true, and the caveat is above the
     );
   });
 });
+
+describe("D2 + A14 · the pass bar's width equals its own number", () => {
+  const rec = RECORDS[0]!;
+
+  test("the green segment is the phase's own percent, on a track of the answered set", () => {
+    const rows = [...DETAIL.matchAll(/<span class="fy-phaserow"[\s\S]*?<\/span>\n    <\/span>/g)];
+    expect(rows.length).toBe(rec.score.phases.length);
+    rec.score.phases.forEach((p, i) => {
+      const row = rows[i]![0];
+      const answered = p.pass + p.fail + p.gap;
+      const want = ((100 * p.pass) / answered).toFixed(1);
+      expect(row, `P${p.phase} pass width`).toContain(`class="fy-seg-pass" style="width:${want}%"`);
+      // and that IS the number printed at the end of the row
+      expect(Number(want)).toBeCloseTo(p.percent ?? 0, 1);
+    });
+  });
+
+  test("nothing that was never answered is drawn inside the track", () => {
+    for (const [name, html] of PAGES) {
+      expect(html, `${name}: unanswered segment`).not.toContain("fy-seg-unv");
+    }
+    expect(CSS).not.toContain(".fy-seg-unv {");
+    // the hatch still exists — as a KEY swatch, which is a legend, not a bar
+    expect(CSS).toContain(".fy-swatch-unv { background-image: var(--fy-hatch)");
+  });
+
+  test("the aria-label's own words are printed on the visible layer", () => {
+    // They were written, and written well, in an attribute no sighted desktop
+    // reader and no touch reader will ever meet.
+    const notes = [...DETAIL.matchAll(/<span class="fy-phase-note" aria-hidden="true">([^<]*)<\/span>/g)]
+      .map((m) => m[1]!);
+    expect(notes.length).toBe(rec.score.phases.length);
+    for (const n of notes) expect(n).toMatch(/of \d+ answered/);
+    const withOpen = rec.score.phases.filter((p) => p.unverified > 0);
+    expect(withOpen.length).toBeGreaterThan(0);
+    expect(notes.filter((n) => n.includes("no answer (not counted)")).length).toBe(withOpen.length);
+    // the row's accessible name says the same thing, rather than more than it
+    expect(DETAIL).toMatch(/aria-label="[^"]*of \d+ answered[^"]*no answer \(not counted\)"/);
+  });
+
+  test("one legend sits above the stack on the sheet, and not three on the directory", () => {
+    expect(countOf(DETAIL, 'class="fy-phase-key"')).toBe(1);
+    expect(DETAIL.indexOf('class="fy-phase-key"')).toBeLessThan(DETAIL.indexOf('class="fy-phaserow"'));
+    expect(DETAIL).toContain("no answer, never counted");
+    expect(countOf(DIRECTORY, 'class="fy-phase-key"')).toBe(0);
+  });
+});
