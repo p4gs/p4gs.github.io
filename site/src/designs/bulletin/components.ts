@@ -75,8 +75,18 @@ function pctClass(p: PhaseScore): string {
   return p.percent < 100 ? "pct-low" : "pct-ok";
 }
 
+/**
+ * "no evidence" and "no checks in scope" are DIFFERENT facts, and one phase on
+ * every record is the second one. Phase 6 (distribution & publishing) has no
+ * control in any record this directory holds, so its rule read "no evidence" —
+ * which tells a reader the scan looked and came back empty-handed, and sends
+ * them hunting for a sixth group that is not there. The title attribute on the
+ * bar said the true thing already, and a phone has no hover.
+ */
 function pctLabel(p: PhaseScore): string {
-  return p.percent === null ? "no evidence" : `${p.percent}%`;
+  if (p.percent !== null) return `${p.percent}%`;
+  const n = p.pass + p.fail + p.gap + p.unverified;
+  return n === 0 ? "no checks in scope" : "no evidence";
 }
 
 function barAria(name: string, p: PhaseScore): string {

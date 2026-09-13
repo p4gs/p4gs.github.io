@@ -77,6 +77,16 @@ function slab(r: ScanRecord | undefined, ctx: DesignCtx): string {
     <div><dt>Answered</dt><dd>${r.score.evidence_coverage_percent}%</dd></div>
   </dl>
   ${phaseRules(r.score.phases, { short: true })}
+  <!-- The board's six bars have visibly hatched tails beside the number 100%,
+       and the home page printed no key at all — the directory and the repo
+       sheet both print one. A first-time reader met a one-fifth-striped bar
+       labelled 100% with nothing on screen to decode it. Plain words only:
+       this page may not use the site's vocabulary. -->
+  <p class="slab-key">
+    <span class="key-item"><span class="key-swatch key-pass"></span>passed</span>
+    <span class="key-item"><span class="key-swatch key-fail"></span>did not pass</span>
+    <span class="key-item"><span class="key-swatch key-unv"></span>nobody could check this</span>
+  </p>
   ${incomplete ? `<p class="slab-line">${escapeHtml(incomplete)}</p>` : ""}
   <p class="slab-foot">Scanned ${escapeHtml(r.scanned_at.slice(0, 10))} ·
   <a href="${ctx.h(path)}">read the full record</a></p>

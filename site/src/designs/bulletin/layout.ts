@@ -41,10 +41,19 @@ export function canonicalLink(ctx: DesignCtx): string {
  * each with a real fallback stack in the stylesheet: Anton falls back to the
  * condensed-heavy line (Haettenschweiler / Arial Narrow Bold / Impact), Source
  * Sans 3 to the humanist UI line, IBM Plex Mono to the platform monospace.
+ *
+ * THE ITALIC AXIS IS NOT OPTIONAL. The stylesheet asks for italics in
+ * `.term-def` and in `<em>` — 25 elements on the methodology page alone — and
+ * the request used to declare weights only. Measured: `Source Sans 3 italic
+ * 400` and `Source Sans 3 400` returned the IDENTICAL 739.516px advance at
+ * 40px, which is the signature of a SLANTED upright, not a loaded italic face.
+ * (`document.fonts.check("italic 400 16px …")` answers true either way — it
+ * reports renderability including synthesis, so it is not evidence.) Asking
+ * for `ital,wght` loads the real cut.
  */
 export const FONTS_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">`;
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">`;
 
 /** The masthead nav. Mono, uppercase, ruled; the active item takes the accent. */
 function nav(ctx: DesignCtx): string {
@@ -97,8 +106,16 @@ ${opts.body}
     <span class="col-meta">Open source · Apache-2.0 · methodology v${METHODOLOGY_VERSION}</span>
     <a class="col-top" href="#content">&#8593; Top</a>
   </div>
+  <!-- THE SWITCHER IS COLOPHON, NOT OVERLAY. Rendered as a fixed box it was
+       measured painting over body text at some scroll position on every page,
+       twice over: two rows standing on the grade slab in round 1, and a 174x48
+       chip cutting nine text runs out of the Scorecard comparison in round 2.
+       Reserving clearance at the END of a document cannot protect its MIDDLE,
+       so the only fix that holds at every width and every scroll position is
+       to put it in the document. A broadsheet prints its apparatus in the
+       colophon; so does this. -->
+  ${ctx.switcher}
 </footer>
-${ctx.switcher}
 </body>
 </html>`;
 }

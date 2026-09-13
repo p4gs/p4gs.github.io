@@ -534,15 +534,88 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
     if (seen) seen.push(c);
     else byPhase.set(c.phase, [c]);
   }
-  const phaseNumbers = [...byPhase.keys()].sort((a, b) => a - b);
+  // EVERY phase the taxonomy names, not only the ones this record has rows
+  // for. The hero band renders all six from PHASE_NAMES — "Distribution &
+  // publishing" included — while the table stopped at five and the jump strip
+  // at P5, so a reader who counts six bands above and five below is reading a
+  // contradiction the page never owns. An empty band says the true thing.
+  const phaseNumbers = [
+    ...new Set([...Object.keys(PHASE_NAMES).map(Number), ...byPhase.keys()]),
+  ].sort((a, b) => a - b);
   const outOfScope = r.controls.filter((c) => !c.in_scope).length;
+
+  /**
+   * REPEATED RATIONALES BECOME FOOTNOTES.
+   *
+   * Four sentences covered 25 of this record's 44 rows, two of them three
+   * lines at desk width and five on a phone — roughly a thousand pixels of
+   * identical prose pushing each row's real signal apart. It is the same
+   * "decorates where it should scan" defect the directory was cured of, left
+   * standing on the page whose table is six times longer.
+   *
+   * Nothing is dropped. A rationale prints IN FULL, once, under the KEY above
+   * the table; every row it covers keeps its own leading clause and a link to
+   * the rest, and carries the whole sentence in `title` besides.
+   *
+   * The rule is structural rather than a match against particular wording: a
+   * reason folds only when it appears more than once, runs past 60 characters,
+   * and has a `:` or `;` whose head can stand as the row's line. A
+   * contradiction names the commits that disagree, so it is unique to its row,
+   * so this can never fold one.
+   */
+  const reasonCounts = new Map<string, number>();
+  for (const c of r.controls) {
+    if (c.reason) reasonCounts.set(c.reason, (reasonCounts.get(c.reason) ?? 0) + 1);
+  }
+  const reasonHead = (s: string): string | null => {
+    const i = s.search(/[:;]/);
+    if (i <= 0) return null;
+    const head = s.slice(0, i).trim();
+    return head.length > 0 && head.length <= 90 ? head : null;
+  };
+  const reasonNotes: string[] = [];
+  const noteOf = new Map<string, number>();
+  for (const [reason, n] of reasonCounts) {
+    if (n < 2 || reason.length <= 60 || reasonHead(reason) === null) continue;
+    noteOf.set(reason, reasonNotes.length + 1);
+    reasonNotes.push(reason);
+  }
+  const notesBlock = reasonNotes.length
+    ? `<ol class="rc-notes">
+${reasonNotes
+  .map(
+    (n, i) =>
+      `  <li id="rc-${i + 1}"><span class="rc-no">Note ${i + 1}</span>${escapeHtml(n)}</li>`,
+  )
+  .join("\n")}
+</ol>`
+    : "";
+
   const controlRow = (c: ScanRecord["controls"][number]): string => {
     const label = OUTCOME_LABEL[c.scan_outcome] ?? c.scan_outcome;
+    // The raw verdict is CONTEXT on most rows and TENSION on a few. All 27 of
+    // them wore the accent family — including 11 rows the design already greys
+    // out as out-of-scope, and 6 where raw and final both say pass — which put
+    // them above the ink-filled PASS chip beside them and inverted the
+    // hierarchy. The accent now marks only a verdict that actually CHANGED
+    // inside the scored scope; the rest are hairline.
+    const rawChanged = c.in_scope && c.raw_outcome !== c.scan_outcome;
     const raw =
       c.reclassified || c.raw_outcome !== c.scan_outcome
-        ? ` <span class="raw" title="sscsb verify raw outcome">raw: ${escapeHtml(c.raw_outcome)}</span>`
+        ? ` <span class="raw${
+            rawChanged ? " raw-changed" : ""
+          }" title="sscsb verify raw outcome">raw: ${escapeHtml(c.raw_outcome)}</span>`
         : "";
-    const reason = c.reason ? `<span class="reason">${escapeHtml(c.reason)}</span>` : "";
+    const note = c.reason ? noteOf.get(c.reason) : undefined;
+    const reason = !c.reason
+      ? ""
+      : note
+        ? `<span class="reason">${escapeHtml(
+            reasonHead(c.reason) ?? c.reason,
+          )}<span class="rc-ell">…</span> <a class="rc-ref" href="#rc-${note}" title="${escapeHtml(
+            c.reason,
+          )}">note ${note}</a></span>`
+        : `<span class="reason">${escapeHtml(c.reason)}</span>`;
     // The count goes in the label: "evidence" alone read as a dead word, and a
     // reader cannot tell how much is behind a disclosure that says nothing.
     const msgs = c.messages.length
@@ -561,9 +634,15 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   const controlRows = phaseNumbers
     .map((p) => {
       const list = byPhase.get(p) ?? [];
-      const band = `<tr class="ph-head" id="phase-${p}"><td colspan="3">Phase ${p} — ${escapeHtml(
+      const band = `<tr class="ph-head${
+        list.length === 0 ? " ph-empty" : ""
+      }" id="phase-${p}"><td colspan="3">Phase ${p} — ${escapeHtml(
         PHASE_NAMES[p] ?? "",
-      )}<span class="ph-count">${escapeHtml(plural(list.length, "check"))}</span></td></tr>`;
+      )}<span class="ph-count">${
+        list.length === 0
+          ? "no checks in this record"
+          : escapeHtml(plural(list.length, "check"))
+      }</span></td></tr>`;
       return [band, ...list.map(controlRow)].join("\n");
     })
     .join("\n");
@@ -580,7 +659,7 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
     .join("\n  ")}
   ${
     outOfScope > 0
-      ? `<label class="ctl-hide" for="ctl-hide-oos"><span class="ctl-box" aria-hidden="true"></span>Hide the ${outOfScope} out-of-scope checks</label>`
+      ? `<label class="ctl-hide" for="ctl-hide-oos"><span class="ctl-box" aria-hidden="true"></span>Hide ${outOfScope} out-of-scope checks</label>`
       : ""
   }
 </div>`;
@@ -591,20 +670,31 @@ export function renderRepoDetail(r: ScanRecord, ctx: DesignCtx): string {
   <div class="repo-hero-copy">
     <h1 class="repo-title">${escapeHtml(slug)}</h1>
     <p class="repo-lane">${laneChip(kind)}${localOverlayChip(lt)}</p>
+    <!-- The separators are the LAYOUT's, not the copy's. Joined with literal
+         middots this line wrapped so that its last visual line opened with an
+         orphaned "· scan run": a separator travels with the item that follows
+         it. Each fact is its own box now and the middot is drawn on the TAIL
+         of the box before it, so a wrap always leaves it at the end of a line.
+         The stale-methodology flag sits after them all, on its own line at
+         phone width, where it reads as a flag rather than as punctuation. -->
     <p class="repo-meta">
-      <a href="${escapeHtml(r.repo.url)}">${escapeHtml(r.repo.url)}</a> ·
-      scanned ${escapeHtml(r.scanned_at.slice(0, 10))} at
+      <span class="rm-item rm-url"><a href="${escapeHtml(r.repo.url)}">${escapeHtml(
+        r.repo.url,
+      )}</a></span>
+      <span class="rm-item">scanned ${escapeHtml(r.scanned_at.slice(0, 10))} at
       <code>${escapeHtml(r.repo.commit.slice(0, 12))}</code> on
-      <code>${escapeHtml(r.repo.default_branch)}</code> ·
-      sscsb ${escapeHtml(r.scanner.sscsb_version)} ·
-      methodology v${r.methodology_version}${
+      <code>${escapeHtml(r.repo.default_branch)}</code></span>
+      <span class="rm-item">sscsb ${escapeHtml(r.scanner.sscsb_version)}</span>
+      <span class="rm-item">methodology v${r.methodology_version}</span>
+      <span class="rm-item"><a href="${escapeHtml(
+        r.scanner.workflow_run_url,
+      )}">scan run</a></span>${
         r.methodology_version < METHODOLOGY_VERSION
-          ? ` <a class="meta-stale" href="${ctx.h(
+          ? `<a class="meta-stale" href="${ctx.h(
               "methodology/#changelog",
             )}" title="This record was scored before methodology v${METHODOLOGY_VERSION}"><span>scored before v${METHODOLOGY_VERSION}</span></a>`
           : ""
-      } ·
-      <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a>
+      }
     </p>
   </div>
 </section>
@@ -635,6 +725,7 @@ six phases, named on the band above each group.</p>
   <span class="key-item"><span class="key-swatch key-fail"></span>fail / gap</span>
   <span class="key-item"><span class="key-swatch key-unv"></span>${defineTerm("unverified")}</span>
 </div>
+${notesBlock}
 ${jumpStrip}
 <div class="table-scroll table-scroll-controls">
 <table class="controls">
