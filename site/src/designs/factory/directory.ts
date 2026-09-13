@@ -117,7 +117,7 @@ function gradeChip(score: Score, extraClass = ""): string {
 function gradeWithTag(score: Score): string {
   return `${gradeChip(score)}${
     score.provisional
-      ? `<span class="fy-prov" title="Evidence coverage below ${COVERAGE_FLOOR_PROVISIONAL}%">provisional</span>`
+      ? `<span class="fy-prov">provisional</span>`
       : ""
   }`;
 }
@@ -129,11 +129,33 @@ function gradeWithTag(score: Score): string {
  * evidence, and it is weaker than the action lane.
  */
 const LANE_CHIP: Readonly<Record<TrustKind, string>> = {
-  verified: `<span class="fy-lane fy-lane-auth" title="${escapeHtml(LANE_TITLE.verified)}">CI &middot; verified</span>`,
-  "unsigned-action": `<span class="fy-lane fy-lane-unsigned" title="${escapeHtml(LANE_TITLE["unsigned-action"])}">CI &middot; unsigned</span>`,
-  local: `<span class="fy-lane fy-lane-local" title="${escapeHtml(LANE_TITLE.local)}">Local &middot; signed</span>`,
-  external: `<span class="fy-lane fy-lane-ext" title="${escapeHtml(LANE_TITLE.external)}">Outside-in</span>`,
+  verified: `<span class="fy-lane fy-lane-auth">CI &middot; verified</span>`,
+  "unsigned-action": `<span class="fy-lane fy-lane-unsigned">CI &middot; unsigned</span>`,
+  local: `<span class="fy-lane fy-lane-local">Local &middot; signed</span>`,
+  external: `<span class="fy-lane fy-lane-ext">Outside-in</span>`,
 };
+
+/**
+ * What each of those four chips means, on the page rather than on hover.
+ *
+ * The sentences are `trust.ts`'s own — including the one that says the local
+ * lane is WEAKER than the action lane, which is the single most important
+ * qualifier the directory carries and which lived in a `title` attribute no
+ * touch reader has ever seen.
+ */
+const LANE_ORDER: readonly TrustKind[] = ["verified", "unsigned-action", "local", "external"];
+
+function laneKey(): string {
+  const rows = LANE_ORDER.map(
+    (k) => `  <span class="fy-lane-row">${LANE_CHIP[k]}<span>${escapeHtml(
+      LANE_TITLE[k],
+    )}</span></span>`,
+  ).join("\n");
+  return `<section class="fy-lane-key" aria-label="What each evidence source means">
+  <p class="fy-key-label">Evidence source</p>
+${rows}
+</section>`;
+}
 
 /**
  * The local overlay badge — as words, and as a link to the rows it names.
@@ -376,18 +398,16 @@ function phaseBars(phases: readonly PhaseScore[], opts: { legend?: boolean } = {
       // The track is the ANSWERED set. Its two segments are the phase's own
       // percent and its complement, so the green bar's width IS its own number.
       const w = (n: number) => ((100 * n) / answered).toFixed(1);
-      const seg = (cls: string, n: number, title: string) =>
-        n === 0 ? "" : `<span class="${cls}" style="width:${w(n)}%" title="${title}: ${n}"></span>`;
+      // No `title` on a segment: the counts are printed under the bar now, and a
+      // hover-only number on a 8px sliver is not a place a fact may live.
+      const seg = (cls: string, n: number) =>
+        n === 0 ? "" : `<span class="${cls}" style="width:${w(n)}%"></span>`;
       const empty = answered === 0 && p.unverified === 0;
       const track = empty
         ? `<span class="fy-phase-none">no checks in scope</span>`
         : answered === 0
           ? `<span class="fy-phase-none">nothing answered</span>`
-          : `<span class="fy-phase-track">${seg("fy-seg-pass", p.pass, "pass")}${seg(
-              "fy-seg-fail",
-              failGap,
-              "did not pass",
-            )}</span>`;
+          : `<span class="fy-phase-track">${seg("fy-seg-pass", p.pass)}${seg("fy-seg-fail", failGap)}</span>`;
       const note = empty
         ? "no checks in scope for this listing"
         : answered === 0
@@ -521,8 +541,8 @@ ${tableWrap(table, "The directory listing")}
   <span><span class="fy-swatch fy-swatch-pass"></span>pass</span>
   <span><span class="fy-swatch fy-swatch-fail"></span>fail / gap</span>
   <span><span class="fy-swatch fy-swatch-unv"></span>${defineTerm("unverified")}</span>
-  <span>${LANE_CHIP.local} a maintainer ran this on their own machine and signed it</span>
 </p>
+${laneKey()}
 ${directoryTermsNote(ctx.h)}
 </section>
 <script src="${ctx.h("filter.js")}" defer></script>

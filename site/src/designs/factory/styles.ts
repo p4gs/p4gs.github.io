@@ -1105,6 +1105,18 @@ export const PAGES_CSS = `
 .fy-lane-local { border-style: dashed; border-color: var(--fy-na); color: var(--fy-na); }
 .fy-lane-ext { border-color: var(--fy-line); color: var(--fy-muted); }
 .fy-lane-overlay { border-style: dashed; border-color: var(--fy-na); color: var(--fy-na); margin-inline-start: 6px; }
+/* The four lane chips explained ON THE PAGE. The sentence that says the local
+   lane is weaker than the action lane is the single most important qualifier
+   the directory carries, and it lived in a title attribute. */
+.fy-lane-key {
+  display: grid; gap: 10px; padding-block: 20px 24px; max-inline-size: 78ch;
+  border-block-start: 1px solid var(--fy-hair);
+}
+.fy-lane-key .fy-key-label { margin-block-end: 2px; }
+.fy-lane-row {
+  display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 12px;
+  align-items: start; font-size: 14px; line-height: 21px; color: var(--fy-muted);
+}
 /* The same geometry on the card as on the sheet: the stack spans the full width
    of whatever holds it, and the percentage is right-aligned against one edge.
    Boxed to 190px in a table cell, the card's bars were a different instrument

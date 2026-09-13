@@ -39,8 +39,9 @@ import {
 import { LOOP_EDGE_PATH, MAZE_GRID, mazeRoute, slotForPhases } from "../src/designs/factory/components";
 import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
 import { CLASS_SHORT } from "../src/designs/factory/components";
-import { PHASES } from "../src/scoring";
+import { COVERAGE_FLOOR_PROVISIONAL, PHASES } from "../src/scoring";
 import { ATTACK_CLASSES, controlsDefending, type AttackClassId } from "../src/threats";
+import { LANE_TITLE } from "../src/trust";
 import { ctxFor, rec, RECORDS } from "./fixtures";
 import { attrOfEach, textFrom } from "./html-text";
 
@@ -1875,3 +1876,103 @@ describe("A15 · the toggletip closes the way it opened, and holds focus", () =>
     expect(MOTION_SCRIPT).toContain("if (focusBack) { try { t.trigger.focus(); } catch (e) {} }");
   });
 });
+
+describe("D17 · no qualifying fact lives only in a title or an aria-label", () => {
+  const QUALIFIERS = [
+    "not counted",
+    "never counted",
+    "weaker",
+    "signed by",
+    "below",
+    "unverified claim",
+    "public-only visibility",
+    "different commit",
+  ];
+
+  test("no title= on a Factory page asserts a qualifying fact", () => {
+    for (const [name, html] of PAGES) {
+      const titles = [...html.matchAll(/\stitle="([^"]*)"/g)].map((m) => m[1]!);
+      for (const t of titles) {
+        for (const q of QUALIFIERS) {
+          expect(t.toLowerCase(), `${name}: title carries "${q}": ${t}`).not.toContain(q);
+        }
+      }
+    }
+  });
+
+  test("every qualifying fact a title used to carry is on the visible layer", () => {
+    // the four lane chips
+    expect(DIRECTORY).toContain('class="fy-lane-key"');
+    for (const kind of ["verified", "unsigned-action", "local", "external"] as const) {
+      expect(DIRECTORY, kind).toContain(escapeForTest(LANE_TITLE[kind]));
+    }
+    expect(DIRECTORY).toContain("weaker than the action lane");
+    // the provisional threshold
+    expect(DIRECTORY).not.toContain('class="fy-prov" title=');
+    expect(DIRECTORY).toContain(`${COVERAGE_FLOOR_PROVISIONAL}%`);
+    // the phase-bar segment counts
+    expect(DETAIL).not.toMatch(/<span class="fy-seg-(pass|fail)"[^>]*title=/);
+    expect(DETAIL).toMatch(/of \d+ answered/);
+  });
+
+  test("an aria-label that carries a qualifying fact has it visible too", () => {
+    // The four that do: the chart, both traced figures, and the phase rows.
+    const chart = HOME.slice(HOME.indexOf('<div class="fy-chart-grid">'), HOME.indexOf('id="chaining"'));
+    expect(chart).toContain("only on a maintainer&rsquo;s own machine");
+    expect(HOME).toContain("The road code travels");
+    expect(HOME).toContain("Code moves from a commit to a published package");
+    expect(HOME).toContain(">strongest<");
+    expect(DETAIL).toContain('class="fy-phase-note"');
+  });
+
+  test("the one title a SHARED module still writes has its fact on the page", () => {
+    // `threats-shared.ts` glosses its `reported` chip in a title. That module is
+    // out of this design's file scope, and the fact it carries is stated in the
+    // same section by the sourcing sentence above the list — so the title is a
+    // duplicate rather than the only place the claim lives.
+    expect(METHODOLOGY).toContain("this site has not opened the primary document.");
+    expect(METHODOLOGY).toContain("Every incident below links to a primary source");
+    expect(METHODOLOGY).toContain("The one exception is marked");
+  });
+
+  test("the sweep's own arithmetic — the counts BUILD-NOTES records", () => {
+    let titles = 0;
+    let labels = 0;
+    for (const [, html] of PAGES) {
+      titles += countOf(html, ' title="');
+      labels += countOf(html, ' aria-label="');
+    }
+    // Rendered counts over the FIXTURE pages (the live sheet has 44 control
+    // rows against the fixture's two, so the built tree's numbers are larger —
+    // 62 / 400, recorded in BUILD-NOTES beside these).
+    expect(titles).toBe(32);
+    expect(labels).toBe(392);
+    // Every distinct title value across the four pages, enumerated — a new one
+    // cannot appear without this list being revisited.
+    const distinct = new Set<string>();
+    for (const [, html] of PAGES) {
+      for (const m of html.matchAll(/\stitle="([^"]*)"/g)) distinct.add(m[1]!);
+    }
+    expect([...distinct].sort()).toEqual([
+      "Build receipts",
+      "Code &amp; build hardening",
+      "Commit integrity",
+      "Dependencies",
+      "Distribution &amp; publishing",
+      "Find a repository",
+      "Ongoing posture",
+      "Widely reported. Unlike the others on this page, this site has not opened the primary document.",
+      "sscsb verify raw outcome",
+    ]);
+  });
+});
+
+/** The escaping the renderers apply, so a shared sentence can be looked for. */
+function escapeForTest(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
