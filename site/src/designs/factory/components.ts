@@ -107,7 +107,12 @@ export interface TipOpts {
 
 /** The panel half of a toggletip. Always in the DOM, `hidden` until asked for. */
 export function tipPanel(o: TipOpts): string {
-  return `<div class="fy-tip" id="${o.id}" role="dialog" aria-label="${escapeHtml(
+  // `tabindex="-1"` is what makes `role="dialog"` true. The panel announced
+  // itself as a dialog and then left focus on the trigger behind it, so a
+  // keyboard reader opened a dialog and was still outside it — and the close
+  // button, the body and the links were all downstream of a tab order that had
+  // not moved.
+  return `<div class="fy-tip" id="${o.id}" role="dialog" tabindex="-1" aria-label="${escapeHtml(
     o.label,
   )}" data-state="closed" hidden>
       <button type="button" class="fy-tip-close" data-tip-close aria-label="Close">&#215;</button>

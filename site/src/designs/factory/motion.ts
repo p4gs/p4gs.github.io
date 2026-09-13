@@ -335,13 +335,26 @@ export const MOTION_CSS = `
 .fy-wrap[data-overflow-end="true"] { --fy-mask-end: rgba(0, 0, 0, 0); }
 
 /* The toggletip. 0.4 s in with an 8px rise, 0.2 s out the way it came —
-   side-aware, so a panel that opened upward closes upward. */
+   side-aware, so a panel that opened upward closes upward.
+
+   THE EXIT USED TO BE A COMMENT. This block described a 0.2 s close and shipped
+   only the enter keyframe, while the script set \`hidden\` synchronously: a
+   40 ms stroboscopic series over 0-240 ms found the panel gone at EVERY sample
+   including delay 0. It vanished in one frame, which is the one thing a 0.4 s
+   entrance makes conspicuous. */
 .fy-tip[data-state="open"] {
   animation: fy-tip-enter 0.4s cubic-bezier(0.17, 0.17, 0.3, 1) both;
+}
+.fy-tip[data-state="closing"] {
+  animation: fy-tip-exit 0.2s cubic-bezier(0.17, 0.17, 0.3, 1) both;
 }
 @keyframes fy-tip-enter {
   0% { opacity: 0; transform: translate3d(0, var(--fy-tip-from, -0.5rem), 0); }
   100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes fy-tip-exit {
+  0% { opacity: 1; transform: translate3d(0, 0, 0); }
+  100% { opacity: 0; transform: translate3d(0, var(--fy-tip-from, -0.5rem), 0); }
 }
 
 /* ══ motion: no scroll-driven animation available ════════════════════════
@@ -382,7 +395,7 @@ export const MOTION_CSS = `
   }
   .fy-continue, .fy-find, .fy-chapters a, .fy-node, .fy-refcard, .fy-seg-label,
   .fy-annotate, .fy-wrap { transition: none; }
-  .fy-tip[data-state="open"] { animation: none; }
+  .fy-tip[data-state="open"], .fy-tip[data-state="closing"] { animation: none; }
 }
 
 @media print {
@@ -641,12 +654,28 @@ export const MOTION_SCRIPT = `(function () {
     if (!openTip) return;
     var t = openTip;
     openTip = null;
-    t.panel.hidden = true;
-    t.panel.setAttribute("data-state", "closed");
-    t.panel.style.insetInlineStart = "";
     t.trigger.setAttribute("aria-expanded", "false");
     t.trigger.setAttribute("data-state", "closed");
     if (focusBack) { try { t.trigger.focus(); } catch (e) {} }
+    var settle = function () {
+      // Only finish a close that is still a close: a panel re-opened while this
+      // was pending must not be hidden by it.
+      if (t.panel.getAttribute("data-state") !== "closing") return;
+      t.panel.hidden = true;
+      t.panel.setAttribute("data-state", "closed");
+      t.panel.style.insetInlineStart = "";
+    };
+    if (reduce) {
+      t.panel.setAttribute("data-state", "closing");
+      settle();
+      return;
+    }
+    t.panel.setAttribute("data-state", "closing");
+    var once = function () { t.panel.removeEventListener("animationend", once); settle(); };
+    t.panel.addEventListener("animationend", once);
+    // A belt, for an engine that never fires animationend on a display-toggled
+    // element: the panel must not be left visible and unreachable.
+    setTimeout(once, 400);
   }
   function sideFor(trigger) {
     var box = trigger.getBoundingClientRect();
@@ -678,6 +707,11 @@ export const MOTION_SCRIPT = `(function () {
       trigger.setAttribute("aria-expanded", "true");
       trigger.setAttribute("data-state", "open");
       openTip = { trigger: trigger, panel: panel };
+      // Into the dialog it just announced. preventScroll, because moving focus
+      // into a panel anchored below the fold would otherwise jump the page.
+      try { panel.focus({ preventScroll: true }); } catch (e) {
+        try { panel.focus(); } catch (e2) {}
+      }
     });
   });
   each(document.querySelectorAll("[data-tip-close]"), function (b) {

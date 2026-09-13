@@ -260,11 +260,14 @@ describe("MOTION_CSS carries all three branches, and the settled state is the de
     for (const m of CSS.matchAll(/\banimation:\s*([a-z][\w-]*)\s+[\d.]/g)) {
       named.add(m[1]!.trim());
     }
+    // Max-11: the phantom allowlist entry `var(--popover-enter-animation-name)`
+    // was a name nothing in this tree ever animated — an allowlist entry that
+    // could only ever hide a real one.
     const allowed = new Set<string>([
       ...APERTURE_KEYFRAMES,
       ...LOOP_KEYFRAMES,
       "fy-tip-enter",
-      "var(--popover-enter-animation-name)",
+      "fy-tip-exit",
     ]);
     expect([...named].filter((n) => !allowed.has(n))).toEqual([]);
     // Counted, because an empty set would satisfy the line above by accident.
@@ -1835,5 +1838,40 @@ describe("D11 + D13 + D14 + D16 · the rest of the honesty list", () => {
     );
     expect(html).toContain("signing key at ~/.ssh/id_ed25519");
     expect(html).not.toContain("/Users/jane.doe");
+  });
+});
+
+describe("A15 · the toggletip closes the way it opened, and holds focus", () => {
+  test("there is a real exit animation, and the script waits for it", () => {
+    // The CSS comment claimed "0.2 s out the way it came — side-aware" and
+    // shipped only the enter keyframe: a 40 ms stroboscopic series over
+    // 0–240 ms found the panel gone at EVERY sample, delay 0 included.
+    expect(MOTION_CSS).toContain("@keyframes fy-tip-exit");
+    expect(MOTION_CSS).toContain(
+      '.fy-tip[data-state="closing"] {\n  animation: fy-tip-exit 0.2s cubic-bezier(0.17, 0.17, 0.3, 1) both;\n}',
+    );
+    // side-aware: it leaves by the same offset it arrived on
+    expect(MOTION_CSS).toMatch(/@keyframes fy-tip-exit \{[\s\S]*var\(--fy-tip-from, -0\.5rem\)/);
+    expect(MOTION_SCRIPT).toContain('addEventListener("animationend", once)');
+    expect(MOTION_SCRIPT).toContain('t.panel.setAttribute("data-state", "closing")');
+    // and it cannot hide a panel that was re-opened while the close was pending
+    expect(MOTION_SCRIPT).toContain('if (t.panel.getAttribute("data-state") !== "closing") return;');
+    // under reduced motion it closes at once rather than animating
+    expect(MOTION_SCRIPT).toContain("if (reduce) {\n      t.panel.setAttribute(\"data-state\", \"closing\");");
+    expect(blockAfter(MOTION_CSS, REDUCED)).toContain('.fy-tip[data-state="closing"] { animation: none; }');
+  });
+
+  test("focus moves INTO the dialog it announced", () => {
+    // `role="dialog"` with focus left on the trigger behind it is a dialog a
+    // keyboard reader is standing outside of.
+    expect(countOf(HOME, 'role="dialog" tabindex="-1"')).toBeGreaterThan(50);
+    for (const [name, html] of PAGES) {
+      const dialogs = countOf(html, 'class="fy-tip"');
+      expect(countOf(html, 'role="dialog" tabindex="-1"'), `${name}`).toBe(dialogs);
+    }
+    expect(MOTION_SCRIPT).toContain("panel.focus({ preventScroll: true })");
+    // and Escape still brings it back
+    expect(MOTION_SCRIPT).toContain('if (ev.key === "Escape" || ev.key === "Esc") closeTip(true);');
+    expect(MOTION_SCRIPT).toContain("if (focusBack) { try { t.trigger.focus(); } catch (e) {} }");
   });
 });
