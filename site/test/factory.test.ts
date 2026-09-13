@@ -1976,3 +1976,36 @@ function escapeForTest(s: string): string {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
+/* ══ what the browser found in THIS round ════════════════════════════════ */
+
+describe("what the self-check found, and what keeps it found", () => {
+  test("the compact card is positioned, and its circle offsets are reset", () => {
+    // Two defects in one rule, both measured at 390 and neither visible to a
+    // test that renders HTML:
+    //  · with a STATIC card the active/arrival rings take their containing
+    //    block from the whole loop — 310 x 686 — and painted a blue box round
+    //    the entire rail for the 120 ms of the release animation. A still
+    //    screenshot caught it; no geometry probe of the cards would have.
+    //  · making it RELATIVE then made it OBEY the desktop rule's circle
+    //    percentages, scattering all five cards and pushing the document to
+    //    575px wide at 390.
+    expect(MOBILE).toContain(
+      "    position: relative; inset-block-start: auto; inset-inline-start: auto;\n",
+    );
+    expect(MOBILE).not.toMatch(/\.fy-loop-card \{\n\s*position: static/);
+    // (the compact STORE is still static, and correctly so — its two absolutely
+    // positioned children are display:none at this width)
+    expect(MOBILE).toMatch(/\.fy-context-store \{\n\s*position: static/);
+    // the desktop rule that has to be undone is still the one being undone
+    expect(CSS).toContain(
+      "  position: absolute; inset-block-start: var(--fy-circle-y); inset-inline-start: var(--fy-circle-x);",
+    );
+  });
+
+  test("the local-lane row link reaches the tap floor when the card restacks", () => {
+    // 51.2 x 32 at 390: the restack blockifies it out of the WCAG 2.5.8 inline
+    // exception, which is exactly why it passed at 1440 and failed at 390.
+    expect(CSS).toMatch(/\.fy-row-lane \{[^}]*display: inline-flex; align-items: center; min-block-size: 44px;/);
+  });
+});

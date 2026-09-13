@@ -1237,10 +1237,13 @@ export const PAGES_CSS = `
 /* A row whose verdict came only from a maintainer's own machine says so, and
    the word is a link to the panel that says what that signature proves. */
 .fy-table tr[data-lane="local"] td[data-label="Verdict"] .fy-outcome { border-style: dashed; }
+/* A link, and therefore a target: measured at 390 it was 51.2 x 32, because the
+   card restack blockifies it out of the WCAG 2.5.8 inline exception. */
 .fy-row-lane {
   font-family: var(--fy-mono); font-size: 11px; letter-spacing: 0.04em;
   border: 1px dashed var(--fy-na); border-radius: 999px; padding: 1px 7px;
   color: var(--fy-na); margin-inline-start: 6px; text-decoration: none; white-space: nowrap;
+  display: inline-flex; align-items: center; min-block-size: 44px;
 }
 .fy-row-lane:hover { color: var(--fy-ink); border-color: var(--fy-ink); }
 /* The contradiction badge, in the hero, before any figure. */
@@ -1393,8 +1396,21 @@ export const RESPONSIVE_CSS = `
     aspect-ratio: auto; display: grid; grid-template-columns: minmax(0, 1fr);
     gap: 24px; padding-inline-start: 20px;
   }
+  /* RELATIVE, NOT STATIC. The active and arrival rings are absolutely
+     positioned at inset -1px and take their containing block from the nearest
+     POSITIONED ancestor — which, with a static card, is the whole loop:
+     measured at 390 they were 310 x 686 and painted a blue box round the
+     entire rail for the 120ms of their release animation. A still screenshot
+     caught it; no geometry probe of the cards ever would have.
+
+     And the offsets must be reset in the same breath. The desktop rule sets
+     inset-block-start / inset-inline-start to the circle percentages, which a
+     STATIC card ignores and a RELATIVE one obeys: the first cut of this fix
+     scattered all five cards by their circle coordinates and pushed the
+     document to 575px wide at 390. Measured, both times. */
   .fy-loop-card {
-    position: static; transform: none; inline-size: 100%; block-size: auto; min-block-size: 96px;
+    position: relative; inset-block-start: auto; inset-inline-start: auto;
+    transform: none; inline-size: 100%; block-size: auto; min-block-size: 96px;
     border-radius: 8px; border-color: color-mix(in srgb, var(--fy-ink) 44%, transparent);
     padding: 16px; place-content: start; text-align: start;
   }
