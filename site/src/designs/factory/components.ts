@@ -54,6 +54,14 @@ const CARD_TYPE: Readonly<Record<EvidenceClass, string>> = {
 
 const REGION_TINTS = ["blue", "violet", "green", "grey"] as const;
 
+/** The four card types, as the legend names them. Order is the registry's. */
+const CARD_LEGEND: ReadonlyArray<{ type: string; label: string }> = [
+  { type: "observed", label: "what the project commits" },
+  { type: "artifact", label: "a live read of its settings" },
+  { type: "local", label: "only a maintainer's machine" },
+  { type: "meta", label: "about the tool, never counted" },
+];
+
 /** Every control id in the registry, in registry order. */
 export function allControlIds(): string[] {
   return Object.keys(CONTROL_REGISTRY);
@@ -546,10 +554,11 @@ function tracedFigure(o: TracedOpts): string {
         4,
       )}" data-reached="true">
         <circle class="fy-checkpoint-base" cx="${n.x}" cy="${n.y}" r="7"></circle>
-        <circle class="${o.kind === "fy-triangle" ? "fy-speed-node" : "fy-checkpoint"}"
-          cx="${n.x}" cy="${n.y}" r="${n.hollow ? 7 : 6}"${
-            n.hollow ? ' fill="none"' : ""
-          }><title>${escapeHtml(`${i + 1}. ${n.name}`)}</title></circle>
+        <circle class="${o.kind === "fy-triangle" ? "fy-speed-node" : "fy-checkpoint"}${
+          n.hollow ? " fy-node-hollow" : ""
+        }" cx="${n.x}" cy="${n.y}" r="${n.hollow ? 7 : 6}"><title>${escapeHtml(
+          `${i + 1}. ${n.name}`,
+        )}</title></circle>
       </g>`,
     )
     .join("\n");
@@ -726,13 +735,20 @@ export interface LoopStage {
   body: string;
 }
 
-/** The five stages, as SSCSB actually runs them. */
+/**
+ * The five stages, as SSCSB actually runs them.
+ *
+ * A CIRCLE IS A NARROW MEASURE. Each caption has about twenty characters a line
+ * inside a 193px disc, so these are written to the reference's own register —
+ * three or four words — and the sentence each one compresses is on the page
+ * around it, not squeezed into the ring.
+ */
 export const LOOP_STAGES: readonly LoopStage[] = [
-  { id: "scan", no: "01", title: "Scan", body: "Clone from outside. Never run the code." },
-  { id: "record", no: "02", title: "Record", body: "54 checks, each answered or left open." },
-  { id: "review", no: "03", title: "Review", body: "A person reads every listing first." },
-  { id: "answer", no: "04", title: "Answer", body: "Run it yourself, and sign what you ran." },
-  { id: "rescan", no: "05", title: "Re-scan", body: "One commit, one snapshot, dated." },
+  { id: "scan", no: "01", title: "Scan", body: "Clone, never execute" },
+  { id: "record", no: "02", title: "Record", body: "Answered, or left open" },
+  { id: "review", no: "03", title: "Review", body: "A person reads it" },
+  { id: "answer", no: "04", title: "Answer", body: "Run it, then sign it" },
+  { id: "rescan", no: "05", title: "Rescan", body: "One commit, one snapshot" },
 ];
 
 function loopCard(s: LoopStage, i: number, n: number): string {
@@ -742,7 +758,7 @@ function loopCard(s: LoopStage, i: number, n: number): string {
   return `    <li class="fy-loop-card" data-stage="${s.id}"
       style="--fy-circle-x:${x.toFixed(3)}%;--fy-circle-y:${y.toFixed(3)}%">
       <svg class="fy-card-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-        <circle cx="50" cy="50" r="49.5" pathLength="1"></circle>
+        <circle cx="50" cy="50" r="49.5" pathLength="150"></circle>
       </svg>
       <span class="fy-active-ring" aria-hidden="true"></span>
       <span class="fy-arrival-ring" aria-hidden="true"></span>
@@ -866,14 +882,16 @@ ${cards}
     </div>
   </div>`;
   }).join("\n");
-  const legend = (["A", "B", "C", "M"] as const)
-    .map(
-      (cls) =>
-        `<span><span class="fy-legend-swatch" style="background:var(--fy-tint-${
-          cls === "A" ? "blue" : cls === "B" ? "grey" : cls === "C" ? "violet" : "grey"
-        })"></span>${escapeHtml(CLASS_SHORT[cls])}</span>`,
-    )
-    .join("\n    ");
+  // The legend paints the CARD's own tokens, not a second opinion about them.
+  // Keyed off the evidence class it mapped `meta` and `artifact` to the same
+  // grey, so two of the four types were indistinguishable in the one place that
+  // exists to distinguish them.
+  const legend = CARD_LEGEND.map(
+    (t) =>
+      `<span><span class="fy-legend-swatch" data-reference-type="${t.type}"></span>${escapeHtml(
+        t.label,
+      )}</span>`,
+  ).join("\n    ");
   return `<div class="fy-explorer">
   <div class="fy-segmented" role="radiogroup" aria-label="Pick a phase" data-segmented>
 ${options}

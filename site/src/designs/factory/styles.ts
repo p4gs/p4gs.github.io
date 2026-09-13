@@ -143,7 +143,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
    is underneath it. */
 .fy-find {
   position: fixed; inset-block-start: 12px; inset-inline-end: 24px; z-index: 40;
-  inline-size: 40px; block-size: 40px; border-radius: 999px;
+  inline-size: 44px; block-size: 44px; border-radius: 999px;
   display: grid; place-items: center; color: #8a8a8a; background: 0 0;
   border: 1px solid rgba(128, 128, 128, 0.42); text-decoration: none;
 }
@@ -162,7 +162,8 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-col-links { display: flex; flex-wrap: wrap; gap: 0 20px; }
 .fy-col-links a {
   font-size: 14px; color: var(--fy-text); text-decoration: none;
-  display: inline-flex; align-items: center; min-block-size: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 44px; min-inline-size: 44px;
 }
 .fy-col-links a:hover { color: var(--fy-link); text-decoration: underline; text-underline-offset: 4px; }
 
@@ -172,7 +173,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-opening {
   min-block-size: calc(100svh - var(--fy-header-h));
   background: var(--fy-ground); position: relative; z-index: 0;
-  padding: 84px var(--fy-gutter);
+  padding: 72px var(--fy-gutter);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center;
 }
@@ -189,7 +190,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   margin-block-start: 28px; font-size: 18.4px; line-height: 30.4px;
   color: var(--fy-quiet); max-inline-size: 56ch; margin-inline: auto;
 }
-.fy-opening .hp-search { margin-block: 32px 0; text-align: start; max-inline-size: 520px; margin-inline: auto; }
+.fy-opening .hp-search { margin-block: 28px 0; text-align: start; max-inline-size: 720px; margin-inline: auto; }
 .fy-controls { min-block-size: 48px; margin-block-start: 28px; display: flex; justify-content: center; }
 .fy-continue {
   inline-size: 48px; block-size: 48px; padding: 0; border: 0; border-radius: 50%;
@@ -287,6 +288,14 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-checkpoint-base { fill: #000000; }
 .fy-checkpoint { stroke-width: 1px; }
 .fy-speed-node { stroke: var(--fy-figure-accent); stroke-width: 1.5px; }
+/* OUTLINED BY DESIGN, NOT BY PROGRESS. The local lane is the one node that stays
+   hollow after the trace reaches it, because that is what the diagram is saying:
+   two of the three lanes produce evidence anybody can go and check, and the third
+   produces evidence only the maintainer can make. It has to out-specify every
+   branch that paints a reached node solid — an SVG fill presentation attribute
+   cannot, because ANY CSS fill rule beats it, which is exactly how this shipped
+   solid the first time. */
+.fy-figure .fy-speed-node.fy-node-hollow { fill: none; }
 .fy-speed-label {
   fill: var(--fy-dark-ink); font-size: 14px; font-family: var(--fy-body);
 }
@@ -338,16 +347,28 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   position: sticky; inset-block-start: 12px; overflow-x: auto;
 }
 .fy-chapters::-webkit-scrollbar { display: none; }
+/* 44px, not the reference's 40px. The reference is a launch page; this is a
+   directory whose shared component layer enforces a 44px tap target on every
+   other control, and a nav that is the only navigation on a 13,000px page is
+   the last place to make an exception. The pill's visual weight is unchanged —
+   the extra 4px is padding, not type. */
 .fy-chapters a {
-  min-block-size: 40px; color: var(--fy-text); border-radius: 999px;
-  flex: 0 0 auto; align-items: center; gap: 4px; padding: 8px 16px;
+  min-block-size: 44px; color: var(--fy-text); border-radius: 999px;
+  flex: 0 0 auto; align-items: center; gap: 4px; padding: 10px 16px;
   font-size: 14px; line-height: 1.4; text-decoration: none; display: flex; white-space: nowrap;
 }
 .fy-chapters a span { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
 .fy-chapters a span::after { content: "."; }
 .fy-chapters a[aria-current], .fy-chapters a:hover { background: var(--fy-surface-2); color: var(--fy-text); }
 .fy-chapters a:focus-visible { outline: 2px solid var(--fy-accent); outline-offset: -2px; }
-.fy-chapter { scroll-margin-top: 88px; padding-block: var(--fy-beat); }
+.fy-chapter { padding-block: var(--fy-beat); }
+/* EVERY anchor target clears the sticky nav, not just the ones this design
+   names its own classes for. Two of the methodology's eight pills point at
+   sections the SHARED modules render under their own class name, so a per-class rule
+   landed those headings underneath the bar that had just been used to jump to
+   them. One declaration, and it cannot go stale when a shared module renames a
+   class. */
+main [id] { scroll-margin-top: 88px; }
 .fy-chapter-head { text-align: center; max-inline-size: 900px; margin-inline: auto; }
 .fy-chapter-num {
   font-family: var(--fy-mono); font-size: 13px; letter-spacing: 0.12em;
@@ -440,8 +461,13 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 /* ══ the toggletip ═══════════════════════════════════════════════════════ */
 .fy-tip-holder { position: relative; }
 .fy-tip {
+  /* Absolutely positioned against its holder so it scrolls with the chip it
+     belongs to, and shifted horizontally by the script when that would put it
+     off screen — 340px anchored to a holder in the right-hand column pushed the
+     document 6px sideways at 1440 and 17px at 390, which no CLOSED-state probe
+     can see. The width is capped against the viewport for the same reason. */
   position: absolute; z-index: 50; inset-inline-start: 0; inset-block-start: calc(100% + 8px);
-  inline-size: min(340px, calc(100vw - 32px)); background: var(--fy-ground);
+  inline-size: min(340px, calc(100vw - 16px)); background: var(--fy-ground);
   border: 1px solid var(--fy-line); border-radius: 10px;
   box-shadow: rgba(0, 0, 0, 0.15) 0 12px 40px; padding: 22px;
   font-size: 16px; line-height: 1.45; color: #181818; text-align: start;
@@ -462,6 +488,11 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-loop {
   position: relative; inline-size: 100%; min-inline-size: 0; margin: 0;
   color: var(--fy-ink); background: var(--fy-ground);
+  /* The card type is sized in cqw. WITHOUT a container those units silently
+     resolve against the VIEWPORT, so at 1440 every clamp pinned to its maximum
+     and an 18px title landed in a 164px circle. The container is what makes the
+     type a property of the diagram rather than of the window. */
+  container: factory-loop / inline-size;
 }
 .fy-loop-stage {
   inline-size: min(100%, 760px); margin-inline: auto; padding: 24px;
@@ -469,18 +500,34 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.7px, rgba(0, 0, 0, 0) 0.9px);
   background-size: 6px 6px;
 }
-.fy-process { position: relative; inline-size: 100%; aspect-ratio: 1 / 1; }
+/* The process box is WIDER than the stage it sits in, and that is the
+   reference's own trick: a 5-point circle at radius 30% needs an 840px box to
+   give 193px cards, but the dotted stage reads better at 760. So it overflows
+   symmetrically and pulls back the empty band above and below the circle, which
+   an aspect-ratio box would otherwise leave as 190px of dotted nothing. */
+.fy-process {
+  position: relative; inline-size: 118%; margin-inline: -9%;
+  margin-block: -56px -104px; aspect-ratio: 1 / 1;
+}
 .fy-loop-cards { list-style: none; margin: 0; padding: 0; }
 .fy-loop-card {
   position: absolute; inset-block-start: var(--fy-circle-y); inset-inline-start: var(--fy-circle-x);
   inline-size: 23%; block-size: 23%; transform: translate(-50%, -50%);
   border-radius: 50%; background: var(--fy-ground); border: 1px solid rgba(0, 0, 0, 0);
-  display: grid; place-content: center; text-align: center; padding: 8%;
+  display: grid; place-content: center; text-align: center; padding: 7%;
 }
 .fy-card-ring { position: absolute; inset: -1px; overflow: visible; }
+/* The resting ring: ZERO-LENGTH dashes with round caps, which is what renders a
+   dot rather than a dash. The declaration is the reference's; what it renders at
+   depends entirely on pathLength, and getting that wrong is silent. The circle
+   is authored in a 100-unit viewBox scaled to a ~193px card, so one user unit is
+   ~1.9px: unnormalised, 1.25-wide dots at a 1.9px pitch overlap into a solid
+   hairline, and pathLength="1" collapses the whole ring to a single dot because
+   the gap becomes the entire circumference. pathLength="150" makes one dash unit
+   about 4px, which is the pitch the reference reads at. */
 .fy-card-ring circle {
   fill: none; stroke: var(--fy-ink); stroke-width: 1.25px; stroke-linecap: round;
-  stroke-dasharray: 0, 1;
+  stroke-dasharray: 0, 1; vector-effect: non-scaling-stroke; opacity: 0.55;
 }
 .fy-active-ring, .fy-arrival-ring {
   border: 2px solid var(--fy-accent); border-radius: inherit; pointer-events: none;
@@ -490,8 +537,9 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-card-title {
   font-size: clamp(14px, 1.8cqw, 18px); font-weight: 500; letter-spacing: -0.01em;
   line-height: 1.26; margin-block-start: 6px; color: var(--fy-ink);
+  text-wrap: balance; hyphens: manual;
 }
-.fy-card-body { font-size: clamp(11px, 1.35cqw, 13px); line-height: 1.5; color: var(--fy-muted); margin-block-start: 6px; }
+.fy-card-body { font-size: clamp(11px, 1.35cqw, 13px); line-height: 1.45; color: var(--fy-muted); margin-block-start: 6px; }
 .fy-connections { position: absolute; inset: 0; pointer-events: none; }
 .fy-connector {
   position: absolute; inline-size: 120px; block-size: 120px;
@@ -542,8 +590,11 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: 0;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
+/* 44px, not the reference's 40px, for the same reason as the chapter pills: the
+   radio is visually hidden, so the LABEL is the tap target, and this site's
+   shared component layer holds every other control to 44. */
 .fy-seg-label {
-  inline-size: 100%; min-block-size: 40px; padding-inline: 16px; border-radius: 999px;
+  inline-size: 100%; min-block-size: 44px; padding-inline: 16px; border-radius: 999px;
   color: var(--fy-quiet); text-align: center; white-space: nowrap;
   justify-content: center; align-items: center; line-height: 1.25; display: flex;
   font-size: 14px;
@@ -581,8 +632,13 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 }
 .fy-legend-swatch {
   inline-size: 14px; block-size: 14px; border-radius: 4px; display: inline-block;
-  margin-inline-end: 8px; vertical-align: -2px; border: 1px solid var(--fy-edge-grey);
+  margin-inline-end: 8px; vertical-align: -2px;
+  background: var(--fy-ref-bg, var(--fy-surface)); border: 1px solid var(--fy-ref-edge, var(--fy-edge-grey));
 }
+.fy-legend-swatch[data-reference-type="observed"] { --fy-ref-bg: #e8f3fe; --fy-ref-edge: var(--fy-edge-blue); }
+.fy-legend-swatch[data-reference-type="artifact"] { --fy-ref-bg: var(--fy-surface); --fy-ref-edge: var(--fy-edge-grey); }
+.fy-legend-swatch[data-reference-type="local"] { --fy-ref-bg: #ede5fc; --fy-ref-edge: var(--fy-edge-violet); }
+.fy-legend-swatch[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }
 
 /* ══ the scrollable table wrap ═══════════════════════════════════════════ */
 .fy-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -597,6 +653,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   letter-spacing: 0.08em; color: var(--fy-muted); font-weight: 400;
   border-block-end: 1px solid var(--fy-line); white-space: nowrap;
 }
+.fy-table td[data-label="Scanned"] { font-variant-numeric: tabular-nums; white-space: nowrap; }
 `;
 
 /**
@@ -629,7 +686,10 @@ export const PAGES_CSS = `
 /* ══ directory ═══════════════════════════════════════════════════════════ */
 .fy-dir-controls { display: grid; gap: 16px; padding-block: 8px 32px; }
 .fy-sortbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; font-size: 14px; }
-.fy-sortbar label { color: var(--fy-muted); }
+.fy-sortbar label {
+  color: var(--fy-muted); display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 44px; min-inline-size: 44px;
+}
 .fy-sortbar select {
   border: 1px solid var(--fy-line); border-radius: 8px; padding: 8px 12px;
   background: var(--fy-ground); color: var(--fy-text); font-family: var(--fy-body);
@@ -650,14 +710,24 @@ export const PAGES_CSS = `
   color: var(--fy-warn); border: 1px solid var(--fy-warn); border-radius: 999px;
   padding: 0 8px; line-height: 18px; display: inline-block; margin-inline-start: 8px;
 }
-.fy-repo-link { font-family: var(--fy-mono); font-size: 15px; color: var(--fy-ink); text-decoration: none; }
+/* The row's primary link, and therefore a target rather than a link inside a
+   sentence — 28px tall once the 390 restack blockified it. */
+.fy-repo-link {
+  font-family: var(--fy-mono); font-size: 15px; color: var(--fy-ink); text-decoration: none;
+  display: inline-flex; align-items: center; min-block-size: 44px;
+}
 .fy-repo-link:hover { color: var(--fy-link); text-decoration: underline; text-underline-offset: 4px; }
 .fy-desc { display: block; margin-block-start: 6px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
 .fy-meta-line {
   display: block; margin-block-start: 8px; font-family: var(--fy-mono); font-size: 12px;
   color: var(--fy-muted); font-variant-numeric: tabular-nums;
 }
-.fy-cov-mark { border-radius: 999px; padding: 0 8px; border: 1px solid currentcolor; }
+/* Inline, it wrapped mid-pill in the 390 restack and drew half a border on each
+   line. A verdict chip is one token or it is not a chip. */
+.fy-cov-mark {
+  border-radius: 999px; padding: 0 8px; border: 1px solid currentcolor;
+  display: inline-block; white-space: nowrap;
+}
 .fy-cov-over { color: var(--fy-pass); }
 .fy-cov-under { color: var(--fy-warn); border-style: dashed; }
 .fy-cov-note {
@@ -725,7 +795,15 @@ export const PAGES_CSS = `
 .fy-rm { white-space: nowrap; }
 .fy-rm:not(:last-child)::after { content: " ·"; }
 .fy-rm-url { white-space: normal; overflow-wrap: anywhere; }
-.fy-stale { color: var(--fy-warn); text-decoration: none; border: 1px solid var(--fy-warn); border-radius: 999px; padding: 0 8px; }
+/* A flag, not a button. It needs the 44px target because it is a link, but at
+   full warn-weight it out-shouted the whole meta line it sits in. */
+.fy-stale {
+  color: var(--fy-warn); text-decoration: none; font-size: 13px;
+  border: 1px solid color-mix(in srgb, var(--fy-warn) 40%, transparent);
+  border-radius: 999px; padding: 0 12px; display: inline-flex; align-items: center;
+  min-block-size: 44px;
+}
+.fy-stale:hover { border-color: var(--fy-warn); }
 .fy-figs { display: grid; gap: 32px 56px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding-block: 24px 40px; }
 .fy-fig-num { font-size: 48px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--fy-ink); }
 .fy-fig-cap { margin-block-start: 12px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
@@ -839,7 +917,7 @@ export const RESPONSIVE_CSS = `
   .fy-header-in { padding-inline-end: 48px; }
   .fy-wordmark { font-size: 14px; }
   .fy-nav a { padding: 8px 10px; font-size: 13px; }
-  .fy-find { inset-block-start: 7px; inset-inline-end: 6px; inline-size: 40px; block-size: 40px; }
+  .fy-find { inset-block-start: 5px; inset-inline-end: 6px; inline-size: 44px; block-size: 44px; }
 
   .fy-opening { padding: 40px var(--fy-gutter); min-block-size: max(500px, calc(100svh - var(--fy-header-h))); }
   .fy-headline { font-size: clamp(41px, 8.2vw, 65px); }
@@ -873,7 +951,7 @@ export const RESPONSIVE_CSS = `
     margin-top: 80px; inset-block-start: 8px;
     max-inline-size: calc(100% - var(--fy-gutter) * 2 - 64px);
   }
-  .fy-chapters a { padding: 8px 12px; font-size: 13px; }
+  .fy-chapters a { padding: 10px 12px; font-size: 13px; }
 
   .fy-ov-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .fy-ov-group { grid-template-columns: minmax(0, 1fr); }
@@ -904,13 +982,58 @@ export const RESPONSIVE_CSS = `
     display: block; position: absolute; inline-size: 20px; block-size: auto;
     inset-block: 120px 16px; inset-inline-start: 0; transform: none;
   }
-  .fy-compact .fy-connector[data-loop-edge="rescan"] .fy-return-packet {
+  /* GATED ON THE EDGE ACTUALLY RUNNING, not on the layout being compact.
+     Keyed on .fy-compact alone this rule outranked the reduced-motion and
+     no-support branches on specificity — measured: a reduced-motion reader at
+     390 got a static black dot parked at the top of the rail, the one moving
+     part of the loop that survived the branch whose whole job is removing them.
+     Keyed on the state the script writes, it cannot: under reduced motion the
+     script never writes it. */
+  .fy-compact .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet {
     display: block; position: absolute; inline-size: 6px; block-size: 6px;
     border-radius: 50%; background: var(--fy-ink);
     box-shadow: 0 0 0 1px var(--fy-ground); inset-block-start: 0; inset-inline-start: 7px;
   }
   .fy-compact .fy-connector[data-loop-edge="rescan"] svg { block-size: 100%; }
 
+  /* The centre store's pulse bleeds 6% past the store, which is right inside a
+     circle and wrong when the compact layout turns that store into a
+     full-width card: measured, it put 9px of the document past the right edge
+     at 390. The desktop stage may NOT clip — its process box overflows it by
+     design — so the clip is scoped to the width where it does not. */
+  .fy-loop-stage { overflow: clip; }
+  /* THE LISTING RESTACKS INTO CARDS, it does not side-scroll. A five-column
+     results table in a 350px wrap means dragging sideways to find out who ran
+     the scan and when — the two columns a reader most often wants — and the
+     card grammar the reference uses for the same job puts them on screen. Every
+     cell already carries a data-label; this is what prints it. The wrap stops
+     being a scroll container at this width, because there is nothing left to
+     scroll. */
+  .fy-wrap { overflow-x: visible; }
+  .fy-table thead {
+    position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .fy-table, .fy-table tbody, .fy-table tr, .fy-table td { display: block; inline-size: 100%; }
+  .fy-table tr {
+    border: 1px solid var(--fy-line); border-radius: 8px; padding: 16px;
+    margin-block-end: 12px; background: var(--fy-ground);
+  }
+  .fy-table td {
+    border: 0; padding: 8px 0; display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr);
+    /* Blockified by the grid, a lane chip stretched the full width of the card
+       and stopped reading as a chip. */
+    justify-items: start;
+  }
+  .fy-table td::before {
+    content: attr(data-label); font-family: var(--fy-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--fy-muted);
+  }
+  .fy-table td:empty { display: none; }
+  .fy-table tr.fy-phaseband { padding: 10px 16px; background: var(--fy-surface); border-radius: 8px; }
+  .fy-table tr.fy-phaseband td { padding: 0; }
+  .fy-table tr.fy-phaseband td::before { content: none; }
+  .fy-ph-count { float: none; display: block; margin-block-start: 4px; }
   .fy-panel-port { padding: 14px; }
   .fy-cards { grid-template-columns: minmax(0, 1fr); }
   .fy-figs { gap: 24px; }
@@ -951,6 +1074,49 @@ export const OVERRIDES = `
 :root .ex-row { border-inline-start-width: 3px; }
 :root .term-def { font-family: var(--fy-serif); font-style: italic; }
 :root .key-note { max-inline-size: var(--fy-prose); }
+/* Two targets the shared layer leaves under the floor, measured at both widths:
+   the exposure panel's group links (32px) and the incident links inside the
+   taxonomy explainer (28px). Both are standalone controls, not links inside a
+   running sentence, so the WCAG 2.5.8 inline exemption does not cover them. */
+:root .ex-name { min-block-size: 44px; align-items: center; }
+:root .tx-incident > a { display: inline-flex; align-items: center; min-block-size: 44px; }
+
+/* ══ the shared layer, on the black ground ═══════════════════════════════
+   The taxonomy explainer is set on the opening block's own black, and the
+   shared components are written against bridge tokens — so the right way to
+   move them onto it is to re-declare those tokens, not to restyle the
+   components. Without this the nine class panels rendered white-on-white
+   inside a black chapter: the headings survived, every control id and every
+   incident line went to pale grey on pale grey. A component layer that takes
+   its palette from variables will follow whatever the variables say, silently
+   and completely. */
+.fy-dark {
+  --hp-surface: #0d0d0d;
+  --hp-ground: #000000;
+  --hp-ink: var(--fy-dark-ink);
+  --hp-dim: var(--fy-dark-body);
+  --hp-muted: var(--fy-dark-quiet);
+  --hp-line: var(--fy-dark-rule);
+  --hp-line-strong: rgba(255, 255, 255, 0.3);
+  --hp-accent: #6fb0ff;
+  --hp-pass: #57c98a;
+  --hp-fail: #ff9a8f;
+  --hp-warn: #e0a33a;
+  --hp-hatch: repeating-linear-gradient(135deg,
+    rgba(255, 255, 255, 0.32) 0 3px, rgba(255, 255, 255, 0) 3px 7px);
+}
+.fy-dark a { color: #6fb0ff; }
+.fy-dark .fy-method-section > h2,
+.fy-dark .tx-class-title,
+.fy-dark h3 { color: var(--fy-dark-ink); }
+.fy-dark .fy-method-section p,
+.fy-dark .fy-method-section li { color: var(--fy-dark-body); }
+.fy-dark code { color: var(--fy-dark-ink); }
+.fy-dark .method-table th,
+.fy-dark .method-table td { border-block-end-color: var(--fy-dark-rule); color: var(--fy-dark-body); }
+.fy-dark .method-table thead th { color: var(--fy-dark-quiet); border-block-end-color: rgba(255, 255, 255, 0.3); }
+.fy-dark .tx-details summary { color: var(--fy-dark-body); }
+.fy-dark .fy-method-section { scroll-margin-top: 88px; }
 
 /* The switcher sits in the colophon, in the flow. Bulletin measured a fixed
    one painting over body text at some scroll position on EVERY page, and

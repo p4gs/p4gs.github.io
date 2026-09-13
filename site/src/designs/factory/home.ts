@@ -55,7 +55,13 @@ function aperture(records: ScanRecord[], ctx: DesignCtx): string {
       <div class="fy-opening">
         <div class="fy-opening-in">
           <p class="fy-kicker">Supply-chain security &middot; scanned in public</p>
-          <h1 class="fy-headline">What each repository<br>can prove</h1>
+          <!-- THE SPACE BEFORE THE BREAK IS LOAD-BEARING. At >=768 the <br> sets
+               the two-line headline the reference uses; at <=767 the stylesheet
+               hides it and the two text nodes close up — measured at 390 as
+               "repositorycan". A trailing space is trimmed at the end of a
+               wrapped line, so it costs nothing on desktop and is the whole word
+               boundary on a phone. -->
+          <h1 class="fy-headline">What each repository <br>can prove</h1>
           <p class="fy-context">Every listing here is a public record of one scan of one commit.</p>
           ${searchControl(ctx.h, records, {
             label: "Find a repository — or ask for one to be scanned",

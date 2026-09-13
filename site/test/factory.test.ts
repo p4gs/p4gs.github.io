@@ -391,7 +391,14 @@ describe("every diagram is derived, and a literal would fail here", () => {
     );
     expect(countOf(tri, "data-node-at=")).toBe(3);
     expect(countOf(tri, "fy-speed-node")).toBe(3);
-    expect(countOf(tri, 'fill="none"')).toBe(1);
+    // Exactly one node is hollow, and it is hollow through a CLASS. It shipped
+    // once as `fill="none"` on the circle, which renders solid: any CSS fill
+    // rule beats an SVG presentation attribute, and three branches set one. So
+    // this asserts both halves — the class on exactly one node, the rule that
+    // out-specifies those branches, and the inert attribute gone.
+    expect(countOf(tri, "fy-node-hollow")).toBe(1);
+    expect(tri).not.toContain('fill="none"');
+    expect(CSS).toContain(".fy-figure .fy-speed-node.fy-node-hollow { fill: none; }");
   });
 
   test("A1-A9 are expanders, and every defending id they name is in the registry", () => {
@@ -492,6 +499,147 @@ describe("every page is inside its own tree, and says which copy is canonical", 
     expect(withSwitcher.indexOf("design-switcher")).toBeGreaterThan(foot);
     expect(CSS).toContain(":root .design-switcher {\n  position: static;");
     expect(CSS).not.toMatch(/\.design-switcher\s*\{[^}]*position:\s*fixed/);
+  });
+});
+
+/* ══ the defects a real browser found ════════════════════════════════════ */
+
+/**
+ * Every claim below failed once, live, at 1440 or 390 — and every one of them
+ * failed SILENTLY: the page rendered, the suite was green, and nothing threw.
+ * They are pinned two-sided where an old form could come back.
+ */
+describe("what the browser found, and what keeps it found", () => {
+  test("the opening panel is exactly one viewport minus the header", () => {
+    // The aperture's progress equals scrollY / innerHeight ONLY while this
+    // holds. It shipped 13px over at 1440 — the search control's chips wrapped
+    // to a second row — which moved the whole range 13px down the page. Both
+    // halves of the arithmetic are asserted, because a header that stops being
+    // 64px breaks it just as surely as a panel that grows.
+    expect(CSS).toContain("--fy-header-h: 64px");
+    expect(CSS).toContain("--fy-header-h: 54px");
+    expect(CSS).toContain(".fy-header {\n  block-size: var(--fy-header-h)");
+    expect(CSS).toContain("min-block-size: calc(100svh - var(--fy-header-h))");
+    expect(CSS).toContain("min-block-size: max(500px, calc(100svh - var(--fy-header-h)))");
+  });
+
+  test("the headline keeps its word boundary when the break is hidden", () => {
+    // `repository<br>can` renders "repositorycan" at <=767, where the
+    // stylesheet hides the break. Measured at 390 before the space went in.
+    expect(HOME).toContain("What each repository <br>can prove");
+    expect(HOME).not.toContain("repository<br>can");
+    expect(CSS).toContain(".fy-headline br { display: none; }");
+  });
+
+  test("an open toggletip cannot widen the document", () => {
+    // 340px anchored to a holder in the right-hand column pushed the document
+    // 6px sideways at 1440 and 17px at 390. No closed-state probe can see it.
+    expect(MOTION_SCRIPT).toContain("document.documentElement.clientWidth");
+    expect(MOTION_SCRIPT).toContain("box.right > vw - 8");
+    expect(MOTION_SCRIPT).toContain("box.left + shift < 8");
+    // and it is given back on close, or the next open inherits the last shift
+    expect(MOTION_SCRIPT).toContain('t.panel.style.insetInlineStart = "";');
+    expect(CSS).toContain("inline-size: min(340px, calc(100vw - 16px))");
+  });
+
+  test("the loop's pulse is clipped where the store is not a circle", () => {
+    // `inset: -6%` is right inside a 220px disc and wrong once the compact
+    // layout makes that store a full-width card: 9px of document past the right
+    // edge at 390. The desktop stage may NOT clip — its process box overflows
+    // it by design — so this is scoped, and BOTH halves are asserted.
+    expect(CSS).toContain("  .fy-loop-stage { overflow: clip; }");
+    expect(CSS).not.toMatch(/\n\.fy-loop-stage \{[^}]*overflow:\s*clip/);
+    expect(CSS).toContain("inline-size: 118%; margin-inline: -9%");
+  });
+
+  test("the card type is a property of the diagram, not of the window", () => {
+    // Without a container, cqw resolves against the VIEWPORT, so at 1440 every
+    // clamp pinned to its maximum and an 18px title landed in a 164px circle.
+    expect(CSS).toContain("container: factory-loop / inline-size");
+    expect(CSS).toContain("font-size: clamp(14px, 1.8cqw, 18px)");
+    expect(CSS).toContain("font-size: clamp(11px, 1.35cqw, 13px)");
+  });
+
+  test("the resting ring is normalised so it renders as dots", () => {
+    // stroke-dasharray: 0,1 renders whatever pathLength says it does. At
+    // pathLength="1" the gap becomes the whole circumference and the ring is a
+    // single dot; unnormalised in a 100-unit viewBox the dots overlap into a
+    // solid hairline.
+    expect(HOME).toContain('<circle cx="50" cy="50" r="49.5" pathLength="150">');
+    expect(HOME).not.toContain('pathLength="1">');
+    expect(CSS).toContain("stroke-dasharray: 0, 1; vector-effect: non-scaling-stroke");
+  });
+
+  test("the compact rail's return packet is gated on the edge, not the layout", () => {
+    // Keyed on `.fy-compact` alone it out-specified the reduced-motion and
+    // no-support branches, and a reader who asked for less motion got a static
+    // dot parked on the rail.
+    expect(CSS).toContain(
+      '.fy-compact .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet',
+    );
+    expect(CSS).not.toMatch(
+      /\.fy-compact \.fy-connector\[data-loop-edge="rescan"\] \.fy-return-packet\s*\{/,
+    );
+  });
+
+  test("the explorer legend paints the cards' own tokens", () => {
+    // Keyed off the evidence class it gave `meta` and `artifact` the same grey,
+    // so two of the four types were identical in the one place that exists to
+    // tell them apart.
+    const types = attrOfEach(HOME, ".fy-legend-swatch", "data-reference-type");
+    expect(types).toEqual(["observed", "artifact", "local", "meta"]);
+    const cardTypes = [...new Set(attrOfEach(HOME, ".fy-refcard", "data-reference-type"))].sort();
+    expect(types.slice().sort()).toEqual(cardTypes);
+  });
+
+  test("the shared layer follows the ground it is set on", () => {
+    // The taxonomy explainer is set on the opening block's black. The shared
+    // components take their palette from bridge tokens, so they followed those
+    // tokens straight onto a white panel inside a black chapter — headings
+    // survived, every control id and incident line went pale-grey-on-pale-grey.
+    // A component layer driven by variables fails silently and completely.
+    const dark = CSS.slice(CSS.indexOf(".fy-dark {\n  --hp-surface"));
+    expect(dark.length).toBeGreaterThan(100);
+    for (const token of ["--hp-surface", "--hp-ink", "--hp-dim", "--hp-muted", "--hp-line", "--hp-accent"]) {
+      expect(dark.slice(0, 900), `no dark ${token}`).toContain(token);
+    }
+    expect(CSS).toContain(".fy-dark a { color: #6fb0ff; }");
+    // and the taxonomy really is on that ground
+    expect(METHODOLOGY).toMatch(/<div class="fy-dark">[\s\S]*id="threats"/);
+  });
+
+  test("every anchor target clears the sticky nav, shared ones included", () => {
+    // Two of the eight methodology pills point at sections the SHARED modules
+    // render under their own class, so a per-class scroll-margin landed those
+    // headings underneath the bar that had just been used to jump to them.
+    expect(CSS).toContain("main [id] { scroll-margin-top: 88px; }");
+    expect(CSS).not.toContain(".fy-chapter { scroll-margin-top");
+  });
+
+  test("the listing restacks into cards at 390 rather than side-scrolling", () => {
+    // A five-column results table in a 350px wrap means dragging sideways to
+    // reach who ran the scan and when. Every cell already carries a data-label;
+    // this is the rule that prints it, and the wrap stops being a scroll
+    // container because there is nothing left to scroll.
+    expect(CSS).toContain('content: attr(data-label)');
+    expect(CSS).toContain("  .fy-wrap { overflow-x: visible; }");
+    const cells = attrOfEach(DIRECTORY, "td", "data-label");
+    expect(cells.length).toBe(RECORDS.length * 5);
+    expect([...new Set(cells)]).toEqual([
+      "Grade", "Repository", "Phases", "Evidence source", "Scanned",
+    ]);
+  });
+
+  test("every control this design styles clears the 44px floor", () => {
+    // Six selectors measured under it live, at one or both widths. The pill nav
+    // is the interesting one: the reference is 40px, and the floor wins.
+    expect(CSS).toContain("  inline-size: 44px; block-size: 44px; border-radius: 999px;");
+    expect(CSS).toContain("  min-block-size: 44px; color: var(--fy-text); border-radius: 999px;");
+    expect(CSS).toContain(":root .ex-name { min-block-size: 44px");
+    expect(CSS).toContain(":root .tx-incident > a { display: inline-flex");
+    expect(CSS).not.toContain("min-block-size: 40px");
+    // and the shared layer's own floors are still the last word
+    expect(CSS).toContain('input:not([type="checkbox"]):not([type="radio"]), select, textarea {\n  font-size: max(16px, 1em) !important;\n}');
   });
 });
 

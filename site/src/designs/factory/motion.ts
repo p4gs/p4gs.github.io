@@ -175,7 +175,7 @@ export const MOTION_CSS = `
     .fy-checkpoint-group[data-reached="false"] .fy-checkpoint {
       fill: var(--fy-checkpoint-pending); fill-opacity: 0.15; stroke: var(--fy-checkpoint-pending);
     }
-    .fy-speed-node[data-reached="false"] { fill: var(--fy-surface); }
+    .fy-speed-node[data-reached="false"] { fill: #000; }
 
     /* ── 3. the operating loop ─────────────────────────────────────────────
        Gated, not scroll-linked: every animation is declared \`paused\` and only
@@ -595,6 +595,7 @@ export const MOTION_SCRIPT = `(function () {
     openTip = null;
     t.panel.hidden = true;
     t.panel.setAttribute("data-state", "closed");
+    t.panel.style.insetInlineStart = "";
     t.trigger.setAttribute("aria-expanded", "false");
     t.trigger.setAttribute("data-state", "closed");
     if (focusBack) { try { t.trigger.focus(); } catch (e) {} }
@@ -616,6 +617,16 @@ export const MOTION_SCRIPT = `(function () {
       panel.style.setProperty("--fy-tip-from", side === "top" ? "0.5rem" : "-0.5rem");
       panel.hidden = false;
       panel.setAttribute("data-state", "open");
+      // Keep it on screen. A panel anchored to a holder in the right-hand
+      // column otherwise widens the document, which is the one thing no page
+      // here may do — and it is invisible until something opens it.
+      panel.style.insetInlineStart = "0px";
+      var vw = document.documentElement.clientWidth;
+      var box = panel.getBoundingClientRect();
+      var shift = 0;
+      if (box.right > vw - 8) shift = -(box.right - (vw - 8));
+      if (box.left + shift < 8) shift = 8 - box.left;
+      if (shift !== 0) panel.style.insetInlineStart = Math.round(shift) + "px";
       trigger.setAttribute("aria-expanded", "true");
       trigger.setAttribute("data-state", "open");
       openTip = { trigger: trigger, panel: panel };
