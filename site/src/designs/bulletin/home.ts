@@ -19,7 +19,7 @@ import { figure, gradeSlab, phaseRules } from "./components";
 import { escapeHtml, page } from "./layout";
 import type { DesignCtx } from "../types";
 import { CONTROL_COUNT } from "../../reclassify";
-import { incompleteNoteFor } from "../../exemplars";
+import { incompleteNoteFor, recentlyScanned, topRated } from "../../exemplars";
 
 const GRADE_ORDER: Readonly<Record<string, number>> = {
   "A+": 0, A: 1, B: 2, C: 3, D: 4, F: 5, NA: 6,
@@ -93,6 +93,50 @@ function slab(r: ScanRecord | undefined, ctx: DesignCtx): string {
 </aside>`;
 }
 
+/**
+ * ONE PANEL ON A PHONE, AND IT IS A REAL PANEL.
+ *
+ * When the board is too small for BOTH "Top rated" and "Recently scanned",
+ * they render as two dashed waiting boxes back to back. At desk width they sit
+ * side by side under one band and read as a composed pair. On a phone they
+ * stacked into ~530px saying "not enough data yet" twice: two eyebrows, two
+ * Anton headings, two dashed boxes, two identical "Browse every listing" links.
+ *
+ * The previous fix was a stylesheet one — clip-path the second panel's eyebrow
+ * and heading away and weld the boxes together. It made the two widths disagree
+ * about what the page CONTAINS: a sighted phone reader got one heading followed
+ * by two unrelated paragraphs, the second of them ("…ordering them by date
+ * would be ordering noise") sitting under the heading TOP RATED, where it is a
+ * non-sequitur; a screen-reader user got the correct two-section structure. The
+ * stylesheet's own comment conceded that visually hiding the apparatus was all
+ * CSS could do about it, and that suppressing the panel was the template's call.
+ *
+ * This is the template making that call. Below 760px the pair is replaced by a
+ * SINGLE honest panel: one eyebrow, one heading that says the real thing, both
+ * waiting sentences — they name different real counts, so neither is dropped —
+ * and one way out. Exactly one of the two structures is in the document at any
+ * width (`display: none` removes the other from the accessibility tree too), so
+ * what a phone shows and what a screen reader hears are the same page.
+ *
+ * It renders only when BOTH panels are waiting, because that is the only state
+ * in which the duplication exists. As soon as either has content the pair is a
+ * pair again and the desktop arrangement is right at every width.
+ */
+function mergedWaitingPanel(records: ScanRecord[], ctx: DesignCtx): string {
+  const a = topRated(records, ctx.trust, ctx.localTrust);
+  const b = recentlyScanned(records, ctx.trust, ctx.localTrust);
+  if (a.ready || b.ready) return "";
+  return `<section class="hp-panel hp-panel-merged" id="board-so-far" aria-labelledby="board-so-far-h">
+  <p class="hp-panel-eyebrow">The board so far</p>
+  <h2 class="hp-panel-title" id="board-so-far-h">Not enough listings yet</h2>
+  <div class="hp-waiting">
+    <p class="hp-waiting-copy">${escapeHtml(a.waitingFor)}</p>
+    <p class="hp-waiting-copy">${escapeHtml(b.waitingFor)}</p>
+    <a class="hp-waiting-link" href="${ctx.h("directory/")}">Browse every listing →</a>
+  </div>
+</section>`;
+}
+
 export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
   const n = records.length;
   const body = `
@@ -122,6 +166,7 @@ export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
 </section>
 
 <div class="hp-panels">
+${mergedWaitingPanel(records, ctx)}
 ${exemplarPanels(ctx.h, records, ctx.trust, ctx.localTrust)}
 </div>
 

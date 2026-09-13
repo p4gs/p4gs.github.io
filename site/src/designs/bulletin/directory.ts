@@ -30,7 +30,7 @@ import {
 import { define, defineTerm } from "../../glossary";
 import { lookupFacts, shortSha, type ListingFacts } from "../../listing";
 import type { ScanRecord, Score } from "../../schema";
-import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
+import { COVERAGE_FLOOR_NA, COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
 import {
   LANE_TITLE,
   LOCAL_RECORD_PUBLISHED,
@@ -78,14 +78,30 @@ const PHASE_LEGEND = Object.entries(PHASE_SHORT)
   .join(' <span class="mn-sep">·</span> ');
 
 /**
- * FILTERING TO ZERO MUST SAY SO, AND OFFER THE WAY BACK.
+ * FILTERING TO ZERO MUST SAY SO — IN THE WORDS OF THE CONTROL THAT DID IT —
+ * AND OFFER THE WAY BACK.
  *
  * Driven live at 390px: ticking "Coverage under 75% only" took the visible
- * rows from three to zero and no empty-state node existed in the DOM at any
- * point. The whole listing area went blank, and the only feedback was a 13px
- * count at the far end of a row the thumb had just covered — so the result
- * read as a page that broke rather than a filter that matched nothing, with no
- * reset except finding the same checkbox again.
+ * rows from three to zero. The whole listing area went blank, and the only
+ * feedback was a 13px count at the far end of a row the thumb had just
+ * covered — so the result read as a page that broke rather than a filter that
+ * matched nothing, with no reset except finding the same checkbox again.
+ *
+ * WHY THERE ARE TWO SENTENCES AND NOT ONE. The coverage checkbox is not a
+ * search: it is the one control on this site that exists for the single task
+ * "find the listings under the coverage floor", and when it matches nothing
+ * the honest answer is a FINDING — no listing is under the floor — not "no
+ * listing matches that". A generic miss-message on that path buries the
+ * strongest thing the directory can currently say about itself. The search
+ * path keeps the generic sentence, because there a miss really is a miss.
+ * Exactly one is shown, chosen by `data-reason`, which is set from the state
+ * of the two controls rather than guessed from the row count.
+ *
+ * THE ORPHAN HEADER GOES WITH THE ROWS. A `<thead>` left standing over an
+ * empty tbody is 43px of ruled column headings floating on blank paper inside
+ * a 2px box — the page's own "this table broke" shape. With no rows to label
+ * there is nothing for it to label, so the whole scroll box is taken out of
+ * flow and out of the accessibility tree until a row comes back.
  *
  * `filter.js` is shared and owns the rows; this does not reach into it. It
  * watches the two things that file's own documented contract guarantees — it
@@ -94,6 +110,12 @@ const PHASE_LEGEND = Object.entries(PHASE_SHORT)
  * observing the rows, and "clear" is expressed by resetting those controls and
  * firing the events the shared script already handles. Nothing here can
  * disagree with the count it prints, because both read the same rows.
+ *
+ * A NOTE ON MEASURING THIS. A MutationObserver callback is a microtask: it
+ * runs after the script that dispatched the `change` event returns. A probe
+ * that ticks the box and reads the DOM in the same synchronous block will see
+ * the strip still hidden and conclude no empty state exists. Let a task
+ * boundary pass before believing the measurement.
  */
 const DIR_EMPTY_SCRIPT = `<script>
 (function () {
@@ -105,16 +127,27 @@ const DIR_EMPTY_SCRIPT = `<script>
   var search = document.getElementById("dir-filter");
   var only = document.getElementById("dir-incomplete");
   var clear = document.getElementById("dir-clear");
+  var box = document.querySelector(".table-scroll-dir");
   function shown() {
     for (var i = 0; i < rows.length; i++) {
       if (rows[i].style.display !== "none") return true;
     }
     return false;
   }
-  function sync() { note.hidden = shown(); }
+  function sync() {
+    var any = shown();
+    note.hidden = any;
+    // The coverage box owns the message only when it is the reason on its own;
+    // a search term narrowing on top of it makes the miss a search miss again.
+    var byCoverage = !!(only && only.checked) && !(search && search.value.trim());
+    note.setAttribute("data-reason", byCoverage ? "coverage" : "match");
+    if (box) box.classList.toggle("is-empty", !any);
+  }
   new MutationObserver(sync).observe(tbody, {
     attributes: true, attributeFilter: ["style"], subtree: true,
   });
+  if (search) search.addEventListener("input", sync);
+  if (only) only.addEventListener("change", sync);
   if (clear) {
     clear.addEventListener("click", function () {
       if (search) {
@@ -165,11 +198,83 @@ function localOverlayChip(lt: TrustInfo | undefined): string {
   return `<span class="lane lane-local-overlay" title="${escapeHtml(title)}">+local ${n}</span>`;
 }
 
-function metaLine(r: ScanRecord): string {
+/**
+ * THE COVERAGE NUMBER CARRIES ITS VERDICT, OR IT IS NOT A VERDICT.
+ *
+ * `coverage 87.1%` on its own is a measurement a reader cannot score. The rule
+ * that turns it into a judgement — under 50% earns NA, which is no letter at
+ * all; under 75% the letter is provisional — lived only on the methodology
+ * page, 18,623px away from the listing that shows the number. A security
+ * engineer reading one listing could not tell whether 87.1% cleared the bar,
+ * which is the judgement the whole coverage/pass split exists to enable.
+ *
+ * So the row and the sheet both say which side of the floor the number falls,
+ * every time, in both directions. The below-floor side is not new information —
+ * `coverageNote` and `coveragePanel` already say what is missing and what the
+ * one-line fix is — so it states the verdict and points at them rather than
+ * repeating either.
+ *
+ * NEVER COLOUR ALONE. `.cov-mark` carries a border as well as a hue: solid ink
+ * when the floor is cleared, dashed accent when it is not, and the words differ
+ * too. The three states survive greyscale, print and a protanope.
+ *
+ * The "not provisional" clause is read off `r.score.provisional` rather than
+ * inferred from the coverage number, so this line can never assert something
+ * the published record itself contradicts.
+ */
+function floorVerdict(r: ScanRecord, f: CoverageFacts): { mark: string; over: boolean } {
+  if (f.belowNaFloor) {
+    return { mark: `under the ${COVERAGE_FLOOR_NA}% floor`, over: false };
+  }
+  if (f.belowFloor) {
+    return { mark: `under the ${COVERAGE_FLOOR_PROVISIONAL}% floor`, over: false };
+  }
+  return { mark: `clears the ${COVERAGE_FLOOR_PROVISIONAL}% floor`, over: true };
+}
+
+/**
+ * The same verdict, folded into the row's existing mono meta rule — but ONLY
+ * on the side that was silent.
+ *
+ * A below-floor row already carries a PROVISIONAL tag beside the grade, the
+ * word again in this rule, and a full coverage note naming the coverage, the
+ * unanswered controls and the one-line fix. Measured on a mixed board: the mark
+ * made that four accent-coloured elements inside 200px saying one thing, on a
+ * page whose register spends the single hot accent only on state that matters.
+ * The row that said NOTHING about the floor was the one clearing it, and that
+ * is the row this mark is for. The sheet keeps both directions, because there
+ * the mark also carries the link down to the panel.
+ */
+function metaLine(r: ScanRecord, f: CoverageFacts): string {
   const overall =
     r.score.overall_percent === null ? "no evidence" : `${r.score.overall_percent}%`;
+  const v = floorVerdict(r, f);
+  const mark = v.over
+    ? ` · <span class="cov-mark cov-mark-over">${escapeHtml(v.mark)}</span>`
+    : "";
   const prov = r.score.provisional ? ` · <em class="prov-flag">provisional</em>` : "";
-  return `${overall} passed · coverage ${r.score.evidence_coverage_percent}%${prov}`;
+  return `${overall} passed · coverage ${r.score.evidence_coverage_percent}%${mark}${prov}`;
+}
+
+/**
+ * The sheet's version: a mono line directly under the 84px coverage numeral,
+ * where the number a reader remembers is set.
+ */
+function coverageVerdictLine(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): string {
+  const v = floorVerdict(r, f);
+  const mark = `<span class="cov-mark ${
+    v.over ? "cov-mark-over" : "cov-mark-under"
+  }">${escapeHtml(v.mark)}</span>`;
+  if (v.over) {
+    const letter = r.score.provisional ? "" : "The grade is not provisional. ";
+    return `<p class="cov-verdict">${mark}<span class="cv-note">${escapeHtml(letter)}<a
+    href="${ctx.h("methodology/#grades")}">How coverage is scored →</a></span></p>`;
+  }
+  const letter = f.belowNaFloor ? "There is no letter at all." : "The letter is provisional.";
+  return `<p class="cov-verdict cov-verdict-under">${mark}<span class="cv-note">${escapeHtml(
+    letter,
+  )} ${escapeHtml(plural(f.unverified))} carry no verdict.
+  <a href="#coverage">What is missing, and the fix →</a></span></p>`;
 }
 
 /**
@@ -297,6 +402,28 @@ function renderFactsSection(lf: ListingFacts, directory: Score): string {
 }
 
 export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
+  /**
+   * The coverage filter's empty state is a FINDING, and a finding has to be
+   * true of the board it is printed on.
+   *
+   * "No listing is under the 75% coverage floor" can only be shown when that is
+   * the case — which is also the only case in which the filter can match zero,
+   * so the two conditions are the same condition. It is still computed rather
+   * than assumed: the sentence is baked into the page at build time, and a
+   * board that later carries a short listing must not have a stale claim to the
+   * contrary sitting in its DOM. When something IS under the floor the sentence
+   * is not rendered at all, and the generic miss-message covers that path.
+   *
+   * The lowest coverage is read off the records for the same reason — a literal
+   * would go stale on the next scan.
+   */
+  const lowestCoverage =
+    records.length === 0
+      ? null
+      : Math.min(...records.map((r) => r.score.evidence_coverage_percent));
+  const noneBelowFloor =
+    records.length > 0 &&
+    records.every((r) => !coverageFacts(r, localOverlayCount(lookupLocalTrust(ctx.localTrust, r))).belowFloor);
   const sorted = [...records].sort((a, b) => {
     const g = (GRADE_ORDER[a.score.grade] ?? 9) - (GRADE_ORDER[b.score.grade] ?? 9);
     if (g !== 0) return g;
@@ -313,7 +440,7 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
   <td class="c-grade" data-label="Grade">${gradeBadge(r.score, "sm")}</td>
   <td class="c-repo" data-label="Repository"><a class="repo-name" href="${ctx.h(repoSlugPath(r))}">${escapeHtml(slug)}</a>
       <span class="desc">${escapeHtml(r.repo.description)}</span>
-      <span class="meta-line">${metaLine(r)}</span>
+      <span class="meta-line">${metaLine(r, f)}</span>
       ${coverageNote(f)}${factNotes(lf, r.score)}</td>
   <td class="c-phases" data-label="Phases">${compactRules(r.score)}</td>
   <td class="c-lane" data-label="Evidence source">${laneChip(kind)}${localOverlayChip(lt)}</td>
@@ -362,9 +489,17 @@ ${rows}
   </tbody>
 </table>
 </div>
-<p class="dir-empty" id="dir-empty" hidden>
-  <span class="dir-empty-copy">No listing matches that. Every repository on the board is
-  shown when the search box is empty and the coverage filter is off.</span>
+<p class="dir-empty" id="dir-empty" data-reason="match" hidden>
+  <span class="dir-empty-copy dir-empty-match">No listing matches that. Every repository on
+  the board is shown when the search box is empty and the coverage filter is off.</span>
+  ${
+    noneBelowFloor
+      ? `<span class="dir-empty-copy dir-empty-coverage">No listing is under the
+  ${COVERAGE_FLOOR_PROVISIONAL}% coverage floor. The lowest coverage on the board is
+  ${lowestCoverage}%. Any listing under the floor carries a note naming the checks that
+  went unanswered, and what closes them.</span>`
+      : ""
+  }
   <button type="button" class="dir-clear" id="dir-clear">Clear the filters</button>
 </p>
 <div class="key-row">
@@ -457,7 +592,7 @@ function coveragePanelBody(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): str
     ? `No letter — insufficient evidence (${f.coverage}% coverage)`
     : "Why this grade is provisional";
   if (f.state === "fixable-by-local") {
-    return `<section class="nudge nudge-coverage">
+    return `<section class="nudge nudge-coverage" id="coverage">
   <h2 class="nudge-title">${escapeHtml(head)}</h2>
   <p class="body-copy">Evidence coverage reads <strong>${f.coverage}%</strong>, under the
   ${COVERAGE_FLOOR_PROVISIONAL}% floor. ${plural(f.unverified)} carry no verdict.
@@ -481,7 +616,7 @@ function coveragePanelBody(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): str
 </section>`;
   }
   if (f.state === "partly-fixable-by-local") {
-    return `<section class="nudge nudge-coverage">
+    return `<section class="nudge nudge-coverage" id="coverage">
   <h2 class="nudge-title">${escapeHtml(head)}</h2>
   <p class="body-copy">Evidence coverage reads <strong>${f.coverage}%</strong>, under the
   ${COVERAGE_FLOOR_PROVISIONAL}% floor. <code>${LOCAL_SCAN_COMMAND}</code> resolves
@@ -491,7 +626,7 @@ function coveragePanelBody(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): str
 </section>`;
   }
   if (f.state === "local-applied") {
-    return `<section class="nudge nudge-coverage">
+    return `<section class="nudge nudge-coverage" id="coverage">
   <h2 class="nudge-title">${escapeHtml(head)}</h2>
   <p class="body-copy">A signed local scan already resolved ${plural(f.resolvedByLocal)}.
   Coverage is still <strong>${f.coverage}%</strong>, under the
@@ -499,7 +634,7 @@ function coveragePanelBody(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): str
   denominator.</p>
 </section>`;
   }
-  return `<section class="nudge nudge-coverage">
+  return `<section class="nudge nudge-coverage" id="coverage">
   <h2 class="nudge-title">${escapeHtml(head)}</h2>
   <p class="body-copy">Evidence coverage reads <strong>${f.coverage}%</strong>, under the
   ${COVERAGE_FLOOR_PROVISIONAL}% floor. ${plural(f.unverified)} could not be verified by
@@ -792,7 +927,8 @@ ${reasonNotes
   <div class="fig"><div class="fig-num">${escapeHtml(passed)}</div>
     <div class="fig-cap">of the answered checks passed</div></div>
   <div class="fig"><div class="fig-num">${r.score.evidence_coverage_percent}%</div>
-    <div class="fig-cap">of the checks were answered at all</div></div>
+    <div class="fig-cap">of the checks were answered at all</div>
+    ${coverageVerdictLine(r, facts, ctx)}</div>
 </section>
 ${
   r.score.provisional
