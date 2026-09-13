@@ -238,8 +238,9 @@ function chapterLoop(ctx: DesignCtx): string {
     <div class="fy-chapter-head">
       <p class="fy-chapter-num">02 &mdash; The loop</p>
       <h2 id="ch-loop-h">How a listing is made</h2>
-      <p class="fy-chapter-lead">Five steps, and a signed record in the middle of them. A scan
-      is a snapshot, so the loop runs again rather than editing what it said last time.</p>
+      <p class="fy-chapter-lead">Five steps, and one record in the middle of them &mdash; signed
+      when the lane can sign it. A scan is a snapshot, so the loop runs again rather than editing
+      what it said last time.</p>
     </div>
     ${loopFigure()}
     <p class="fy-body" style="margin-inline:auto;text-align:center">Nobody has to wait for us.

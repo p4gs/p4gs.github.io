@@ -901,12 +901,24 @@ export interface LoopStage {
  * around it, not squeezed into the ring.
  */
 export const LOOP_STAGES: readonly LoopStage[] = [
-  { id: "scan", no: "01", title: "Scan", body: "Clone, never execute" },
+  { id: "scan", no: "01", title: "Scan", body: "Clone, never run" },
   { id: "record", no: "02", title: "Record", body: "Answered, or left open" },
   { id: "review", no: "03", title: "Review", body: "A person reads it" },
   { id: "answer", no: "04", title: "Answer", body: "Run it, then sign it" },
   { id: "rescan", no: "05", title: "Rescan", body: "One commit, one snapshot" },
 ];
+
+/**
+ * The connector's path, and the packet's — the SAME path, so the active edge
+ * differs from a resting one only in colour and opacity.
+ *
+ * It is an ARC. The reference's dotted connectors curve outward around the
+ * ring; a straight chord between two discs on a circle reads as a different
+ * diagram. The box is rotated to the chord's own angle, and local −y after
+ * that rotation is the outward normal, so a quadratic bowing to −y bows away
+ * from the centre on every one of the five edges without a per-edge sign.
+ */
+export const LOOP_EDGE_PATH = "M 8 60 Q 60 40 112 60";
 
 function loopCard(s: LoopStage, i: number, n: number): string {
   const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
@@ -940,8 +952,8 @@ function loopConnector(i: number, n: number, edge: string): string {
         2,
       )}deg">
       <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-        <path class="fy-edge-base" d="M 8 60 H 112"></path>
-        <path class="fy-edge-highlight" d="M 8 60 H 112"></path>
+        <path class="fy-edge-base" d="${LOOP_EDGE_PATH}"></path>
+        <path class="fy-edge-highlight" d="${LOOP_EDGE_PATH}"></path>
         <g class="fy-packet-group"><circle class="fy-packet" r="3.5"></circle></g>
       </svg>
       <span class="fy-return-packet" aria-hidden="true"></span>
@@ -967,7 +979,7 @@ export function loopFigure(): string {
   return `<figure class="fy-loop" data-loop-stage="${LOOP_STAGES[0]!.id}"
   data-loop-status="paused" data-running="false" data-pulse-running="false"
   data-loop-completed-passes="0" aria-label="How a listing is produced, and kept current">
-  <div class="fy-loop-stage fy-compact">
+  <div class="fy-loop-stage">
     <div class="fy-process">
       <ol class="fy-loop-cards">
 ${cards}
@@ -975,15 +987,22 @@ ${cards}
       <div class="fy-connections">
 ${edges}
       </div>
+      <!-- THE CENTRE NAMES WHAT IS THERE, AND ONLY WHAT IS THERE. It read "the
+           signed record", which is a universal two of the four trust kinds do
+           not have: an external scan produces an unsigned record, and so does a
+           CI run without id-token. The caption under it used to read "Shared
+           context" — an internal label naming nothing a reader can point at —
+           and it was stranded 25px BELOW the stage border, attached to nothing.
+           It is the third line of the centre now. -->
       <div class="fy-context-store">
         <span class="fy-context-pattern" aria-hidden="true"></span>
         <span class="fy-context-pulse" aria-hidden="true"></span>
-        <span class="fy-context-title">the signed record</span>
-        <span class="fy-context-sub">scan-record.json + signature</span>
+        <span class="fy-context-title">the record</span>
+        <span class="fy-context-sub">scan-record.json &middot; signed when the lane can sign it</span>
+        <span class="fy-context-note">One record. Every stage adds to it.</span>
       </div>
     </div>
   </div>
-  <figcaption class="fy-loop-caption">Shared context</figcaption>
 </figure>`;
 }
 

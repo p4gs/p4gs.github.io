@@ -241,7 +241,10 @@ export const MOTION_CSS = `
       animation-timing-function: var(--fy-loop-ease-settle);
       animation-fill-mode: both;
     }
-    .fy-compact .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet {
+    /* The rail's closing packet. It only exists at ≤767 — the stylesheet gives
+       the .fy-return-packet rule a display there and nowhere else — so this names the
+       STATE that releases it rather than the layout that draws it. */
+    .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet {
       animation-name: fy-loop-return-travel;
       animation-duration: 2.4s;
       animation-timing-function: linear;

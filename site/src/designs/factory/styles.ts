@@ -623,14 +623,20 @@ main [id] { scroll-margin-top: 88px; }
    an aspect-ratio box would otherwise leave as 190px of dotted nothing. */
 .fy-process {
   position: relative; inline-size: 118%; margin-inline: -9%;
-  margin-block: -56px -104px; aspect-ratio: 1 / 1;
+  margin-block: -64px -112px; aspect-ratio: 1 / 1;
 }
 .fy-loop-cards { list-style: none; margin: 0; padding: 0; }
+/* PERCENTAGE PADDING RESOLVES AGAINST THE CONTAINING BLOCK, NOT THE ELEMENT.
+   7% padding on a 193px card inside an 840px process box computes to 58.6px
+   a side — measured — which left 75px of text width inside a 193px circle and
+   wrapped "One commit, one snapshot" onto FOUR lines. 26px is the inscribed
+   square of a 193px circle with a little air, and it does not care what the box
+   around it is; the compact rail overrides it anyway. */
 .fy-loop-card {
   position: absolute; inset-block-start: var(--fy-circle-y); inset-inline-start: var(--fy-circle-x);
   inline-size: 23%; block-size: 23%; transform: translate(-50%, -50%);
   border-radius: 50%; background: var(--fy-ground); border: 1px solid rgba(0, 0, 0, 0);
-  display: grid; place-content: center; text-align: center; padding: 7%;
+  display: grid; place-content: center; text-align: center; padding: 26px;
 }
 .fy-card-ring { position: absolute; inset: -1px; overflow: visible; }
 /* The resting ring: ZERO-LENGTH dashes with round caps, which is what renders a
@@ -643,19 +649,22 @@ main [id] { scroll-margin-top: 88px; }
    about 4px, which is the pitch the reference reads at. */
 .fy-card-ring circle {
   fill: none; stroke: var(--fy-ink); stroke-width: 1.25px; stroke-linecap: round;
-  stroke-dasharray: 0, 1; vector-effect: non-scaling-stroke; opacity: 0.55;
+  stroke-dasharray: 0, 1; vector-effect: non-scaling-stroke;
 }
 .fy-active-ring, .fy-arrival-ring {
   border: 2px solid var(--fy-accent); border-radius: inherit; pointer-events: none;
   position: absolute; inset: -1px; opacity: 0;
 }
 .fy-card-meta { font-family: var(--fy-mono); font-size: 12px; line-height: 1.5; color: var(--fy-muted); }
+/* The brief's own measured clamps, restored now that the container exists.
+   Without the loop container these cqw units resolved
+   against the VIEWPORT and every clamp pinned to its maximum. */
 .fy-card-title {
-  font-size: clamp(14px, 1.8cqw, 18px); font-weight: 500; letter-spacing: -0.01em;
+  font-size: clamp(16px, 1.8cqw, 20px); font-weight: 500; letter-spacing: -0.01em;
   line-height: 1.26; margin-block-start: 6px; color: var(--fy-ink);
   text-wrap: balance; hyphens: manual;
 }
-.fy-card-body { font-size: clamp(11px, 1.35cqw, 13px); line-height: 1.45; color: var(--fy-muted); margin-block-start: 6px; }
+.fy-card-body { font-size: clamp(13px, 1.35cqw, 15px); line-height: 1.5; color: var(--fy-muted); margin-block-start: 6px; }
 .fy-connections { position: absolute; inset: 0; pointer-events: none; }
 .fy-connector {
   position: absolute; inline-size: 120px; block-size: 120px;
@@ -663,22 +672,38 @@ main [id] { scroll-margin-top: 88px; }
   transform: translate(-50%, -50%) rotate(var(--fy-edge-a));
 }
 .fy-connector svg { inline-size: 100%; block-size: 100%; overflow: visible; }
-.fy-edge-base { stroke: var(--fy-accent); stroke-width: 1px; stroke-dasharray: 2 4; fill: none; opacity: 0.55; }
+/* 0.75 is the brief's measured connector-base opacity; it shipped at 0.55
+   for no recorded reason and the resting ring read fainter than the reference's. */
+.fy-edge-base { stroke: var(--fy-accent); stroke-width: 1px; stroke-dasharray: 2 4; fill: none; opacity: 0.75; }
 .fy-edge-highlight { stroke: var(--fy-accent); stroke-width: 1.5px; fill: none; opacity: 0; }
-.fy-packet { fill: var(--fy-ink); stroke: var(--fy-ground); stroke-width: 1px; offset-path: path("M 8 60 H 112"); offset-distance: 0%; offset-rotate: 0deg; }
+/* The packet rides the connector's OWN arc, so an active edge differs from a
+   resting one in colour and opacity and in nothing else. */
+.fy-packet {
+  fill: var(--fy-ink); stroke: var(--fy-ground); stroke-width: 1px;
+  offset-path: path("M 8 60 Q 60 40 112 60"); offset-distance: 0%; offset-rotate: 0deg;
+}
 .fy-connector[data-loop-edge="rescan"] .fy-packet { r: 3px; }
 .fy-packet-group { opacity: 0; }
 .fy-return-packet { display: none; }
+/* A BOUNDED CIRCLE, not a patch of dots floating in the middle of the ring: a
+   hairline ring says where the record ends, which is what makes the five cards
+   read as orbiting something rather than as five cards with texture between
+   them. 26% of the 840 process box is 218px — the reference's 220. */
 .fy-context-store {
   position: absolute; inset-block-start: 50%; inset-inline-start: 50%;
   transform: translate(-50%, -50%); inline-size: 26%; block-size: 26%;
-  border-radius: 50%; display: grid; place-content: center; text-align: center; gap: 2px;
+  border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.12); background: var(--fy-ground);
+  display: grid; place-content: center; text-align: center; gap: 4px; padding: 22px;
 }
 .fy-context-pattern {
   position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
   background-image: radial-gradient(color-mix(in srgb, var(--fy-ink) 17%, transparent) 0.65px, transparent 0.85px);
   background-size: 6px 6px;
 }
+/* CIRCULAR, and it must stay circular: a radial gradient on a rectangle with no
+   radius paints a disc with four lit corners, which is what a "soft pulse"
+   looked like before. The gradient reaches transparent by 72%, the brief's own
+   stop, so the border-radius is belt to that braces. */
 .fy-context-pulse {
   position: absolute; inset: -6%; border-radius: 50%; pointer-events: none; opacity: 0;
   background: radial-gradient(circle,
@@ -686,11 +711,11 @@ main [id] { scroll-margin-top: 88px; }
     color-mix(in srgb, var(--fy-accent) 24%, transparent) 34%,
     color-mix(in srgb, var(--fy-accent) 15%, transparent) 52%, transparent 72%);
 }
-.fy-context-title { font-size: 16px; position: relative; color: var(--fy-ink); }
-.fy-context-sub { font-family: var(--fy-mono); font-size: 12px; position: relative; color: var(--fy-muted); }
-.fy-loop-caption {
-  text-align: center; font-family: var(--fy-mono); font-size: 12px; line-height: 1.5;
-  color: var(--fy-muted); margin-block-start: 16px;
+.fy-context-title { font-size: 15px; line-height: 1.2; position: relative; color: var(--fy-ink); }
+.fy-context-sub { font-family: var(--fy-mono); font-size: 11px; line-height: 1.4; position: relative; color: var(--fy-muted); }
+.fy-context-note {
+  font-family: var(--fy-mono); font-size: 11px; line-height: 1.4; position: relative;
+  color: var(--fy-quiet);
 }
 
 /* ══ the segmented explorer ══════════════════════════════════════════════ */
@@ -1186,49 +1211,66 @@ export const RESPONSIVE_CSS = `
   .fy-network { padding: 16px; }
   .fy-annotate { font-size: 19px; }
 
-  /* The circle becomes a vertical rail — and it keeps running. */
+  /* The circle becomes a vertical rail — and it keeps running.
+
+     THE DESKTOP GEOMETRY MUST BE UNDONE HERE, EXPLICITLY. The process box
+     carries inline-size 118%, margin-inline -9% and margin-block -64/-112px
+     because the desktop stage is deliberately narrower than the ring it holds.
+     None of that was reset for the rail, and none of it errors: measured at
+     390, the store's title rendered SIX of its twenty-eight pixels with zero
+     dark pixels in the glyph box, card 05 was cut by 63px, and every card lost
+     10.7px of its right edge — three edges of clipping, and the phrase the
+     whole loop is built around simply not on the page. The stage then carried
+     overflow clip to contain the damage, which is what hid it.
+
+     There is no hardcoded layout class any more either (Max-10): the rail is a
+     property of the viewport, so the media query is the only thing that should
+     know about it. */
   .fy-loop-stage { padding: 16px; }
-  .fy-compact .fy-process { aspect-ratio: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding-inline-start: 20px; }
-  .fy-compact .fy-loop-card {
+  .fy-process {
+    inline-size: 100%; margin-inline: 0; margin-block: 0;
+    aspect-ratio: auto; display: grid; grid-template-columns: minmax(0, 1fr);
+    gap: 24px; padding-inline-start: 20px;
+  }
+  .fy-loop-card {
     position: static; transform: none; inline-size: 100%; block-size: auto; min-block-size: 96px;
     border-radius: 8px; border-color: color-mix(in srgb, var(--fy-ink) 44%, transparent);
     padding: 16px; place-content: start; text-align: start;
   }
-  .fy-compact .fy-card-title { font-size: 17px; }
-  .fy-compact .fy-card-body { font-size: 13px; }
-  .fy-compact .fy-card-ring { display: none; }
-  .fy-compact .fy-context-store {
+  .fy-card-title { font-size: 17px; }
+  .fy-card-body { font-size: 13px; }
+  .fy-card-ring { display: none; }
+  .fy-context-store {
     position: static; transform: none; inline-size: 100%; block-size: auto; min-block-size: 64px;
     border-radius: 8px; border: 1px solid color-mix(in srgb, var(--fy-ink) 12%, transparent);
     background: var(--fy-ground); text-align: start; place-content: center start; padding: 16px;
     order: -1;
   }
-  .fy-compact .fy-connections { position: static; }
-  .fy-compact .fy-connector { display: none; }
-  .fy-compact .fy-connector[data-loop-edge="rescan"] {
+  .fy-context-title { font-size: 16px; }
+  .fy-context-sub, .fy-context-note { font-size: 12px; }
+  /* The pattern and the pulse are properties of a DISC. The compact store is a
+     card, so the halo that bled 9px of document past the right edge at 390 has
+     nothing left to be a halo of — it goes, and the stage needs no clip. */
+  .fy-context-pattern, .fy-context-pulse { display: none; }
+  .fy-connections { position: static; }
+  .fy-connector { display: none; }
+  .fy-connector[data-loop-edge="rescan"] {
     display: block; position: absolute; inline-size: 20px; block-size: auto;
     inset-block: 120px 16px; inset-inline-start: 0; transform: none;
   }
   /* GATED ON THE EDGE ACTUALLY RUNNING, not on the layout being compact.
-     Keyed on .fy-compact alone this rule outranked the reduced-motion and
+     Keyed on a layout class this rule outranked the reduced-motion and
      no-support branches on specificity — measured: a reduced-motion reader at
      390 got a static black dot parked at the top of the rail, the one moving
      part of the loop that survived the branch whose whole job is removing them.
      Keyed on the state the script writes, it cannot: under reduced motion the
      script never writes it. */
-  .fy-compact .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet {
+  .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet {
     display: block; position: absolute; inline-size: 6px; block-size: 6px;
     border-radius: 50%; background: var(--fy-ink);
     box-shadow: 0 0 0 1px var(--fy-ground); inset-block-start: 0; inset-inline-start: 7px;
   }
-  .fy-compact .fy-connector[data-loop-edge="rescan"] svg { block-size: 100%; }
-
-  /* The centre store's pulse bleeds 6% past the store, which is right inside a
-     circle and wrong when the compact layout turns that store into a
-     full-width card: measured, it put 9px of the document past the right edge
-     at 390. The desktop stage may NOT clip — its process box overflows it by
-     design — so the clip is scoped to the width where it does not. */
-  .fy-loop-stage { overflow: clip; }
+  .fy-connector[data-loop-edge="rescan"] svg { block-size: 100%; }
   /* THE LISTING RESTACKS INTO CARDS, it does not side-scroll. A five-column
      results table in a 350px wrap means dragging sideways to find out who ran
      the scan and when — the two columns a reader most often wants — and the

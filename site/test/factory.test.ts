@@ -35,7 +35,7 @@ import {
   MOTION_CSS,
   MOTION_SCRIPT,
 } from "../src/designs/factory/motion";
-import { MAZE_GRID, mazeRoute, slotForPhases } from "../src/designs/factory/components";
+import { LOOP_EDGE_PATH, MAZE_GRID, mazeRoute, slotForPhases } from "../src/designs/factory/components";
 import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
 import { CLASS_SHORT } from "../src/designs/factory/components";
 import { PHASES } from "../src/scoring";
@@ -441,7 +441,7 @@ describe("every diagram is derived, and a literal would fail here", () => {
   });
 
   test("the resting frame is in the markup, so no-JS is not a blank diagram", () => {
-    expect(HOME).toContain("the signed record");
+    expect(HOME).toContain('<span class="fy-context-title">the record</span>');
     expect(HOME).toContain('data-figure-progress="1"');
     expect(countOf(HOME, 'data-reached="true"')).toBeGreaterThan(PHASES.length);
     expect(HOME).not.toContain('data-reached="false"');
@@ -543,22 +543,27 @@ describe("what the browser found, and what keeps it found", () => {
     expect(CSS).toContain("inline-size: min(340px, calc(100vw - 16px))");
   });
 
-  test("the loop's pulse is clipped where the store is not a circle", () => {
+  test("the loop's halo belongs to a disc, so the rail does not get one", () => {
     // `inset: -6%` is right inside a 220px disc and wrong once the compact
     // layout makes that store a full-width card: 9px of document past the right
-    // edge at 390. The desktop stage may NOT clip — its process box overflows
-    // it by design — so this is scoped, and BOTH halves are asserted.
-    expect(CSS).toContain("  .fy-loop-stage { overflow: clip; }");
-    expect(CSS).not.toMatch(/\n\.fy-loop-stage \{[^}]*overflow:\s*clip/);
+    // edge at 390. It was contained with `overflow: clip` on the stage, which
+    // is what hid the three edges of clipping E1 later measured — so the halo
+    // goes at that width instead, and the clip goes with it.
+    expect(MOBILE).toContain(".fy-context-pattern, .fy-context-pulse { display: none; }");
+    expect(MOBILE).not.toContain(".fy-loop-stage { overflow: clip; }");
+    expect(CSS).not.toMatch(/\.fy-loop-stage \{[^}]*overflow:\s*clip/);
+    // the desktop stage may NOT clip — its process box overflows it by design
     expect(CSS).toContain("inline-size: 118%; margin-inline: -9%");
   });
 
   test("the card type is a property of the diagram, not of the window", () => {
     // Without a container, cqw resolves against the VIEWPORT, so at 1440 every
     // clamp pinned to its maximum and an 18px title landed in a 164px circle.
+    // With it fixed, the brief's own measured clamps are the ones that ship.
     expect(CSS).toContain("container: factory-loop / inline-size");
-    expect(CSS).toContain("font-size: clamp(14px, 1.8cqw, 18px)");
-    expect(CSS).toContain("font-size: clamp(11px, 1.35cqw, 13px)");
+    expect(CSS).toContain("font-size: clamp(16px, 1.8cqw, 20px)");
+    expect(CSS).toContain("font-size: clamp(13px, 1.35cqw, 15px)");
+    expect(CSS).not.toContain("font-size: clamp(14px, 1.8cqw, 18px)");
   });
 
   test("the resting ring is normalised so it renders as dots", () => {
@@ -571,16 +576,18 @@ describe("what the browser found, and what keeps it found", () => {
     expect(CSS).toContain("stroke-dasharray: 0, 1; vector-effect: non-scaling-stroke");
   });
 
-  test("the compact rail's return packet is gated on the edge, not the layout", () => {
-    // Keyed on `.fy-compact` alone it out-specified the reduced-motion and
+  test("the rail's return packet is gated on the edge, not on a layout class", () => {
+    // Keyed on a layout class alone it out-specified the reduced-motion and
     // no-support branches, and a reader who asked for less motion got a static
-    // dot parked on the rail.
+    // dot parked on the rail. The class itself is gone now (Max-10): the rail
+    // is a property of the viewport, so the media query is the only thing that
+    // should know about it.
     expect(CSS).toContain(
-      '.fy-compact .fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet',
+      '.fy-connector[data-loop-edge="rescan"][data-edge-state="running"] .fy-return-packet',
     );
-    expect(CSS).not.toMatch(
-      /\.fy-compact \.fy-connector\[data-loop-edge="rescan"\] \.fy-return-packet\s*\{/,
-    );
+    expect(CSS).not.toMatch(/\.fy-connector\[data-loop-edge="rescan"\] \.fy-return-packet\s*\{/);
+    expect(CSS).not.toContain("fy-compact");
+    for (const [name, html] of PAGES) expect(html, name).not.toContain("fy-compact");
   });
 
   test("the explorer legend paints the cards' own tokens", () => {
@@ -1237,5 +1244,85 @@ describe("A9 · the pill nav has a navigating guard, short labels, and a dark st
     // the long forms that measured 1230px are gone
     expect(nav).not.toContain("What checks are for");
     expect(nav).not.toContain("Next to Scorecard");
+  });
+});
+
+describe("A10 + E1 + D9 · the loop's geometry, chrome and centre", () => {
+  test("the connectors are ARCS, and the packet rides the connector's own path", () => {
+    // A straight chord between two discs on a circle is a different diagram.
+    // The box is rotated to the chord's angle and local −y is then the outward
+    // normal, so ONE quadratic bows outward on all five edges.
+    expect(LOOP_EDGE_PATH).toBe("M 8 60 Q 60 40 112 60");
+    expect(countOf(HOME, `<path class="fy-edge-base" d="${LOOP_EDGE_PATH}"></path>`)).toBe(5);
+    expect(countOf(HOME, `<path class="fy-edge-highlight" d="${LOOP_EDGE_PATH}"></path>`)).toBe(5);
+    expect(HOME).not.toContain('d="M 8 60 H 112"');
+    // the active edge differs from a resting one in colour and opacity ONLY
+    expect(CSS).toContain(`offset-path: path("${LOOP_EDGE_PATH}")`);
+    expect(CSS).not.toContain('offset-path: path("M 8 60 H 112")');
+  });
+
+  test("the centre is a bounded circle with a circular halo", () => {
+    expect(CSS).toContain("border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.12); background: var(--fy-ground);");
+    expect(CSS).toMatch(/\.fy-context-pulse \{[^}]*border-radius: 50%/);
+    expect(CSS).toMatch(/\.fy-context-pulse \{[^}]*transparent 72%\)/);
+  });
+
+  test("the card padding is a length, because a percentage is not the card's", () => {
+    // Percentage padding resolves against the CONTAINING BLOCK: 7% on a 193px
+    // card inside an 840px process box computed to 58.6px a side, leaving 75px
+    // of text width inside a 193px circle and wrapping one caption onto FOUR
+    // lines. Measured before and after; a probe pins the ≤ 2-line result.
+    expect(CSS).toContain("text-align: center; padding: 26px;");
+    expect(CSS).not.toContain("text-align: center; padding: 7%;");
+    expect(CSS).toContain("text-align: center; gap: 4px; padding: 22px;");
+  });
+
+  test("the brief's measured values are the ones that ship", () => {
+    expect(CSS).toContain("margin-block: -64px -112px");
+    expect(CSS).not.toContain("margin-block: -56px -104px");
+    expect(CSS).toMatch(/\.fy-edge-base \{[^}]*opacity: 0\.75;/);
+    // the ring carries no opacity of its own — the brief has none
+    expect(CSS).toContain("stroke-dasharray: 0, 1; vector-effect: non-scaling-stroke;\n}");
+    expect(CSS).not.toMatch(/\.fy-card-ring circle \{[^}]*opacity:/);
+  });
+
+  test("the centre names the record, and never a signature it may not have", () => {
+    // "the signed record" is a universal two of the four trust kinds do not
+    // have: an external scan is unsigned, and so is a CI run without id-token.
+    for (const [name, html] of PAGES) expect(html, name).not.toContain("the signed record");
+    expect(HOME).toContain('<span class="fy-context-title">the record</span>');
+    expect(HOME).toContain("scan-record.json &middot; signed when the lane can sign it");
+    expect(HOME).toContain("Five steps, and one record in the middle of them &mdash; signed");
+  });
+
+  test("the caption names something visible, and it is INSIDE the stage", () => {
+    // "Shared context" named nothing a reader could point at, and it sat 25px
+    // below the stage border attached to nothing. It is the centre's third line.
+    expect(HOME).not.toContain("Shared context");
+    expect(HOME).not.toContain("fy-loop-caption");
+    expect(HOME).toContain('<span class="fy-context-note">One record. Every stage adds to it.</span>');
+    const store = HOME.slice(
+      HOME.indexOf('<div class="fy-context-store">'),
+      HOME.indexOf("</div>", HOME.indexOf('<div class="fy-context-store">')),
+    );
+    expect(store).toContain("fy-context-note");
+  });
+
+  test("E1 · the compact rail undoes the desktop geometry, explicitly", () => {
+    // The rail inherited inline-size 118%, margin-inline −9% and margin-block
+    // −56/−104: measured at 390, the store title rendered 6 of its 28 pixels
+    // with ZERO dark pixels in the glyph box, card 05 lost 63px and every card
+    // lost 10.7px of its right edge.
+    expect(MOBILE).toContain("inline-size: 100%; margin-inline: 0; margin-block: 0;");
+    expect(MOBILE).toContain(".fy-context-pattern, .fy-context-pulse { display: none; }");
+    expect(MOBILE).not.toContain("overflow: clip");
+  });
+
+  test("the five captions are the short register a 193px circle can hold", () => {
+    const bodies = [...HOME.matchAll(/<span class="fy-card-body">([^<]*)<\/span>/g)].map((m) => m[1]!);
+    expect(bodies.length).toBe(5);
+    for (const b of bodies) expect(b.split(" ").length, b).toBeLessThanOrEqual(5);
+    expect(bodies[0]).toBe("Clone, never run");
+    expect(HOME).not.toContain("Clone, never execute");
   });
 });
