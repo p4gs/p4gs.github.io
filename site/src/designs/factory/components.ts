@@ -1396,7 +1396,7 @@ ${panels}
               "A grade",
               `${PHASES.length} phase bars`,
               "every check with its verdict",
-            ])} The words a listing uses:
+            ])}. The words a listing uses:
             ${sepList(VERDICT_STATES.map((s) => escapeHtml(s.word)))}.</span>
           </div>
         </div>

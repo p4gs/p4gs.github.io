@@ -493,7 +493,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   overscroll-behavior-x: contain; scrollbar-width: none;
   border: 1px solid var(--fy-hair); background: var(--fy-ground);
   border-radius: 999px; justify-content: start; gap: 4px;
-  margin: 160px auto 0; padding: 3px; display: flex;
+  margin: 160px auto 24px; padding: 3px; display: flex;
   position: sticky; inset-block-start: 12px; overflow-x: auto;
   /* T16 · On its way out of its sticky container the segmented control slides
      up THROUGH this band, and two white 999px pills with no elevation between
@@ -536,11 +536,14 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
    them. One declaration, and it cannot go stale when a shared module renames a
    class. */
 main [id] { scroll-margin-top: 88px; }
-/* T17 · 88px is the nav's PINNED offset, and on the first landing of a page the
-   nav has not reached it yet — its in-flow bottom coincided exactly with the
-   scroll-margin, so "01 Search" landed with 0.0px of clearance while every
-   other landing on every page cleared by 23.7-200px. */
-#directory-search, #sheet-record, #ch-record, #protocol { scroll-margin-top: 124px; }
+/* T17 · THE CLEARANCE ON THE FIRST LANDING IS THE NAV'S OWN BOTTOM MARGIN, and
+   no scroll-margin can supply it. 88px is the nav's PINNED offset; on a page's
+   first target the nav has not reached that offset, so it is still in flow
+   DIRECTLY ABOVE the section — its bottom and the section's top are the same
+   edge, at any scroll-margin. "01 Search" therefore landed with 0.0px of
+   clearance while every other landing on every page cleared by 23.7-200px.
+   24px of real air under the rail is the only thing that fixes it, and it is
+   the gap the rail wanted anyway. */
 .fy-chapter-head { text-align: center; max-inline-size: 900px; margin-inline: auto; }
 .fy-chapter-num {
   font-family: var(--fy-mono); font-size: 13px; letter-spacing: 0.12em;
@@ -1384,12 +1387,17 @@ export const PAGES_CSS = `
    scored under an older methodology in it says something went wrong, when what
    happened is that the rules were versioned and this record names its version.
    Neutral grey, and it needs the 44px target because it is a link. */
+/* B10 · ON ITS OWN ROW, because it cannot share a baseline with the line it
+   sat in: it is a 44px pill among 21px text runs, and centring its label inside
+   that pill puts the label ~12px below everything beside it. A flex-basis of
+   100% starts a new line; fit-content clamps the pill back to its label. */
 .fy-stale {
   color: var(--fy-muted); text-decoration: none; font-size: 13px;
   border: 1px solid var(--fy-line);
   border-radius: 999px; padding: 0 12px; display: inline-flex; align-items: center;
   min-block-size: 44px;
 }
+.fy-stale-row { flex: 0 0 100%; margin-block-start: 6px; }
 .fy-stale:hover { border-color: var(--fy-muted); color: var(--fy-ink); }
 .fy-figs { display: grid; gap: 32px 56px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding-block: 24px 40px; }
 .fy-fig-num { font-size: 48px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--fy-ink); }
@@ -1601,7 +1609,7 @@ export const RESPONSIVE_CSS = `
      chrome as word fragments. The reference's own 390 rail is full-bleed; ours
      takes a 20px gutter and clips at the screen edge instead. */
   .fy-chapters {
-    margin: 80px 20px 0; inset-block-start: 8px;
+    margin: 80px 20px 24px; inset-block-start: 8px;
     inline-size: calc(100% - 40px); max-inline-size: none;
   }
   .fy-chapters a { padding: 10px 12px; font-size: 13px; }

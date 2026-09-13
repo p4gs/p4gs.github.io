@@ -1087,9 +1087,9 @@ ${chapterNav(SHEET_CHAPTERS, { tight: true })}
         r.scanner.workflow_run_url,
       )}">scan run</a></span>${
         r.methodology_version < METHODOLOGY_VERSION
-          ? `<a class="fy-stale" href="${ctx.h(
+          ? `<span class="fy-stale-row"><a class="fy-stale" href="${ctx.h(
               "methodology/#changelog",
-            )}">scored under methodology v${r.methodology_version}&nbsp;&rarr;</a>`
+            )}">scored under methodology v${r.methodology_version}&nbsp;&rarr;</a></span>`
           : ""
       }
     </p>

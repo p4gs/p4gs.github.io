@@ -2390,7 +2390,14 @@ describe("T · the polish class, in the rules that carry it", () => {
 
   test("T16 + T17 + T18 · the nav's plate, its clearance, and its guard", () => {
     expect(CSS).toMatch(/\.fy-chapters \{[\s\S]*?box-shadow: 0 1px 3px rgba\(0, 0, 0, 0\.08\);/);
-    expect(CSS).toContain("#directory-search, #sheet-record, #ch-record, #protocol { scroll-margin-top: 124px; }");
+    // T17 · THE CLEARANCE ON A PAGE'S FIRST LANDING IS THE NAV'S OWN BOTTOM
+    // MARGIN, and no scroll-margin can supply it: at that scroll position the
+    // nav has not reached its sticky offset, so it is still in flow directly
+    // above the section and its bottom IS the section's top. Measured 0.0px
+    // before; 23.6-28.5px on every pill of every page at both widths after.
+    expect(CSS).toContain("margin: 160px auto 24px;");
+    expect(MOBILE).toContain("margin: 80px 20px 24px;");
+    expect(CSS).not.toContain("scroll-margin-top: 124px");
     // the belt exists only where scrollend does not
     expect(MOTION_SCRIPT).toContain('if ("onscrollend" in window) {');
     expect(MOTION_SCRIPT).toContain("} else {\n            navTimer = setTimeout(settle, 700);");
