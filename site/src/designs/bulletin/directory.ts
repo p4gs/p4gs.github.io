@@ -58,13 +58,80 @@ import {
   staleSentence,
 } from "../shared-facts";
 import { exposurePanel } from "../threats-shared";
-import { compactRules, gradeBadge, phaseRules, PHASE_NAMES } from "./components";
+import { compactRules, gradeBadge, phaseRules, PHASE_NAMES, PHASE_SHORT } from "./components";
 import { escapeHtml, page } from "./layout";
 import type { DesignCtx } from "../types";
 
 const GRADE_ORDER: Readonly<Record<string, number>> = {
   "A+": 0, A: 1, B: 2, C: 3, D: 4, F: 5, NA: 6,
 };
+
+/**
+ * What P1…P6 mean, printed once under the KEY.
+ *
+ * The short names are the ones the front page's board already uses, so a
+ * reader who learns the six there reads the same six here. The long names stay
+ * on the repo sheet, which has the width for them.
+ */
+const PHASE_LEGEND = Object.entries(PHASE_SHORT)
+  .map(([n, name]) => `<code>P${n}</code> ${escapeHtml(name.toLowerCase())}`)
+  .join(' <span class="mn-sep">·</span> ');
+
+/**
+ * FILTERING TO ZERO MUST SAY SO, AND OFFER THE WAY BACK.
+ *
+ * Driven live at 390px: ticking "Coverage under 75% only" took the visible
+ * rows from three to zero and no empty-state node existed in the DOM at any
+ * point. The whole listing area went blank, and the only feedback was a 13px
+ * count at the far end of a row the thumb had just covered — so the result
+ * read as a page that broke rather than a filter that matched nothing, with no
+ * reset except finding the same checkbox again.
+ *
+ * `filter.js` is shared and owns the rows; this does not reach into it. It
+ * watches the two things that file's own documented contract guarantees — it
+ * sets `display` on `table.directory tbody tr`, and it listens for `input` on
+ * `#dir-filter` and `change` on `#dir-incomplete` — so the strip is toggled by
+ * observing the rows, and "clear" is expressed by resetting those controls and
+ * firing the events the shared script already handles. Nothing here can
+ * disagree with the count it prints, because both read the same rows.
+ */
+const DIR_EMPTY_SCRIPT = `<script>
+(function () {
+  var note = document.getElementById("dir-empty");
+  var tbody = document.querySelector("table.directory tbody");
+  if (!note || !tbody) return;
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+  if (rows.length === 0) return;
+  var search = document.getElementById("dir-filter");
+  var only = document.getElementById("dir-incomplete");
+  var clear = document.getElementById("dir-clear");
+  function shown() {
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].style.display !== "none") return true;
+    }
+    return false;
+  }
+  function sync() { note.hidden = shown(); }
+  new MutationObserver(sync).observe(tbody, {
+    attributes: true, attributeFilter: ["style"], subtree: true,
+  });
+  if (clear) {
+    clear.addEventListener("click", function () {
+      if (search) {
+        search.value = "";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      if (only && only.checked) {
+        only.checked = false;
+        only.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      sync();
+      if (search) search.focus();
+    });
+  }
+  sync();
+})();
+</script>`;
 
 export function repoSlugPath(r: ScanRecord): string {
   return `directory/${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}/`;
@@ -205,7 +272,10 @@ function factNotes(lf: ListingFacts, directory: Score): string {
   ].filter((s): s is string => s !== null);
   if (folded.length === 0) return head;
   return `${head}<details class="merge-note">
-  <summary><span class="mn-tag">Merge</span>${mergeSummary(lf, directory)}</summary>
+  <summary><span class="mn-tag">Merge</span><span class="vh"> — </span>${mergeSummary(
+    lf,
+    directory,
+  )}</summary>
   ${folded.map((n) => `<p>${escapeHtml(n)}</p>`).join("\n  ")}
 </details>`;
 }
@@ -292,6 +362,11 @@ ${rows}
   </tbody>
 </table>
 </div>
+<p class="dir-empty" id="dir-empty" hidden>
+  <span class="dir-empty-copy">No listing matches that. Every repository on the board is
+  shown when the search box is empty and the coverage filter is off.</span>
+  <button type="button" class="dir-clear" id="dir-clear">Clear the filters</button>
+</p>
 <div class="key-row">
   <span class="key-label">Key</span>
   <span class="key-item"><span class="key-swatch key-pass"></span>pass</span>
@@ -299,11 +374,18 @@ ${rows}
   <span class="key-item"><span class="key-swatch key-unv"></span>${defineTerm("unverified")}</span>
   <span class="key-item">${LANE_CHIP.local} a maintainer ran this on their own machine and
   signed it — the only evidence that can exist for the checks only they can see</span>
-  <span class="key-item"><span class="lane lane-local-overlay">+local n</span> n controls on
-  that listing were settled by a maintainer's signed local scan</span>
+  <span class="key-item"><span class="lane lane-local-overlay">+local <em class="kv">n</em></span>
+  <em class="kv">n</em> controls on that listing were settled by a maintainer's signed
+  local scan</span>
 </div>
+<!-- Each card's six bars are labelled P1…P6 and their names lived only in a
+     'title' attribute, which a phone cannot fire. The home board spells the
+     same six out and the repo sheet spells them out in full, so this was the
+     one surface that showed a reader codes with no key. -->
+<p class="key-phases"><span class="kp-label">Phases</span>${PHASE_LEGEND}</p>
 ${directoryTermsNote(ctx.h)}
-<script src="${ctx.h("filter.js")}" defer></script>`;
+<script src="${ctx.h("filter.js")}" defer></script>
+${DIR_EMPTY_SCRIPT}`;
   return page(ctx, { title: "Scan Directory", body });
 }
 
@@ -646,22 +728,30 @@ ${reasonNotes
       return [band, ...list.map(controlRow)].join("\n");
     })
     .join("\n");
+  // THE STRIP IS THE ONLY NAVIGATION ON A 12,000px PAGE, so every reader gets
+  // told what it is. The label was hidden below 760px to save width, which left
+  // a bare row reading "P1 P2 P3 P4 P5 P6" above a table — six two-character
+  // tokens a thumb reads as column headings, explained only by a `title`
+  // attribute that touch never fires. The phone gets the short word instead of
+  // no word: "Phase" is 44px where "Jump to phase" is 109px of a 358px strip
+  // that also has to hold six 44px pills. Each pill also carries its phase name
+  // as its accessible name, because "P3" is not one.
+  const jump = (p: number) => {
+    const name = PHASE_NAMES[p] ?? `Phase ${p}`;
+    return `<a class="ctl-jump" href="#phase-${p}" title="${escapeHtml(
+      name,
+    )}" aria-label="Jump to phase ${p} — ${escapeHtml(name)}">P${p}</a>`;
+  };
   const jumpStrip = `<input type="checkbox" id="ctl-hide-oos" class="ctl-toggle">
 <div class="ctl-bar">
-  <span class="ctl-bar-label">Jump to phase</span>
-  ${phaseNumbers
-    .map(
-      (p) =>
-        `<a class="ctl-jump" href="#phase-${p}" title="${escapeHtml(
-          PHASE_NAMES[p] ?? `Phase ${p}`,
-        )}">P${p}</a>`,
-    )
-    .join("\n  ")}
+  <span class="ctl-bar-label"><span class="ctl-label-long">Jump to phase</span><span class="ctl-label-short">Phase</span></span>
+  ${phaseNumbers.map(jump).join("\n  ")}
   ${
     outOfScope > 0
       ? `<label class="ctl-hide" for="ctl-hide-oos"><span class="ctl-box" aria-hidden="true"></span>Hide ${outOfScope} out-of-scope checks</label>`
       : ""
   }
+  <a class="ctl-top" href="#content">&#8593; Top</a>
 </div>`;
   const body = `
 <nav class="crumbs"><a href="${ctx.h("directory/")}">← Directory</a></nav>
