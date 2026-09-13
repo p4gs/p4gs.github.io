@@ -35,7 +35,7 @@ import {
   MOTION_CSS,
   MOTION_SCRIPT,
 } from "../src/designs/factory/motion";
-import { mazeRoute, slotForPhases } from "../src/designs/factory/components";
+import { MAZE_GRID, mazeRoute, slotForPhases } from "../src/designs/factory/components";
 import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
 import { CLASS_SHORT } from "../src/designs/factory/components";
 import { PHASES } from "../src/scoring";
@@ -1117,5 +1117,82 @@ describe("A7 + D8 · the lanes diagram says what differs, and emphasises the rig
     expect(CSS).toMatch(/\.fy-ov-label::before \{[^}]*inset-inline-start: calc\(100% \+ 20px\)/);
     expect(CSS).toMatch(/\.fy-ov-label::after \{[^}]*inline-size: 20px; block-size: 1px/);
     expect(MOBILE).toContain(".fy-ov-label::before, .fy-ov-label::after { content: none; }");
+  });
+});
+
+describe("A8 + D5 · the maze is a real lattice, and it stops asserting a walk", () => {
+  const beat = HOME.slice(HOME.indexOf('id="chaining"'), HOME.indexOf('id="lanes"'));
+  const route = mazeRoute(PHASES.length);
+
+  test("the route threads carved corridors rather than serpentining over stubs", () => {
+    const d = beat.match(/<path class="fy-trace" d="([^"]+)"/)![1]!;
+    const segs = d.split(/(?=[ML])/).filter((s) => s.trim().length > 0);
+    expect(segs.length).toBeGreaterThanOrEqual(12);
+    // direction changes and true axis reversals — a serpentine down two edges
+    // has almost none of the latter
+    const pts = route.points;
+    const runs: string[] = [];
+    for (let i = 1; i < pts.length; i += 1) {
+      const key = `${Math.sign(pts[i]![0] - pts[i - 1]![0])},${Math.sign(pts[i]![1] - pts[i - 1]![1])}`;
+      if (runs[runs.length - 1] !== key) runs.push(key);
+    }
+    let reversals = 0;
+    let lastX = 0;
+    let lastY = 0;
+    for (const r of runs) {
+      const [dx, dy] = r.split(",").map(Number) as [number, number];
+      if (dx !== 0) {
+        if (lastX !== 0 && dx !== lastX) reversals += 1;
+        lastX = dx;
+      }
+      if (dy !== 0) {
+        if (lastY !== 0 && dy !== lastY) reversals += 1;
+        lastY = dy;
+      }
+    }
+    expect(runs.length - 1).toBeGreaterThanOrEqual(4);
+    expect(reversals).toBeGreaterThanOrEqual(4);
+  });
+
+  test("the maze is a PERFECT maze — every wall the carve left is drawn", () => {
+    // 12 x 8 cells: 96 cells, 95 carved passages in a spanning tree, so
+    // (11*8 + 12*7) - 95 = 77 interior walls, plus the one border subpath.
+    const { cols, rows } = MAZE_GRID;
+    const interior = (cols - 1) * rows + cols * (rows - 1) - (cols * rows - 1);
+    const walls = route.walls.split(/(?=M)/).filter((s) => s.trim().length > 0);
+    expect(walls.length).toBe(interior + 1);
+    expect(route.walls.startsWith("M26 26H506V346H26Z")).toBe(true);
+  });
+
+  test("the checkpoints are spread along the road, not stacked on two edges", () => {
+    const at = attrOfEach(beat, "[data-node-at]", "data-node-at").map(Number);
+    expect(at.length).toBe(PHASES.length);
+    expect(at[0]).toBe(0);
+    expect(at[at.length - 1]).toBe(1);
+    for (let i = 1; i < at.length; i += 1) {
+      expect(at[i]! - at[i - 1]!, `gap ${i}`).toBeGreaterThanOrEqual(0.1);
+    }
+    // and they are on distinct lattice cells, which a serpentine's ends are not
+    const xy = route.stops.map((i) => route.points[i]!.join(","));
+    expect(new Set(xy).size).toBe(PHASES.length);
+  });
+
+  test("the same build draws the same maze — the carve is seeded, never random", () => {
+    expect(mazeRoute(PHASES.length).walls).toBe(route.walls);
+    expect(factory.renderHome(RECORDS, ctxFor("factory"))).toBe(HOME);
+  });
+
+  test("nothing near this figure says the scanner walks anything", () => {
+    for (const banned of ["walks", "passes", "in order", "none is skipped", "None is skipped"]) {
+      expect(beat.toLowerCase(), banned).not.toContain(banned.toLowerCase());
+    }
+    expect(beat).toContain("One record covers the whole lifecycle.");
+    expect(beat).toContain("T1&ndash;T7");
+    expect(beat).toContain("including the ones it could not answer");
+    // the figure's own accessible name, which is the other place the claim lived
+    expect(beat).toContain("The road code travels");
+    // and the metric caption that said "phases a scan walks, in order"
+    expect(HOME).toContain(`phases the ${CONTROL_COUNT} checks are grouped into`);
+    expect(HOME).not.toContain("phases a scan walks");
   });
 });

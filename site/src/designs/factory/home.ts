@@ -147,7 +147,7 @@ function blackBlock(records: ScanRecord[], ctx: DesignCtx): string {
         ${metric(String(CONTROL_COUNT), "checks in the standard set")}
         ${metric(String(localOnly), "of them only a maintainer's own machine can answer")}
         ${metric(String(n), n === 1 ? "repository on the board" : "repositories on the board")}
-        ${metric(String(PHASES.length), "phases a scan walks, in order")}
+        ${metric(String(PHASES.length), `phases the ${CONTROL_COUNT} checks are grouped into`)}
         ${metric(String(ATTACK_CLASSES.length), "attack groups the checks are written against")}
       </div>
     </div>
@@ -163,10 +163,12 @@ function blackBlock(records: ScanRecord[], ctx: DesignCtx): string {
     <div class="fy-wrapper">
       <div class="fy-trace-grid">
         <div class="fy-trace-copy">
-          <h2 id="chaining-h">One scan walks the whole lifecycle.</h2>
-          <p class="fy-beat-body">A scan starts at the first commit and ends at the published
-          package. It passes ${PHASES.length} checkpoints on the way. None is skipped, and each
-          one is named in the record.</p>
+          <h2 id="chaining-h">One record covers the whole lifecycle.</h2>
+          <p class="fy-beat-body">Code moves from a commit to a published package. The
+          ${CONTROL_COUNT} checks sit along that road in ${PHASES.length} groups, and one scan
+          reads all ${PHASES.length} at once &mdash; including the ones it could not answer.
+          (The tool's own stage model is T1&ndash;T7; this site groups the checks into
+          ${PHASES.length} phases.)</p>
         </div>
         ${mazeFigure()}
       </div>

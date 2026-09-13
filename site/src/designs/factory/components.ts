@@ -512,109 +512,162 @@ ${labels}
 
 /* ══ 4.4 the traced figures ══════════════════════════════════════════════ */
 
+/* The lattice: 12 x 8 cells of 40 units, drawn 26..506 by 26..346 inside the
+   reference's own 532 x 374 viewBox, with cell centres at 46 + 40k. Every wall
+   segment is one 40-unit cell edge, which is the grammar the reference's own
+   `structure` path is written in (`M26 26h40 M66 26v40 ...`). */
 const STEP = 40;
-const M_X0 = 46;
-const M_XMAX = 486;
-const M_Y0 = 46;
-const M_YMAX = 326;
+const M_LEFT = 26;
+const M_TOP = 26;
+const M_COLS = 12;
+const M_ROWS = 8;
+/** Exported so a test can derive the wall count rather than restate it. */
+export const MAZE_GRID = { cols: M_COLS, rows: M_ROWS } as const;
+const cx = (i: number): number => M_LEFT + STEP / 2 + i * STEP;
+const cy = (j: number): number => M_TOP + STEP / 2 + j * STEP;
 
 interface Route {
   points: Array<[number, number]>;
   /** Index into `points` of each checkpoint, in order. */
   stops: number[];
+  /** The `d` of every wall the maze keeps. */
+  walls: string;
 }
 
 /**
- * A deterministic orthogonal route with exactly `n` checkpoints.
+ * A deterministic PRNG. The maze must be byte-identical on every build, so the
+ * carve cannot reach for `Math.random()` and cannot depend on iteration order.
+ */
+function rng(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const edgeKey = (a: number, b: number): string => (a < b ? `${a}:${b}` : `${b}:${a}`);
+
+/**
+ * Carve a perfect maze over the lattice with a seeded depth-first walk.
  *
- * It serpentines: run across, drop a row, run back, drop again. The number of
- * horizontal runs falls out of the checkpoint count, and the rows are spread
- * over the same vertical extent whatever that count is — so this draws a
- * sensible figure for five phases or for eight, and the test that the
- * checkpoints equal `PHASES.length` can never be satisfied by a coincidence.
+ * "Perfect" means every cell is reachable and there is exactly ONE path between
+ * any two of them — which is what makes the route below a property of the maze
+ * rather than a line drawn on top of one. The first cut of this figure drew a
+ * serpentine over a field of random wall stubs: the route never turned a corner
+ * the walls made, and the six checkpoints stacked on two edges because that is
+ * where a serpentine's legs end.
+ */
+function carve(seed: number): Set<string> {
+  const rand = rng(seed);
+  const at = (i: number, j: number) => j * M_COLS + i;
+  const open = new Set<string>();
+  const seen = new Uint8Array(M_COLS * M_ROWS);
+  const stack: Array<[number, number]> = [[0, 0]];
+  seen[0] = 1;
+  while (stack.length > 0) {
+    const [i, j] = stack[stack.length - 1]!;
+    const next: Array<[number, number]> = [];
+    if (i > 0 && !seen[at(i - 1, j)]) next.push([i - 1, j]);
+    if (i < M_COLS - 1 && !seen[at(i + 1, j)]) next.push([i + 1, j]);
+    if (j > 0 && !seen[at(i, j - 1)]) next.push([i, j - 1]);
+    if (j < M_ROWS - 1 && !seen[at(i, j + 1)]) next.push([i, j + 1]);
+    if (next.length === 0) {
+      stack.pop();
+      continue;
+    }
+    const pick = next[Math.min(next.length - 1, Math.floor(rand() * next.length))]!;
+    open.add(edgeKey(at(i, j), at(pick[0], pick[1])));
+    seen[at(pick[0], pick[1])] = 1;
+    stack.push(pick);
+  }
+  return open;
+}
+
+/** The one path through a perfect maze, from the top-left cell to the last. */
+function solve(open: Set<string>): Array<[number, number]> {
+  const at = (i: number, j: number) => j * M_COLS + i;
+  const goal = at(M_COLS - 1, M_ROWS - 1);
+  const seen = new Uint8Array(M_COLS * M_ROWS);
+  const path: Array<[number, number]> = [];
+  const walk = (i: number, j: number): boolean => {
+    seen[at(i, j)] = 1;
+    path.push([i, j]);
+    if (at(i, j) === goal) return true;
+    const steps: Array<[number, number]> = [
+      [i + 1, j],
+      [i, j + 1],
+      [i - 1, j],
+      [i, j - 1],
+    ];
+    for (const [ni, nj] of steps) {
+      if (ni < 0 || nj < 0 || ni >= M_COLS || nj >= M_ROWS) continue;
+      if (seen[at(ni, nj)]) continue;
+      if (!open.has(edgeKey(at(i, j), at(ni, nj)))) continue;
+      if (walk(ni, nj)) return true;
+    }
+    path.pop();
+    return false;
+  };
+  walk(0, 0);
+  return path;
+}
+
+/**
+ * The road, with exactly `n` checkpoints on it.
+ *
+ * Points are one per 40-unit step, so an index into them IS the arc fraction —
+ * which is what lets a checkpoint's `data-node-at` be a real position on the
+ * path rather than an evenly-spaced guess. The checkpoints are spread over the
+ * whole road, first and last at its ends.
  */
 export function mazeRoute(n: number): Route {
-  const legs = Math.max(1, n - 1);
-  const hRuns = Math.ceil(legs / 2);
-  const rows: number[] = [];
-  for (let i = 0; i < hRuns; i += 1) {
-    const raw = hRuns === 1 ? M_Y0 : M_Y0 + ((M_YMAX - M_Y0) * i) / (hRuns - 1);
-    rows.push(M_Y0 + Math.round((raw - M_Y0) / STEP) * STEP);
-  }
-  const points: Array<[number, number]> = [];
+  const open = carve(0x5c5b_1234 ^ (M_COLS * 131 + M_ROWS));
+  const cells = solve(open);
+  const points: Array<[number, number]> = cells.map(([i, j]) => [cx(i), cy(j)]);
+  const last = points.length - 1;
   const stops: number[] = [];
-  let x = M_X0;
-  let y = rows[0]!;
-  let row = 0;
-  let dir = 1;
-  points.push([x, y]);
-  stops.push(0);
-  for (let leg = 0; leg < legs; leg += 1) {
-    if (leg % 2 === 0) {
-      const target = dir > 0 ? M_XMAX : M_X0;
-      while (x !== target) {
-        x += dir * STEP;
-        points.push([x, y]);
-      }
-      dir = -dir;
-    } else {
-      row += 1;
-      const target = rows[Math.min(row, rows.length - 1)]!;
-      while (y < target) {
-        y += STEP;
-        points.push([x, y]);
-      }
-    }
-    stops.push(points.length - 1);
+  for (let k = 0; k < n; k += 1) {
+    stops.push(n === 1 ? 0 : Math.round((k * last) / (n - 1)));
   }
-  return { points, stops: stops.slice(0, n) };
+  return { points, stops, walls: mazeWalls(open) };
 }
 
-/** A tiny deterministic hash — the maze must be identical on every build. */
-function wallHash(i: number, j: number, k: number): number {
-  let v = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791);
-  v = (v ^ (v >>> 13)) >>> 0;
-  return (v * 2654435761) >>> 0;
-}
-
-/**
- * Walls for the maze: a lattice of 40-unit cell edges, drawn or not by a hash
- * of the cell's own coordinates, with every edge the route crosses removed so
- * the route is always a legal path through it.
- */
-function mazeWalls(route: Route): string {
-  const cols = Math.round((M_XMAX - M_X0) / STEP) + 1;
-  const rows = Math.round((M_YMAX - M_Y0) / STEP) + 1;
-  const open = new Set<string>();
-  for (let i = 1; i < route.points.length; i += 1) {
-    const [ax, ay] = route.points[i - 1]!;
-    const [bx, by] = route.points[i]!;
-    const ai = Math.round((ax - M_X0) / STEP);
-    const aj = Math.round((ay - M_Y0) / STEP);
-    const bi = Math.round((bx - M_X0) / STEP);
-    const bj = Math.round((by - M_Y0) / STEP);
-    if (ai === bi) open.add(`h:${ai}:${Math.min(aj, bj)}`);
-    else open.add(`v:${Math.min(ai, bi)}:${aj}`);
-  }
-  const d: string[] = [];
-  const left = M_X0 - STEP / 2;
-  const top = M_Y0 - STEP / 2;
-  const right = left + cols * STEP;
-  const bottom = top + rows * STEP;
-  d.push(`M${left} ${top}H${right}V${bottom}H${left}Z`);
-  for (let i = 0; i < cols; i += 1) {
-    for (let j = 0; j < rows; j += 1) {
-      if (i < cols - 1 && !open.has(`v:${i}:${j}`) && wallHash(i, j, 1) % 100 < 44) {
-        const x = left + (i + 1) * STEP;
-        d.push(`M${x} ${top + j * STEP}v${STEP}`);
+/** Every lattice edge the carve did NOT open, plus the outer border. */
+function mazeWalls(open: Set<string>): string {
+  const at = (i: number, j: number) => j * M_COLS + i;
+  const right = M_LEFT + M_COLS * STEP;
+  const bottom = M_TOP + M_ROWS * STEP;
+  const d: string[] = [`M${M_LEFT} ${M_TOP}H${right}V${bottom}H${M_LEFT}Z`];
+  for (let j = 0; j < M_ROWS; j += 1) {
+    for (let i = 0; i < M_COLS; i += 1) {
+      if (i < M_COLS - 1 && !open.has(edgeKey(at(i, j), at(i + 1, j)))) {
+        d.push(`M${M_LEFT + (i + 1) * STEP} ${M_TOP + j * STEP}v${STEP}`);
       }
-      if (j < rows - 1 && !open.has(`h:${i}:${j}`) && wallHash(i, j, 2) % 100 < 44) {
-        const y = top + (j + 1) * STEP;
-        d.push(`M${left + i * STEP} ${y}h${STEP}`);
+      if (j < M_ROWS - 1 && !open.has(edgeKey(at(i, j), at(i, j + 1)))) {
+        d.push(`M${M_LEFT + i * STEP} ${M_TOP + (j + 1) * STEP}h${STEP}`);
       }
     }
   }
   return d.join(" ");
+}
+
+/** Collapse a run of collinear steps into one straight `L`. */
+function traceD(points: ReadonlyArray<[number, number]>): string {
+  const out: string[] = [`M${points[0]![0]} ${points[0]![1]}`];
+  for (let i = 1; i < points.length; i += 1) {
+    const [px, py] = points[i - 1]!;
+    const [x, y] = points[i]!;
+    const straight =
+      i > 1 &&
+      Math.sign(x - px) === Math.sign(px - points[i - 2]![0]) &&
+      Math.sign(y - py) === Math.sign(py - points[i - 2]![1]);
+    if (straight) out[out.length - 1] = `L${x} ${y}`;
+    else out.push(`L${x} ${y}`);
+  }
+  return out.join(" ");
 }
 
 interface TracedOpts {
@@ -686,7 +739,15 @@ ${legend}
 }
 
 /**
- * "One scan walks the whole lifecycle" — the maze.
+ * The road code travels — the maze.
+ *
+ * WHAT THIS FIGURE DEPICTS, AND WHAT IT MUST NOT. It is not a scan walking a
+ * route: the scanner reads a clone and a settings API, once, and produces every
+ * verdict from that one read. The road is the path CODE takes, from a commit to
+ * a published package, and the checkpoints are where the standard set's checks
+ * sit along it. One scan photographs all six groups at once — including the
+ * ones it could not answer. So no copy anywhere near this figure says walks,
+ * passes, in order, or none is skipped, and a test enforces that.
  *
  * Six checkpoints because there are six phases, named from `PHASE_NAMES` in
  * `PHASES` order, listed under the figure so the order is readable without
@@ -695,15 +756,12 @@ ${legend}
 export function mazeFigure(): string {
   const route = mazeRoute(PHASES.length);
   const total = route.points.length - 1;
-  const d = route.points
-    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x} ${y}`)
-    .join(" ");
   return tracedFigure({
     kind: "fy-maze",
-    label: `A single route through ${PHASES.length} checkpoints, one per phase of the scan`,
+    label: `The road code travels, from a commit to a published package, with the ${PHASES.length} groups of checks marked along it`,
     viewBox: "0 0 532 374",
-    structure: `    <path class="fy-structure" d="${mazeWalls(route)}"></path>`,
-    trace: d,
+    structure: `    <path class="fy-structure" d="${route.walls}"></path>`,
+    trace: traceD(route.points),
     legend: true,
     nodes: route.stops.map((idx, i) => {
       const phase = PHASES[i]!;
