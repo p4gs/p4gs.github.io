@@ -287,19 +287,19 @@ function chapterYours(ctx: DesignCtx): string {
         <h4>Run it in your build</h4>
         <p>The scan runs in your own CI and signs the record there. The signature proves which
         build made it.</p>
-        <p><a href="${ACTION_REPO_URL}#quickstart">Install the Action &rarr;</a></p>
+        <p><a class="fy-arrow-link" href="${ACTION_REPO_URL}#quickstart">Install the Action &rarr;</a></p>
       </div>
       <div class="fy-ov-panel">
         <h4>Run it on your machine</h4>
         <p>Some checks describe a developer's laptop. You are the only one who can answer those.
         Sign the result and send it in.</p>
-        <p><a href="${ctx.h("methodology/#local")}">How that is checked &rarr;</a></p>
+        <p><a class="fy-arrow-link" href="${ctx.h("methodology/#local")}">How that is checked &rarr;</a></p>
       </div>
       <div class="fy-ov-panel">
         <h4>Ask for a scan</h4>
         <p>Anyone can ask for any public repository to be read from outside. A person reviews
         the result before it appears.</p>
-        <p><a href="${ctx.h("directory/#dir-filter")}">Search, or request one &rarr;</a></p>
+        <p><a class="fy-arrow-link" href="${ctx.h("directory/#dir-filter")}">Search, or request one &rarr;</a></p>
       </div>
     </div>
   </div>

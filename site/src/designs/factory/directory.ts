@@ -361,7 +361,8 @@ export function renderDirectory(records: ScanRecord[], ctx: DesignCtx): string {
     <a class="fy-repo-link" href="${ctx.h(repoSlugPath(r))}">${escapeHtml(slug)}</a>
     <span class="fy-desc">${escapeHtml(r.repo.description)}</span>
     <span class="fy-meta-line">${metaLine(r, f)}</span>
-    ${coverageNote(f)}${factNotes(lf, r.score)}</td>
+    ${coverageNote(f)}${factNotes(lf, r.score)}
+    <a class="fy-record-link" href="${ctx.h(repoSlugPath(r))}">View record &rarr;</a></td>
   <td data-label="Phases">${phaseBars(r.score.phases)}</td>
   <td data-label="Evidence source">${LANE_CHIP[kind]}${localOverlayChip(lt)}</td>
   <td data-label="Scanned">${escapeHtml(r.scanned_at.slice(0, 10))}</td>

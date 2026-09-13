@@ -1370,3 +1370,72 @@ describe("A10 + E1 + D9 · the loop's geometry, chrome and centre", () => {
     expect(HOME).not.toContain("Clone, never execute");
   });
 });
+
+describe("A12 + A13 + E4 · the directory's controls, cards and standalone links", () => {
+  test("the sort control keeps its id and its element, and wears the design", () => {
+    // filter.js binds #dir-sort by id. A design may restyle a control; it may
+    // never replace one.
+    expect(DIRECTORY).toContain('<select id="dir-sort">');
+    expect(countOf(DIRECTORY, '<select id="dir-sort">')).toBe(1);
+    expect(CSS).toMatch(/\.fy-sortbar select \{[^}]*appearance: none; -webkit-appearance: none;/);
+    expect(CSS).toMatch(/\.fy-sortbar select \{[^}]*min-block-size: 44px[^}]*border-radius: 999px/);
+    expect(CSS).toContain(".fy-sortbar select:focus-visible { outline: 2px solid var(--fy-ring)");
+    // the chevron is a background image, not generated content — a DOM-render
+    // capture drops ::before/::after content, and a control whose only
+    // affordance vanishes from every screenshot cannot be reviewed
+    expect(CSS).toMatch(/\.fy-sortbar select \{[^}]*background-image: url\("data:image\/svg\+xml/);
+    expect(CSS).not.toMatch(/\.fy-sortbar select::(before|after)/);
+  });
+
+  test("the coverage checkbox is a bordered square with room to its label", () => {
+    expect(DIRECTORY).toContain('<input type="checkbox" id="dir-incomplete">');
+    expect(CSS).toMatch(
+      /\.fy-sortbar \.dir-check input\[type="checkbox"\] \{[^}]*inline-size: 20px; block-size: 20px/,
+    );
+    expect(CSS).toContain(".fy-sortbar .dir-check { gap: 10px; }");
+    expect(CSS).toMatch(/input\[type="checkbox"\]:checked \{[^}]*background-image: url\("data:image\/svg\+xml/);
+  });
+
+  test("the listing count has its own cell at the end of the bar", () => {
+    expect(CSS).toMatch(/\.fy-count \{[^}]*margin-inline-start: auto; text-align: end;/);
+  });
+
+  test("the repository name is a link that looks like one, with an affordance", () => {
+    const rows = [...DIRECTORY.matchAll(/<td data-label="Repository">([\s\S]*?)<\/td>/g)];
+    expect(rows.length).toBe(RECORDS.length);
+    for (const [, cell] of rows) {
+      expect(cell).toMatch(/<a class="fy-repo-link" href="[^"]+">[^<]+<\/a>/);
+      expect(cell).toContain('class="fy-record-link"');
+      expect(cell).toContain("View record &rarr;");
+    }
+    // blue and underlined, like every other link on the site
+    expect(CSS).toMatch(/\.fy-repo-link \{[^}]*color: var\(--fy-link\);\s*\n?\s*text-decoration: underline/);
+    expect(CSS).not.toMatch(/\.fy-repo-link \{[^}]*color: var\(--fy-ink\)/);
+    expect(CSS).toMatch(/\.fy-record-link \{[^}]*min-block-size: 44px/);
+  });
+
+  test("the card's phase bars take the sheet's geometry", () => {
+    expect(CSS).toContain(".fy-phasebar { display: grid; gap: 4px; inline-size: 100%; min-inline-size: 190px; }");
+    expect(CSS).toContain("grid-template-columns: 30px minmax(60px, 1fr) 52px");
+    expect(CSS).toMatch(/\.fy-phase-pct \{[^}]*text-align: end/);
+  });
+
+  test("the merge pill labels the first line, not the middle of its paragraph", () => {
+    // Measured at 390: the pill's centre sat 27px below the top of the
+    // three-line text it marks. The shared 44px summary rule centres it, and
+    // that rule is declared later — so this wins on specificity, not order.
+    expect(CSS).toContain(".fy-table .fy-merge summary { align-items: flex-start; gap: 8px; }");
+    expect(CSS.indexOf(".fy-table .fy-merge summary")).toBeGreaterThan(
+      CSS.indexOf(".fy-merge summary { cursor: pointer"),
+    );
+  });
+
+  test("E4 · standalone links reach the floor; inline ones keep their exception", () => {
+    expect(CSS).toContain(".fy-arrow-link, .fy-rm a, .fy-tip-links a {\n  display: inline-flex; align-items: center; min-block-size: 44px;\n}");
+    expect(countOf(HOME, 'class="fy-arrow-link"')).toBe(3);
+    // the links inside running prose are deliberately NOT tagged — the WCAG
+    // 2.5.8 inline exception covers them and inflating them breaks the line
+    const loopLead = HOME.slice(HOME.indexOf("Nobody has to wait for us"), HOME.indexOf("Nobody has to wait for us") + 300);
+    expect(loopLead).not.toContain("fy-arrow-link");
+  });
+});

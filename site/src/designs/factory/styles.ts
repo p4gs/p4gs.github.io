@@ -924,6 +924,15 @@ export const PAGES_CSS = `
 .fy-note { font-size: 14px; line-height: 21px; color: var(--fy-muted); margin-block-start: 12px; max-inline-size: var(--fy-prose); }
 .fy-crumbs { padding-block-start: 32px; font-size: 14px; }
 .fy-crumbs a { display: inline-flex; align-items: center; min-block-size: 44px; }
+/* E4 · Standalone links measured 17px tall — "Install the Action →",
+   "How that is checked →", "Search, or request one →", the repository URL and
+   "scan run" on the sheet. Each is the whole content of its own block, so the
+   WCAG 2.5.8 inline-exception does not cover any of them, and this site holds
+   every other control to 44. Links INSIDE running prose keep the exception and
+   are deliberately not touched. */
+.fy-arrow-link, .fy-rm a, .fy-tip-links a {
+  display: inline-flex; align-items: center; min-block-size: 44px;
+}
 
 /* ══ directory ═══════════════════════════════════════════════════════════ */
 .fy-dir-controls { display: grid; gap: 16px; padding-block: 8px 32px; }
@@ -932,11 +941,44 @@ export const PAGES_CSS = `
   color: var(--fy-muted); display: inline-flex; align-items: center; justify-content: center;
   min-block-size: 44px; min-inline-size: 44px;
 }
+/* THE SELECT KEEPS ITS ID AND ITS ELEMENT — filter.js binds #dir-sort, and a
+   design may restyle a control but never replace it — and wears the design's
+   chrome instead of the platform's. The chevron is a background image rather
+   than generated content, because generated content is exactly what a
+   DOM-render capture drops, and a control whose only affordance vanishes from
+   every screenshot is a control nobody can review. */
 .fy-sortbar select {
-  border: 1px solid var(--fy-line); border-radius: 8px; padding: 8px 12px;
-  background: var(--fy-ground); color: var(--fy-text); font-family: var(--fy-body);
+  appearance: none; -webkit-appearance: none;
+  min-block-size: 44px; border: 1px solid var(--fy-line); border-radius: 999px;
+  padding-block: 0; padding-inline: 16px 40px; color: var(--fy-text);
+  font-family: var(--fy-body); cursor: pointer;
+  background-color: var(--fy-ground); background-repeat: no-repeat;
+  background-position: right 15px center; background-size: 12px 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%235d5d5d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75'/%3E%3C/svg%3E");
 }
-.fy-count { font-family: var(--fy-mono); font-variant-numeric: tabular-nums; color: var(--fy-muted); }
+.fy-sortbar select:hover { border-color: var(--fy-muted); }
+.fy-sortbar select:focus-visible { outline: 2px solid var(--fy-ring); outline-offset: 2px; }
+/* A bordered square in the design's radius, with real space to its label. The
+   checked state is a background for the same reason the chevron is. */
+.fy-sortbar .dir-check { gap: 10px; }
+.fy-sortbar .dir-check input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; flex: 0 0 auto;
+  inline-size: 20px; block-size: 20px; margin: 0; cursor: pointer;
+  border: 1px solid var(--fy-line); border-radius: 4px; background: var(--fy-ground);
+}
+.fy-sortbar .dir-check input[type="checkbox"]:checked {
+  border-color: var(--fy-ink); background-color: var(--fy-ink);
+  background-repeat: no-repeat; background-position: center; background-size: 12px 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 6.5 4.75 9.25 10 3.5'/%3E%3C/svg%3E");
+}
+.fy-sortbar .dir-check input[type="checkbox"]:focus-visible { outline: 2px solid var(--fy-ring); outline-offset: 2px; }
+/* Its own cell at the far end of the bar, not a third thing crowding the two
+   controls it has nothing to do with. */
+.fy-count {
+  font-family: var(--fy-mono); font-variant-numeric: tabular-nums; color: var(--fy-muted);
+  margin-inline-start: auto; text-align: end;
+  display: inline-flex; align-items: center; min-block-size: 44px;
+}
 .fy-grade {
   display: inline-flex; align-items: center; justify-content: center;
   inline-size: 44px; block-size: 44px; border-radius: 999px; flex: 0 0 auto;
@@ -952,13 +994,22 @@ export const PAGES_CSS = `
   color: var(--fy-warn); border: 1px solid var(--fy-warn); border-radius: 999px;
   padding: 0 8px; line-height: 18px; display: inline-block; margin-inline-start: 8px;
 }
-/* The row's primary link, and therefore a target rather than a link inside a
-   sentence — 28px tall once the 390 restack blockified it. */
+/* THE NAME IS THE LINK, AND IT LOOKS LIKE ONE. Ink-black with no underline, the
+   repository name read as a heading: on a directory whose whole job is to be
+   opened, the primary target was the one thing on the row that did not say it
+   was a target. Blue and underlined, like every other link on the site, plus a
+   trailing affordance that says where it goes. */
 .fy-repo-link {
-  font-family: var(--fy-mono); font-size: 15px; color: var(--fy-ink); text-decoration: none;
+  font-family: var(--fy-mono); font-size: 15px; color: var(--fy-link);
+  text-decoration: underline; text-underline-offset: 4px;
   display: inline-flex; align-items: center; min-block-size: 44px;
 }
-.fy-repo-link:hover { color: var(--fy-link); text-decoration: underline; text-underline-offset: 4px; }
+.fy-repo-link:hover { text-decoration-thickness: 2px; }
+.fy-record-link {
+  display: inline-flex; align-items: center; min-block-size: 44px; margin-block-start: 4px;
+  font-size: 14px; color: var(--fy-link); text-decoration: none;
+}
+.fy-record-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .fy-desc { display: block; margin-block-start: 6px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
 .fy-meta-line {
   display: block; margin-block-start: 8px; font-family: var(--fy-mono); font-size: 12px;
@@ -987,7 +1038,16 @@ export const PAGES_CSS = `
   font-size: 14px; line-height: 21px; color: var(--fy-text); max-inline-size: 64ch;
 }
 .fy-merge { margin-block-start: 10px; font-size: 14px; }
+/* THE PILL LABELS THE FIRST LINE, NOT THE MIDDLE OF THE PARAGRAPH. The shared
+   layer centres a summary vertically for its 44px tap floor, which is
+   right for the one-line case and wrong here: measured at 390, the pill's
+   centre sat 27px below the top of the three-line text it marks, so it read as
+   floating beside nothing. */
 .fy-merge summary { cursor: pointer; color: var(--fy-muted); }
+/* Specificity, not order: the shared .fy-table summary rule is the 44px one and it is
+   declared later in this stylesheet, so an equally-specific selector loses. */
+.fy-table .fy-merge summary { align-items: flex-start; gap: 8px; }
+.fy-table .fy-merge summary .fy-merge-tag { margin-inline-end: 0; }
 .fy-merge-tag {
   font-family: var(--fy-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
   border: 1px solid var(--fy-line); border-radius: 999px; padding: 0 8px; margin-inline-end: 8px;
@@ -1003,7 +1063,11 @@ export const PAGES_CSS = `
 .fy-lane-local { border-style: dashed; border-color: var(--fy-na); color: var(--fy-na); }
 .fy-lane-ext { border-color: var(--fy-line); color: var(--fy-muted); }
 .fy-lane-overlay { border-style: dashed; border-color: var(--fy-na); color: var(--fy-na); margin-inline-start: 6px; }
-.fy-phasebar { display: grid; gap: 4px; min-inline-size: 190px; }
+/* The same geometry on the card as on the sheet: the stack spans the full width
+   of whatever holds it, and the percentage is right-aligned against one edge.
+   Boxed to 190px in a table cell, the card's bars were a different instrument
+   from the sheet's, drawn from the same numbers. */
+.fy-phasebar { display: grid; gap: 4px; inline-size: 100%; min-inline-size: 190px; }
 .fy-phaserow { display: grid; grid-template-columns: 30px minmax(60px, 1fr) 52px; gap: 8px; align-items: center; }
 .fy-phase-id { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); }
 .fy-phase-track { block-size: 8px; border-radius: 999px; overflow: hidden; display: flex; background: var(--fy-surface-2); }
