@@ -506,6 +506,24 @@ input[type="search"]::-webkit-search-results-button {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-4);
 }
 .dir-empty-copy { font-size: var(--t--1); flex: 1 1 22ch; }
+/* Two sentences ship, exactly one is shown, and which one is a fact about the
+   CONTROLS rather than a guess from the row count — the script sets
+   'data-reason' from their state. Display, not visibility: the unused sentence
+   leaves the accessibility tree too, so a screen reader is never read both. */
+.dir-empty .dir-empty-coverage { display: none; }
+/* :has() is load-bearing here, not decoration. The coverage sentence is a
+   FINDING about this board, so it is rendered only when it is true of it — on a
+   board that does carry a short listing there is nothing to swap TO, and hiding
+   the generic sentence would leave an empty dashed box. The swap is therefore
+   conditioned on the replacement existing. */
+.dir-empty[data-reason="coverage"]:has(.dir-empty-coverage) .dir-empty-match { display: none; }
+.dir-empty[data-reason="coverage"] .dir-empty-coverage { display: block; }
+/* THE HEADER GOES WITH THE ROWS. A thead standing over an empty tbody is 43px
+   of ruled column headings on blank paper inside a 2px box, which is this
+   page's own "the table broke" shape — measured at 1440, table height 671px
+   -> 43px with the headings still painted. There is nothing left for them to
+   label, so the scroll box leaves the flow until a row comes back. */
+.table-scroll-dir.is-empty { display: none; }
 .dir-clear {
   display: inline-flex; align-items: center; justify-content: center;
   min-block-size: 44px; padding: 10px 18px; font-family: var(--mono);
@@ -583,6 +601,37 @@ table.method-table code, .tx-class-controls code, .ex-detail code,
   display: block; font-family: var(--mono); font-size: var(--t--2);
   color: var(--ink-2); margin-block-start: var(--sp-2);
 }
+
+/* ---------- the coverage number's verdict ----------
+   'coverage 87.1%' is a measurement; which side of the 75% floor it falls on
+   is the judgement, and it was nowhere on the page that shows the number.
+   NEVER COLOUR ALONE: cleared is a SOLID ink rule, short is a DASHED accent
+   rule, and the words differ — so the two states survive greyscale, print and
+   a protanope, which is the same contract the phase bars keep. */
+.cov-mark {
+  font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: var(--t--3); white-space: nowrap; padding: 2px 6px;
+  border: 2px solid var(--ink); color: var(--ink); background: transparent;
+}
+.cov-mark-under { border-style: dashed; border-color: var(--hot); color: var(--hot); }
+/* Under the 84px numeral it takes a line of its own: the figure is the thing a
+   reader remembers, and the verdict rides directly under it. */
+/* 56ch, not 46: at 46 the note ran "How coverage is / scored →" and left the
+   link's arrow alone on a line, which in an 11px mono caption reads as a
+   mistake. 'pretty' keeps the last line from orphaning as the copy changes. */
+.cov-verdict {
+  margin-block-start: var(--sp-3); font-family: var(--mono);
+  font-size: var(--t--3); line-height: 1.7; color: var(--ink-3);
+  max-inline-size: 56ch; text-wrap: pretty;
+}
+/* The verdict leads with the mark and explains itself under it. Set as one
+   running line the sentence wrapped INSIDE itself beside the chip ("The grade
+   is not / provisional."), which reads as a line that ran out of room rather
+   than as a considered caption. Stamp, then note. */
+.cov-verdict .cov-mark { display: inline-block; }
+.cov-verdict .cv-note { display: block; margin-block-start: var(--sp-2); }
+.cov-verdict a { color: var(--ink-2); }
+.cov-verdict a:hover { color: var(--hot); }
 
 /* ---------- lane stamps ---------- */
 .lane {
@@ -1121,12 +1170,51 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 .sec-rail { display: none; }
 @media (min-width: 1100px) {
   .method-section:has(> .sec-rail) { padding-inline-end: calc(13rem + var(--gut)); }
+  /* THE RAIL STARTS UNDER THE BAND, WHICH IS WHAT THE BAND IS FOR.
+     The second half of the struck-through numeral, and the one the rail's own
+     rule was hiding. '.sec-head' deliberately spans the FULL page width (see
+     the negative inline-end margin below) — 'full-width rule, then two columns
+     under it'. But the rail was inset from the section's CONTENT top, which is
+     the head's own top, so the folio started level with the head rather than
+     under it and the band's 2px rule ran straight through the ghost numeral.
+     Measured at 1440: the band at y=1104 crossing a numeral spanning
+     1069-1128, i.e. 59.3% down the glyph.
+
+     The head is one flex line of clamped type, measured at exactly 51px from
+     1100px through 2560px, plus its 16px block-end margin = 67px. 'var(--sp-8)'
+     is 72px, so the rail clears it with the offset taken from the scale rather
+     than from a sampled literal. Over-shooting costs nothing — the rail sticks
+     at 96px a moment later either way — and the ONE change that would bring
+     the collision back is a section title long enough to wrap the head onto a
+     second line. If a title grows, re-run the crossing check (every border
+     that spans the numeral horizontally, at 1100/1280/1440/1920/2560) rather
+     than eyeballing it: at 1440 the overlap was four pixels. */
   .sec-rail {
     display: block; position: absolute; inline-size: 13rem;
-    inset-inline-end: 0; inset-block: var(--sp-6);
+    inset-inline-end: 0;
+    inset-block-start: calc(var(--sp-6) + var(--sp-8));
+    inset-block-end: var(--sp-6);
     pointer-events: none;
   }
+  /* THE RULE MUST NOT CROSS THE NUMERAL — AND THE REASON IT DID IS display.
+     'sec-rail-in' is a <span> carrying two block children, and nothing here
+     ever blockified it: 'position: sticky' does NOT (only absolute and fixed
+     do). So it stayed an INLINE box broken up by its own block children, where
+     vertical padding and a block-start border contribute nothing to layout.
+     Its 12px of padding had simply never existed, the 2px rule was painted on
+     an empty first fragment sitting exactly at the numeral's box top, and
+     Anton at line-height .82 overshoots that top by 2.4px — so the rule landed
+     INSIDE the glyph on all eight sections. Measured at 1440 before: ink top
+     873.3 against a rule at 875.8-877.8, 4.4px of overlap.
+
+     Raising the padding alone would have changed nothing, which is how this
+     survived a round of fixing. 'display: block' is the fix; the padding then
+     does what it always said it did, and the tight 0.82 poster setting is kept
+     because it was never the fault. Clearance is now 'padding - 2.4px'.
+     Re-measure against section 07 — its two-line title makes the rail
+     tallest — whenever the face, the size or the line-height changes. */
   .sec-rail-in {
+    display: block;
     position: sticky; inset-block-start: 96px;
     border-block-start: 2px solid var(--rule); padding-block-start: var(--sp-3);
   }
@@ -1224,7 +1312,18 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
   grid-column: 1; font-family: var(--mono); font-size: var(--t--2);
   text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink);
 }
-.honesty-body { grid-column: 2; color: var(--ink-2); line-height: 1.6; }
+/* THE MEASURE, ON THE ONE PANEL THAT GOT MISSED. Every other prose block in
+   this stylesheet is capped — '.prose p' at 72ch, '.cmp-note' at 62ch, and
+   '.formula-slab' was given 72ch for precisely this reason. This one was not,
+   so 'grid-column: 2' of the 7fr track filled 834px and set the statement the
+   whole site rests on at 107 characters per line. Measured at 1440 before:
+   x=440 to x=1274, opening line 107 characters. The 7fr track stays — the cap
+   does the work, and the panel's right edge becomes intentional margin rather
+   than an overrun measure. */
+.honesty-body {
+  grid-column: 2; color: var(--ink-2); line-height: 1.6;
+  max-inline-size: 62ch;
+}
 
 /* Four short mono lines set as a 1156px slab beside 72ch of prose made the
    page's least text-heavy element its widest. Same treatment the one-line
@@ -1360,6 +1459,42 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
 }
 
 @media (max-width: 760px) {
+  /* ---------- THE SMALLEST STEP IS RAISED, AND DARKENED, ON A PHONE ----------
+     11px was doing too much load-bearing work here. Measured live at 390 across
+     all four pages: 'raw' x18, 'oos' x13, 'oc-chip' x17 and 'th' x3 on the repo
+     sheet; 'cmp-risk' x20, 'th' x15 and 'tx-q-groups' x54 on the methodology;
+     the phase-bar labels 'pr-name'/'pr-pct' x11 on the home slab — 157 elements
+     on the repo page alone. Most of them sat at --ink-3 on paper: 4.70:1, which
+     clears AA by 0.20 and is fine on a 1440 desktop. But these are the chips a
+     reader scans for VERDICT STATE on a phone held at arm's length, and they
+     were simultaneously the smallest and the palest type on the page.
+
+     Two token overrides do the whole job, and they are tokens rather than a
+     list of selectors on purpose: a selector list is a claim about SPELLING
+     that goes stale the first time a new chip is added, while --t--3 is used
+     39 times and a new chip inherits the floor for free.
+
+       --t--3  11px -> 12px  (one notch; --t--2 stays 13px so the ramp stays
+                              monotonic and nothing on the scale inverts)
+       --ink-3 #6E675C -> #5C564C  (4.70:1 -> 6.11:1 on paper)
+
+     Desktop keeps 11px and the lighter grey: at reading distance on a large
+     screen the quieter value is the better composition, and it is not where
+     this was failing. */
+  :root {
+    --t--3: 0.75rem;
+    --ink-3: #5C564C;
+  }
+  /* THE em COMPOUNDING STOPS HERE, AS AN EFFECT AND NOT AS A LIST. 'code' is
+     0.9em of its parent, which is right in running prose — mono runs optically
+     large beside the body face — and wrong the moment a 'code' lands inside a
+     box already set at the smallest step. Measured at 390 before: the control
+     identifiers in the restacked question cards rendered at 9.9px, 54 of them,
+     the smallest text anywhere on the site. 'max()' states the floor once:
+     nothing nested, however deep, can take mono below 12px, and every 'code'
+     inside a 14px-or-larger parent keeps its 0.9em optical match untouched. */
+  code { font-size: max(0.9em, 0.75rem); }
+
   .figband { grid-template-columns: 1fr; }
   .figband .fig + .fig {
     border-inline-start: none; padding-inline-start: 0;
@@ -1487,9 +1622,18 @@ table.controls details li { font-family: var(--mono); overflow-wrap: anywhere; }
      the content every time. The id and the groups sit under it as one quiet
      mono line. */
   table.tx-q-table td:nth-child(2) { grid-row: 1; grid-column: 1 / -1; color: var(--ink); }
+  /* THE IDENTIFIER OUTRANKS THE GROUP CODE. 'ai-trailers' is the datum a reader
+     looks UP; 'A1 A6' is the datum they skim past — and the restack had them
+     the wrong way round, the id at 9.9px in the muted token under group codes
+     at 11px. The id is this row's name, so it is set a step ABOVE the groups
+     and in ink: 13px ink against 12px muted. Absolute steps from the scale, not
+     'em', so no future nesting can shrink either of them again. */
   table.tx-q-table td:nth-child(1) {
     grid-row: 2; grid-column: 1; font-family: var(--mono);
-    font-size: var(--t--3); color: var(--ink-3);
+    font-size: var(--t--2); color: var(--ink);
+  }
+  table.tx-q-table td:nth-child(1) code {
+    font-size: 1em; font-weight: 500; color: var(--ink);
   }
   table.tx-q-table td:nth-child(3) {
     grid-row: 2; grid-column: 2; text-align: end;
@@ -1739,50 +1883,38 @@ export const OVERRIDES = `
 :root .dir-check input[type="checkbox"]:checked::after { background: var(--ink); }
 :root .dir-check input[type="checkbox"]:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
 
-/* A phone met two dashed "nothing here yet" panels back to back — 644px, 12%
-   of the page, both ending in the same link. At desk width they sit side by
-   side; on a phone the only lever this stylesheet has is to stop the apparatus
-   repeating, and the panel line above an empty state says strictly less than
-   the empty state's own copy, which names the real counts. (Suppressing the
-   second panel outright is exemplars.ts's call, not a stylesheet's — it is in
-   sharedFileProposals.) */
+/* THE PHONE AND THE DESKTOP SHOW THE SAME PAGE, NOT TWO READINGS OF IT.
+   A phone met two dashed "nothing here yet" panels back to back — 644px, 12%
+   of the page, both ending in the same link. Round 4 answered that in CSS, by
+   clip-pathing the second panel's eyebrow and heading away and welding the two
+   dashed boxes into one. That produced a worse fault than the one it fixed:
+   the second panel's copy ("…ordering them by date would be ordering noise")
+   then rendered under the heading TOP RATED, where it is a non-sequitur, while
+   a screen reader still heard the correct two-section structure. The two
+   widths disagreed about what the page contained.
+
+   'home.ts' now renders a single honest panel for that state —
+   '.hp-panel-merged', one eyebrow, one heading, both sentences, one link — and
+   this is the swap. Exactly one structure is in the document at each width,
+   'display: none' rather than a clip, so what is seen and what is announced
+   are the same page. The merged panel exists in the markup only when BOTH
+   panels are waiting, so above 760px it is simply never displayed. */
+.hp-panel-merged { display: none; }
+.hp-panel-merged .hp-waiting-copy + .hp-waiting-copy { margin-block-start: var(--sp-3); }
+/* The panel line is what separates a heading from its dashed box on the two
+   panels this replaces, and below 760px that line is suppressed — so with no
+   standfirst of its own the Anton heading sat directly on the border. */
+.hp-panel-merged > .hp-waiting { margin-block-start: var(--sp-4); }
+
 @media (max-width: 760px) {
   :root .hp-panel:has(> .hp-waiting) .hp-panel-line { display: none; }
 
-  /* ...and the SECOND of two consecutive waiting states loses its APPARATUS,
-     never its copy. Three judges across three rounds counted the same ~530px:
-     two eyebrows, two Anton headings, two dashed boxes and two identical
-     "Browse every listing" links, to say "not enough data yet" twice. Both
-     sentences stay — they name different real counts — welded into one dashed
-     box under one heading, with one way out. The headings stay in the
-     accessibility tree, because each section is still labelled by its own h2.
-     (Not rendering the second panel at all is exemplars.ts's call, and it is
-     in sharedFileProposals; this is what a stylesheet can do about it.) */
-  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) {
-    margin-block-start: calc(-1 * clamp(28px, 5vw, 48px));
-  }
-  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) > .hp-panel-eyebrow,
-  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) > .hp-panel-title {
-    position: absolute; inline-size: 1px; block-size: 1px;
-    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-    padding: 0; margin: 0; border: 0;
-  }
-  :root .hp-panels > .hp-panel:has(> .hp-waiting) + .hp-panel:has(> .hp-waiting) > .hp-waiting {
-    border-block-start: 0;
-  }
-  /* A :has() may not contain another :has(), so "the next panel is also
-     waiting" is asked as "the next panel has a waiting child" — a relative
-     selector with a child combinator, which is legal. Written the nested way
-     first, the whole rule was dropped as invalid and the two dashed boxes met
-     as a doubled 4px line. Measured, not assumed. */
-  :root .hp-panels
-    > .hp-panel:has(> .hp-waiting):has(+ .hp-panel > .hp-waiting)
-    > .hp-waiting {
-    border-block-end: 0; padding-block-end: 0;
-  }
-  :root .hp-panels
-    > .hp-panel:has(> .hp-waiting):has(+ .hp-panel > .hp-waiting)
-    > .hp-waiting > .hp-waiting-link { display: none; }
+  :root .hp-panels > .hp-panel-merged { display: block; }
+  /* Its presence in the document is the signal that both of the pair are
+     waiting, so the pair itself is what gets suppressed — no :has() chain, no
+     row of selectors that has to stay in step with what the template emits. */
+  :root .hp-panels:has(> .hp-panel-merged) > #top-rated,
+  :root .hp-panels:has(> .hp-panel-merged) > #recently-scanned { display: none; }
 
   /* Two 150px chips per row leaves the third spanning the full width with its
      label centred — three boxes, three shapes and two text alignments directly

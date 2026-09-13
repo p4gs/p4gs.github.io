@@ -158,7 +158,7 @@ describe("the jump strip is labelled at both widths, and reads as a control", ()
 
 describe("filtering to zero says so, on the contract filter.js documents", () => {
   test("the strip and its reset ship together", () => {
-    expect(directory).toContain('<p class="dir-empty" id="dir-empty" hidden>');
+    expect(directory).toMatch(/<p class="dir-empty" id="dir-empty"[^>]*\shidden>/);
     expect(directory).toContain('class="dir-clear" id="dir-clear"');
   });
 
