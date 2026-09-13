@@ -65,7 +65,13 @@ export function mark(state: MarkState, size = 16): string {
     case "gap":
       return `<svg class="mk mk-gap" ${box}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M4 12L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>`;
     case "info":
-      return `<svg class="mk mk-info" ${box}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="1 3"></circle><circle cx="8" cy="8" r="2" fill="currentColor"></circle></svg>`;
+      // A SOLID ring with a dot, against unverified's DASHED ring. Round 3 drew
+      // this one as a finely dotted ring ("1 3"), which at 13-18px in the same
+      // muted ink as the dashed ring is the same object to peripheral vision —
+      // and the two mean opposite things ("not scored, by design" against
+      // "nobody could answer"). Ring STYLE now carries the distinction, which
+      // survives a 13px cell and a greyscale print.
+      return `<svg class="mk mk-info" ${box}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="8" cy="8" r="1.9" fill="currentColor"></circle></svg>`;
     default:
       return `<svg class="mk mk-unverified" ${box}><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2.6 2.6"></circle></svg>`;
   }
@@ -168,8 +174,13 @@ export function stat(label: string, value: string, note?: string): string {
 }
 
 /**
- * The legend. Four marks, four words, one line — printed wherever the marks
- * are, because a key on a different page is a key nobody reads.
+ * The legend. Every mark the page can draw, with its word — printed wherever
+ * the marks are, because a key on a different page is a key nobody reads.
+ *
+ * FIVE, not four. The control list renders `info` 13 times on a 54-control
+ * listing — a quarter of the rows — and rounds 1-3 printed a key that named
+ * four states and silently omitted the fifth. A page whose whole thesis is
+ * honest state display does not get to leave one of its own states unnamed.
  */
 export function legend(): string {
   return `<div class="sg-legend" role="group" aria-label="What the marks mean">
@@ -177,5 +188,6 @@ export function legend(): string {
   <span class="lg"><span class="lg-mk lg-fail">${mark("fail", 13)}</span>there, not working</span>
   <span class="lg"><span class="lg-mk lg-gap">${mark("gap", 13)}</span>looked for, not found</span>
   <span class="lg"><span class="lg-mk lg-unverified">${mark("unverified", 13)}</span>nobody could answer — never counted</span>
+  <span class="lg"><span class="lg-mk lg-info">${mark("info", 13)}</span>informational — never scored</span>
 </div>`;
 }

@@ -319,8 +319,15 @@ export function renderDirectory(
       const kind = resolveTrustKind(r, trust.get(trustKeyOf(r)), lt);
       const lf = factsFor(r);
       const f = coverageFacts(r, localOverlayCount(lt));
+      // The description is clamped to one line at >=768px so a 400-character
+      // sentence cannot set the row height (round 3, D24 — the table is a
+      // table). The clamp stays; what it owed the reader was a way to see the
+      // rest without leaving the page, and the full string on `title` is that,
+      // at zero cost to row density.
       const desc = r.repo.description
-        ? `<span class="row-desc">${escapeHtml(r.repo.description)}</span>`
+        ? `<span class="row-desc" title="${escapeHtml(r.repo.description)}">${escapeHtml(
+            r.repo.description,
+          )}</span>`
         : `<span class="row-desc row-desc-none">No description published.</span>`;
       return `<tr class="row" data-name="${escapeHtml(slug.toLowerCase())}" data-grade="${escapeHtml(r.score.grade)}" data-lane="${kind}" data-coverage="${r.score.evidence_coverage_percent}" data-scanned="${escapeHtml(r.scanned_at.slice(0, 10))}" data-complete="${f.belowFloor ? "0" : "1"}" data-contradictions="${lf.contradictions.length}">
   <td class="c-repo" data-label="Repository">
@@ -478,7 +485,11 @@ function sharedReasons(controls: readonly ScanRecord["controls"][number][]): str
     .map(([r]) => r);
 }
 
-function controlRow(c: ScanRecord["controls"][number], hoisted: ReadonlySet<string> = new Set()): string {
+function controlRow(
+  c: ScanRecord["controls"][number],
+  hoisted: ReadonlySet<string> = new Set(),
+  fixHref = "",
+): string {
   const state = OUTCOME_STATE[c.scan_outcome] ?? "unverified";
   const raw =
     c.reclassified || c.raw_outcome !== c.scan_outcome
@@ -487,13 +498,24 @@ function controlRow(c: ScanRecord["controls"][number], hoisted: ReadonlySet<stri
         )}</span>`
       : "";
   const oos = c.in_scope ? "" : `<span class="ctl-oos">out of scope</span>`;
+  // AN UNVERIFIED ROW SAYS WHY, AND NOW ALSO WHERE THE ANSWER COMES FROM. The
+  // task this directory exists to serve is "see why a listing is under the
+  // coverage floor and what the one-line fix is", and the second half used to
+  // live ~6,000px away with nothing on the row pointing at it. The target is
+  // whichever section of THIS page actually carries the remedy for this
+  // listing, resolved once in renderRepoDetail rather than guessed per row.
+  const fix = state === "unverified" && fixHref
+    ? `<a class="ctl-fix" href="${fixHref}">how to answer this →</a>`
+    : "";
   const reason = !c.reason
-    ? ""
+    ? fix
+      ? `<p class="ctl-reason">${fix}</p>`
+      : ""
     : hoisted.has(c.reason)
       ? `<p class="ctl-reason ctl-reason-shared"><span class="ctl-src">${escapeHtml(
           reasonTag(c.reason),
-        )}</span></p>`
-      : `<p class="ctl-reason">${escapeHtml(c.reason)}</p>`;
+        )}</span>${fix}</p>`
+      : `<p class="ctl-reason">${escapeHtml(c.reason)}${fix}</p>`;
   // A bare "EVIDENCE" label read as an unfinished caption 42 times per page —
   // nothing said it opened. The count gives the label weight and tells a
   // reader what they get for the tap; the caret comes from the stylesheet.
@@ -502,18 +524,27 @@ function controlRow(c: ScanRecord["controls"][number], hoisted: ReadonlySet<stri
         .map((m) => `<li>${escapeHtml(m)}</li>`)
         .join("")}</ul></details>`
     : "";
+  // THE IDENTIFIER AND ITS VERDICT SHARE A LINE, and the row's prose gets the
+  // width. Rounds 1-3 put the chip in a grid cell of its own: at 1440 that
+  // left ~950px of nothing between a 145px identifier and a 70px pill, 42
+  // times; at 390 the phone fix moved it onto its own ROW, a 50px pill alone
+  // in a 272px cell, for ~26px of dead height on each of 44 rows. Wrapping the
+  // two in `.ctl-head` lets the stylesheet have it both ways — a flex line on
+  // a phone (the chip pushed right, dropping under a long identifier only when
+  // it genuinely does not fit) and, via `display: contents` at >=1024px, two
+  // separate cells of a four-column grid whose third column is the reason.
+  const body = reason || msgs ? `<div class="ctl-body">${reason}${msgs}</div>` : "";
   return `<li class="ctl ctl-${escapeHtml(c.scan_outcome)}${c.in_scope ? "" : " ctl-out"}">
   <span class="ctl-mk">${mark(state, 18)}</span>
-  <div class="ctl-body">
-    <span class="ctl-id"><code>${escapeHtml(c.id)}</code>${oos}${raw}</span>
-    ${reason}${msgs}
-  </div>
-  ${statusChip(state)}
+  <span class="ctl-head"><span class="ctl-id"><code>${escapeHtml(
+    c.id,
+  )}</code>${oos}${raw}</span>${statusChip(state)}</span>
+  ${body}
 </li>`;
 }
 
 /** One phase, as a nested container: family header, then its control rows. */
-function phaseGroup(r: ScanRecord, phase: number): string {
+function phaseGroup(r: ScanRecord, phase: number, fixHref = ""): string {
   const controls = r.controls.filter((c) => c.phase === phase);
   // A family with nothing in scope rendered as a full card reading
   // "0 pass · 0 fail · 0 gap · 0 unanswered" beside a "no evidence" chip —
@@ -524,7 +555,26 @@ function phaseGroup(r: ScanRecord, phase: number): string {
   const counts = p
     ? `${p.pass} pass · ${p.fail} fail · ${p.gap} gap · ${p.unverified} unanswered`
     : "no verdicts";
+  // THE CHIP CARRIES ITS DENOMINATOR. It is the largest, most scannable
+  // element in the family header, and rounds 1-3 let it read a bare "100%" for
+  // a family that had left a check unanswered — collapsing, in the one element
+  // a skimmer actually reads, the two numbers every other surface on this site
+  // spends paragraphs keeping apart. The fraction is the pass rate over what
+  // was ANSWERED (unverified is never in a denominator, per types.ts), and the
+  // unanswered count rides inside the same pill so it cannot be skimmed past.
+  const countable = p ? p.pass + p.fail + p.gap : 0;
   const pct = p ? pctText(p.percent) : "no evidence";
+  const chipText = p && p.percent !== null ? `${p.pass}/${countable} passed` : "no evidence";
+  const chipTitle =
+    p && p.percent !== null
+      ? `${pct} of the ${countable} answered checks in this family passed${
+          p.unverified ? `; ${plural(p.unverified)} could not be answered and are not counted` : ""
+        }`
+      : "No check in this family produced an answer";
+  const chipSub =
+    p && p.unverified > 0
+      ? `<span class="family-count-sub">${p.unverified} unanswered</span>`
+      : "";
   const allFailing = !!p && p.percent !== null && p.percent === 0 && p.fail + p.gap > 0;
   const shared = sharedReasons(controls);
   const hoisted = new Set(shared);
@@ -538,12 +588,14 @@ function phaseGroup(r: ScanRecord, phase: number): string {
   return `<section class="family${allFailing ? " family-failing" : ""}" id="phase-${phase}">
   <header class="family-head">
     <h2 class="family-title">${escapeHtml(PHASE_NAMES[phase] ?? `Phase ${phase}`)}</h2>
-    <span class="family-count">${escapeHtml(pct)}</span>
+    <span class="family-count" title="${escapeHtml(chipTitle)}">${escapeHtml(
+      chipText,
+    )}${chipSub}</span>
   </header>
   <p class="family-meta">${escapeHtml(counts)}</p>
   ${notes}
   <ul class="ctl-list">
-${controls.map((c) => controlRow(c, hoisted)).join("\n")}
+${controls.map((c) => controlRow(c, hoisted, fixHref)).join("\n")}
   </ul>
 </section>`;
 }
@@ -760,11 +812,34 @@ function provenanceCard(
  */
 const SHARED_EX_STATE = `<span class="ex-state">All answered checks passed</span>`;
 
+/**
+ * The same disclaimer, nine times.
+ *
+ * `threats-shared.ts` prints one sentence on every all-passing group, so a
+ * repository that evidenced all nine carried nine verbatim copies of it —
+ * flagged in round 1, still flagged in round 3. Round 2 hid the copies from
+ * the second row onward in CSS, which left the FIRST row alone carrying a
+ * third line no other row had: a leftover rather than a say-it-once.
+ *
+ * It is said once, above the list, where it governs every row that reads "All
+ * passed" — and the per-row copies leave the MARKUP rather than merely the
+ * paint, so a reader using a screen reader or reader mode meets it once too.
+ * Nothing is lost: each row still states its own verdict in colour, shape and
+ * words, and the full sentence stays on the state label's `title`.
+ */
+export const SHARED_EX_QUIET = `<span class="ex-detail ex-detail-quiet">Every sscsb check here that produced an answer passed. That is not the same as being safe from this group.</span>`;
+
+const HOISTED_EX_NOTE = `<p class="ex-note">Where a group reads <strong>All passed</strong>: every sscsb check there that produced an answer passed. That is not the same as being safe from this group.</p>`;
+
 function compactExposureStates(html: string): string {
-  return html.replaceAll(
+  const shortened = html.replaceAll(
     SHARED_EX_STATE,
     `<span class="ex-state ex-state-ok" title="Every sscsb check here that produced an answer passed. That is not the same as being safe from this group.">All passed</span>`,
   );
+  if (!shortened.includes(SHARED_EX_QUIET)) return shortened;
+  return shortened
+    .replaceAll(SHARED_EX_QUIET, "")
+    .replace(`<ul class="ex-list">`, `${HOISTED_EX_NOTE}\n  <ul class="ex-list">`);
 }
 
 export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): string {
@@ -772,8 +847,17 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
   const kind = resolveTrustKind(r, t, lt);
   const facts = coverageFacts(r, localOverlayCount(lt));
   const t0 = tally(r.score);
+  // Where the remedy for an unanswered check actually lives ON THIS PAGE.
+  // Resolved once, from the same conditions that decide which cards render, so
+  // a row can never link to a section this listing does not have.
+  const fixHref =
+    facts.state !== "complete"
+      ? "#improve"
+      : lt && kind !== "local"
+        ? "#provenance-local"
+        : "#provenance";
   const phases = [1, 2, 3, 4, 5, 6]
-    .map((p) => phaseGroup(r, p))
+    .map((p) => phaseGroup(r, p, fixHref))
     .filter(Boolean)
     .join("\n");
   const body = `
@@ -784,14 +868,21 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
       r.repo.owner,
     )}/</span>${escapeHtml(r.repo.name)}</h1>
     <p class="repo-meta">
-      <a href="${escapeHtml(r.repo.url)}">${escapeHtml(r.repo.url)}</a> ·
-      scanned ${escapeHtml(r.scanned_at.slice(0, 10))} at
-      <code>${escapeHtml(r.repo.commit.slice(0, 12))}</code> on
-      <code>${escapeHtml(r.repo.default_branch)}</code> ·
-      sscsb ${escapeHtml(r.scanner.sscsb_version)} ·
-      methodology v${r.methodology_version} ·
-      <a href="${escapeHtml(r.scanner.workflow_run_url)}">scan run</a> ·
-      ${laneChip(kind)}${localOverlayChip(lt)}
+      <span class="rm-fact"><a href="${escapeHtml(r.repo.url)}">${escapeHtml(
+        r.repo.url,
+      )}</a></span><span class="rm-sep"> · </span><span class="rm-fact">scanned ${escapeHtml(
+        r.scanned_at.slice(0, 10),
+      )} at <code>${escapeHtml(r.repo.commit.slice(0, 12))}</code> on <code>${escapeHtml(
+        r.repo.default_branch,
+      )}</code></span><span class="rm-sep"> · </span><span class="rm-fact">sscsb ${escapeHtml(
+        r.scanner.sscsb_version,
+      )}</span><span class="rm-sep"> · </span><span class="rm-fact">methodology v${
+        r.methodology_version
+      }</span><span class="rm-sep"> · </span><span class="rm-fact"><a class="rm-run" href="${escapeHtml(
+        r.scanner.workflow_run_url,
+      )}">scan run</a></span><span class="rm-sep"> · </span><span class="rm-fact">${laneChip(
+        kind,
+      )}${localOverlayChip(lt)}</span>
     </p>
   </div>
   <div class="repo-head-grade">${gradeBadge(r.score, { size: "lg" })}</div>
