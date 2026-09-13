@@ -47,15 +47,21 @@ export function renderMethodology(ctx: DesignCtx): string {
     })
     .join("\n");
 
+  // `data-short` is the phone form of each label. Measured, the full set held
+  // 1,394px of links in a 358px sticky strip: six of the eight entries were
+  // off-screen at rest on the one page that is 32,000px long and has no other
+  // navigation. Ordinals alone would fit in one row and say nothing, so the
+  // titles are shortened instead — ~700px, one drag rather than four, with the
+  // words still legible.
   const index = `<nav class="sec-index" aria-label="Methodology sections">
-  <a href="${ctx.h("methodology/#protocol")}">01 Protocol</a>
-  <a href="${ctx.h(`methodology/#${THREATS_SECTION_ID}`)}">02 What the checks are for</a>
-  <a href="${ctx.h(`methodology/#${COMPARE_SECTION_ID}`)}">03 ${COMPARE_TITLE}</a>
-  <a href="${ctx.h("methodology/#evidence-classes")}">04 Evidence classes</a>
-  <a href="${ctx.h("methodology/#formula")}">05 The formula</a>
-  <a href="${ctx.h("methodology/#grades")}">06 Grades</a>
-  <a href="${ctx.h(`methodology/#${LOCAL_SECTION_ID}`)}">07 The local lane</a>
-  <a href="${ctx.h("methodology/#changelog")}">08 Changelog</a>
+  <a data-short="01 Protocol" href="${ctx.h("methodology/#protocol")}">01 Protocol</a>
+  <a data-short="02 Threats" href="${ctx.h(`methodology/#${THREATS_SECTION_ID}`)}">02 What the checks are for</a>
+  <a data-short="03 Scorecard" href="${ctx.h(`methodology/#${COMPARE_SECTION_ID}`)}">03 ${COMPARE_TITLE}</a>
+  <a data-short="04 Evidence" href="${ctx.h("methodology/#evidence-classes")}">04 Evidence classes</a>
+  <a data-short="05 Formula" href="${ctx.h("methodology/#formula")}">05 The formula</a>
+  <a data-short="06 Grades" href="${ctx.h("methodology/#grades")}">06 Grades</a>
+  <a data-short="07 Local lane" href="${ctx.h(`methodology/#${LOCAL_SECTION_ID}`)}">07 The local lane</a>
+  <a data-short="08 Changelog" href="${ctx.h("methodology/#changelog")}">08 Changelog</a>
 </nav>`;
 
   const body = `
