@@ -1055,3 +1055,67 @@ describe("A6 · the nested diagram is an irregular composition, three deep", () 
     expect(DETAIL).toMatch(/\d+ answered &middot; \d+ with no answer\./);
   });
 });
+
+describe("A7 + D8 · the lanes diagram says what differs, and emphasises the right lane", () => {
+  const fig = HOME.slice(
+    HOME.indexOf('<figure class="fy-overview"'),
+    HOME.indexOf("</figure>", HOME.indexOf('<figure class="fy-overview"')),
+  );
+
+  test("what every lane can read is stated ONCE, above the lanes", () => {
+    expect(countOf(fig, 'data-ov="shared"')).toBe(1);
+    expect(countOf(fig, 'data-ov="lane"')).toBe(3);
+    expect(fig.indexOf('data-ov="shared"')).toBeLessThan(fig.indexOf('data-ov="lane"'));
+    // the three shared groups appear exactly once each — they used to appear
+    // three times each, word for word, which read as a rendering fault
+    for (const title of ["Committed files", "Committed build files", "Live settings"]) {
+      expect(countOf(fig, `<h4>${title}</h4>`), title).toBe(1);
+    }
+  });
+
+  test("each lane shows only its delta", () => {
+    expect(fig).toContain('data-ov-panel="none"');
+    expect(fig).toContain("<h4>A signature</h4>");
+    expect(fig).toContain('data-ov-panel="local"');
+    // exactly one panel per lane row
+    expect(countOf(fig, "fy-ov-panel")).toBe(6);
+  });
+
+  test("the SIGNED CI lane carries the emphasis and the marker, not the local lane", () => {
+    const action = fig.slice(fig.indexOf('data-lane="action"'), fig.indexOf('data-lane="local"'));
+    expect(action).toContain('data-emphasis="true"');
+    expect(action).toContain('<span class="fy-ov-marker">signed</span>');
+    const local = fig.slice(fig.indexOf('data-lane="local"'));
+    expect(local).not.toContain('data-emphasis="true"');
+    expect(countOf(fig, 'data-emphasis="true"')).toBe(1);
+    expect(CSS).toContain('.fy-ov-group[data-emphasis="true"] { border-color: var(--fy-accent); }');
+    // and the local lane's extra card takes the dashed weaker treatment
+    expect(CSS).toContain(
+      '.fy-ov-panel[data-ov-panel="local"] {\n  background: var(--fy-ground); border: 1px dashed var(--fy-na); grid-column: 1 / -1;\n}',
+    );
+  });
+
+  test("the closing line weights the lanes, and the arithmetic closes", () => {
+    expect(fig).toContain("Two of the three can be checked by anyone.");
+    expect(fig).toContain("can only be\n  asserted by the maintainer, and is weighted accordingly.");
+    expect(fig).not.toContain("The third reads\n  something nobody else can");
+    // 26 + 6 + 4 + 16 = 52, with the two class-M controls named as the gap
+    const meta = Object.values(CONTROL_REGISTRY).filter((m) => m.cls === "M").length;
+    const scored = CONTROL_COUNT - meta;
+    expect(fig).toContain(`+ ${meta} about the tool &mdash; never counted.`);
+    expect(fig).toContain(`${scored} of ${CONTROL_COUNT} are scored.`);
+    // derived, not typed: the panel counts must add to the footnote
+    const counts = [...fig.matchAll(/<span class="fy-ov-count">(\d+)<\/span>/g)].map((m) =>
+      Number(m[1]),
+    );
+    expect(counts.length).toBe(4);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(scored);
+  });
+
+  test("the panels are terse lists, and the L-brackets are there at desktop only", () => {
+    expect(fig).toContain("branch rules · repository settings · read live");
+    expect(CSS).toMatch(/\.fy-ov-label::before \{[^}]*inset-inline-start: calc\(100% \+ 20px\)/);
+    expect(CSS).toMatch(/\.fy-ov-label::after \{[^}]*inline-size: 20px; block-size: 1px/);
+    expect(MOBILE).toContain(".fy-ov-label::before, .fy-ov-label::after { content: none; }");
+  });
+});

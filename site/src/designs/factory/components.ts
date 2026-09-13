@@ -12,7 +12,7 @@
  */
 import { CHECK_QUESTIONS, questionFor } from "../../checks";
 import { PHASES, PHASE_NAMES } from "../../scoring";
-import { CONTROL_REGISTRY, type EvidenceClass } from "../../reclassify";
+import { CONTROL_COUNT, CONTROL_REGISTRY, type EvidenceClass } from "../../reclassify";
 import { ATTACK_CLASSES, controlsDefending, type AttackClassId } from "../../threats";
 import type { ControlRecord } from "../../schema";
 import { escapeHtml } from "./layout";
@@ -316,70 +316,110 @@ ${regions}
 
 /* ══ 4.7 the overview groups ═════════════════════════════════════════════ */
 
-/** Which evidence classes each lane can answer, from the merge rules. */
-const LANE_CLASSES: ReadonlyArray<{
-  key: string;
-  name: string;
-  line: string;
-  classes: readonly EvidenceClass[];
-  emphasis?: boolean;
-}> = [
-  {
-    key: "external",
-    name: "A scan from outside",
-    line: "Anyone can ask for a public repository to be read. It sees what anyone can see.",
-    classes: ["A", "Aprime", "B"],
-  },
-  {
-    key: "action",
-    name: "The project's own build",
-    line: "The same scan, run in the project's CI, and signed there so the signature says which build made it.",
-    classes: ["A", "Aprime", "B"],
-  },
-  {
-    key: "local",
-    name: "A maintainer's machine",
-    line: "The only place the last group can be looked at. A maintainer runs it and signs the result.",
-    classes: ["A", "Aprime", "B", "C"],
-    emphasis: true,
-  },
-];
+/** The terse `·`-list each shared group gets, instead of a sentence. */
+const CLASS_TERSE: Readonly<Record<EvidenceClass, string>> = {
+  A: "the tree at one commit · policy files · never executed",
+  Aprime: "the project's own build files · read, never run",
+  B: "branch rules · repository settings · read live",
+  C: "signing keys · local hooks · what no outside scan reaches",
+  M: "about the tool itself · never counted either way",
+};
+
+/** Sentence-case titles for the same groups. */
+const CLASS_TITLE: Readonly<Record<EvidenceClass, string>> = {
+  A: "Committed files",
+  Aprime: "Committed build files",
+  B: "Live settings",
+  C: "The maintainer's machine",
+  M: "About the tool",
+};
+
+/** What every lane can read, said once. */
+const SHARED_CLASSES: readonly EvidenceClass[] = ["A", "Aprime", "B"];
 
 /**
- * "Who can see what" — the three lanes, with the check groups each one can
- * answer and how many checks sit in each group.
+ * "Who can see what" — one shared row, then only what each lane ADDS.
  *
- * The emphasised group is the LOCAL lane, and that is the argument the diagram
- * is making: sixteen of the fifty-four checks describe a machine no scan from
- * outside will ever reach.
+ * The first cut of this rendered the same three panels three times, word for
+ * word, with a fourth in the third lane: ninety per cent of the figure's area
+ * spent saying the same thing three ways, and at a glance it read as a
+ * rendering fault. Worse, it emphasised the LOCAL lane — the weakest of the
+ * three — while drawing lanes 1 and 2 identically, which erases the only
+ * difference that matters between an outside scan and a signed CI scan: the
+ * signature. A reader left with "local sees most, and the first two are
+ * interchangeable," which is the trust ordering backwards.
+ *
+ * So: the shared row is stated once at the top, each lane shows only its
+ * delta, the SIGNED CI lane carries the emphasis and a `signed` marker, and
+ * the local lane's one extra card takes the same dashed weaker treatment the
+ * `+local` badge uses everywhere else on the site.
  */
 export function overviewDiagram(h: (p: string) => string): string {
   const counted = (cls: EvidenceClass) =>
     allControlIds().filter((id) => CONTROL_REGISTRY[id]!.cls === cls).length;
-  const rows = LANE_CLASSES.map(
-    (lane) => `<div class="fy-ov-row">
-    <div class="fy-ov-label">
-      <h3>${escapeHtml(lane.name)}</h3>
-      <p>${escapeHtml(lane.line)}</p>
-    </div>
-    <div class="fy-ov-group"${lane.emphasis ? ' data-emphasis="true"' : ""}>
-${lane.classes
-  .map(
-    (cls) => `      <div class="fy-ov-panel">
-        <h4>${escapeHtml(CLASS_SHORT[cls])}</h4>
+  const panel = (cls: EvidenceClass, extra = "") =>
+    `      <div class="fy-ov-panel"${extra}>
+        <h4>${escapeHtml(CLASS_TITLE[cls])}</h4>
         <p><span class="fy-ov-count">${counted(cls)}</span> checks &middot; ${escapeHtml(
-          CLASS_PLAIN[cls],
+          CLASS_TERSE[cls],
         )}</p>
-      </div>`,
-  )
-  .join("\n")}
+      </div>`;
+  const sharedTotal = SHARED_CLASSES.reduce((n, c) => n + counted(c), 0);
+  const scored = sharedTotal + counted("C");
+  const shared = `<div class="fy-ov-row" data-ov="shared">
+    <div class="fy-ov-label">
+      <h3>What anyone can read</h3>
+      <p>Three groups of checks answer from things the project itself publishes. Every lane
+      below starts here.</p>
     </div>
-  </div>`,
-  ).join("\n");
+    <div class="fy-ov-group">
+${SHARED_CLASSES.map((c) => panel(c)).join("\n")}
+    </div>
+  </div>`;
+  const lanes = `<div class="fy-ov-row" data-ov="lane" data-lane="external">
+    <div class="fy-ov-label">
+      <h3>A scan from outside</h3>
+      <p>Anyone can ask for a public repository to be read.</p>
+    </div>
+    <div class="fy-ov-group">
+      <div class="fy-ov-panel" data-ov-panel="none">
+        <h4>Nothing more</h4>
+        <p>The shared row, read from outside. Nobody has to take the scanner's word for what
+        it saw &mdash; the same files are there to read.</p>
+      </div>
+    </div>
+  </div>
+<div class="fy-ov-row" data-ov="lane" data-lane="action">
+    <div class="fy-ov-label">
+      <h3>The project's own build</h3>
+      <p>The same scan, run in the project's own CI.</p>
+    </div>
+    <div class="fy-ov-group" data-emphasis="true">
+      <span class="fy-ov-marker">signed</span>
+      <div class="fy-ov-panel" data-ov-panel="adds">
+        <h4>A signature</h4>
+        <p>Which build produced the record &middot; burned in by the issuer &middot; not
+        asserted by the record</p>
+      </div>
+    </div>
+  </div>
+<div class="fy-ov-row" data-ov="lane" data-lane="local">
+    <div class="fy-ov-label">
+      <h3>A maintainer's machine</h3>
+      <p>The only place the last group can be looked at.</p>
+    </div>
+    <div class="fy-ov-group">
+${panel("C", ' data-ov-panel="local"')}
+    </div>
+  </div>`;
   return `<figure class="fy-overview" id="who-sees-what">
-${rows}
-  <figcaption class="fy-note">Two of the three read the same things. The third reads
-  something nobody else can. <a href="${h("methodology/#local")}">How that is checked &rarr;</a></figcaption>
+${shared}
+${lanes}
+  <figcaption class="fy-note">Two of the three can be checked by anyone. The third can only be
+  asserted by the maintainer, and is weighted accordingly.
+  <a href="${h("methodology/#local")}">How that is checked &rarr;</a>
+  <span class="fy-ov-foot">+ ${counted("M")} about the tool &mdash; never counted.
+  ${scored} of ${CONTROL_COUNT} are scored.</span></figcaption>
 </figure>`;
 }
 

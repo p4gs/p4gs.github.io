@@ -415,18 +415,54 @@ main [id] { scroll-margin-top: 88px; }
 /* ══ diagram: the overview groups ════════════════════════════════════════ */
 .fy-overview { margin: 0; padding-block-start: 56px; display: grid; gap: 20px; }
 .fy-ov-row { display: grid; grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); gap: 40px; align-items: stretch; }
-.fy-ov-label { padding-block: 8px; }
+/* The shared row is the premise the three lanes are deltas from; a hairline
+   under it says so without a heading. */
+.fy-ov-row[data-ov="shared"] { padding-block-end: 20px; border-block-end: 1px solid var(--fy-hair); }
+/* The L-shaped label-to-group bracket the reference draws: a hairline down the
+   gutter with a short stub into the group it names. Purely decorative, so it
+   goes when the row stacks. */
+.fy-ov-label { padding-block: 8px; position: relative; }
+.fy-ov-label::before {
+  content: ""; position: absolute; inset-block: 10px; inset-inline-start: calc(100% + 20px);
+  inline-size: 1px; background: var(--fy-hair);
+}
+.fy-ov-label::after {
+  content: ""; position: absolute; inset-block-start: 32px; inset-inline-start: calc(100% + 20px);
+  inline-size: 20px; block-size: 1px; background: var(--fy-hair);
+}
 .fy-ov-label h3 { font-size: 22px; font-weight: 500; color: var(--fy-ink); }
 .fy-ov-label p { margin-block-start: 12px; font-size: 17px; line-height: 28px; color: var(--fy-quiet); }
 .fy-ov-group {
+  position: relative;
   border: 2px solid rgba(0, 0, 0, 0.44); border-radius: 16px; background: var(--fy-ground);
   padding: 16px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
+/* THE EMPHASIS IS ON THE SIGNED CI LANE, which is the strongest of the three.
+   It used to be on the local lane — the weakest — while lanes 1 and 2 were
+   drawn identically, which erased the signature and left a reader with the
+   trust ordering backwards. */
 .fy-ov-group[data-emphasis="true"] { border-color: var(--fy-accent); }
+.fy-ov-marker {
+  position: absolute; inset-block-start: -10px; inset-inline-start: 16px;
+  background: var(--fy-ground); padding-inline: 8px; font-family: var(--fy-mono);
+  font-size: 11px; letter-spacing: 0.06em; color: var(--fy-accent);
+}
 .fy-ov-panel { background: var(--fy-surface-3); border-radius: 8px; padding: 16px; }
+/* The local lane's one extra card wears the same dashed weaker treatment the
+   +local badge and the local lane chip wear, everywhere on this site. */
+.fy-ov-panel[data-ov-panel="local"] {
+  background: var(--fy-ground); border: 1px dashed var(--fy-na); grid-column: 1 / -1;
+}
+.fy-ov-panel[data-ov-panel="none"] { background: 0 0; border: 1px solid var(--fy-hair); }
 .fy-ov-panel h4 { font-size: 17px; font-weight: 500; color: var(--fy-ink); }
 .fy-ov-panel p { margin-block-start: 8px; font-size: 14px; line-height: 21px; color: var(--fy-muted); }
 .fy-ov-count { font-family: var(--fy-mono); font-variant-numeric: tabular-nums; color: var(--fy-text); }
+/* The arithmetic a security reader does on this figure, closed on the figure:
+   26 + 6 + 4 + 16 = 52, and the two that are missing are missing on purpose. */
+.fy-ov-foot {
+  display: block; margin-block-start: 8px; font-family: var(--fy-mono); font-size: 12px;
+  color: var(--fy-muted);
+}
 
 /* ══ diagram: nested regions and node chips ══════════════════════════════ */
 .fy-network {
@@ -1131,6 +1167,9 @@ export const RESPONSIVE_CSS = `
 
   .fy-ov-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .fy-ov-group { grid-template-columns: minmax(0, 1fr); }
+  /* The bracket points across a gutter that no longer exists once the row
+     stacks, so it goes rather than pointing at the edge of the screen. */
+  .fy-ov-label::before, .fy-ov-label::after { content: none; }
   .fy-nodes { grid-template-columns: minmax(0, 1fr); }
   /* The composition collapses to one column in PHASES order, which is the
      source order — every slot rule is dropped rather than re-pointed. */
