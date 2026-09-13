@@ -87,7 +87,13 @@ function aperture(records: ScanRecord[], ctx: DesignCtx): string {
     <div class="fy-stage">
       <div class="fy-opening">
         <div class="fy-opening-in">
-          <p class="fy-kicker">Supply-chain security &middot; scanned in public</p>
+          <!-- THE SEPARATOR GOES WHEN THE BREAK FALLS ON IT. At 390 this kicker
+               is always two lines, and a mid-dot opening line 2 ("· SCANNED IN
+               PUBLIC") is the residue of the widow fix rather than a separator.
+               Two spans and a droppable one between them, so the phone gets two
+               clean lines and the desktop keeps one. -->
+          <p class="fy-kicker"><span>Supply-chain security</span><span class="fy-sep"
+          > &middot; </span><span>scanned in public</span></p>
           <!-- THE SPACE BEFORE THE BREAK IS LOAD-BEARING. At >=768 the <br> sets
                the two-line headline the reference uses; at <=767 the stylesheet
                hides it and the two text nodes close up — measured at 390 as

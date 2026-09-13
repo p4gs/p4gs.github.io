@@ -1077,7 +1077,7 @@ describe("A6 · the nested diagram is an irregular composition, three deep", () 
     expect(countOf(HOME, '<div class="fy-repeat" data-group="local">')).toBe(withLocal.length);
     // the dashed group carries the counter
     expect(HOME).toMatch(
-      /Only a maintainer's machine can answer these<\/span>\s*<span class="fy-repeat-count" aria-hidden="true">1&hellip;\d+<\/span>/,
+      /Maintainer&rsquo;s machine only<\/span>\s*<span class="fy-repeat-count" aria-hidden="true">(1|1&hellip;\d+)<\/span>/,
     );
     // the offset stacked-card edge, and it cannot reach the document edge
     expect(CSS).toContain("inset-block: 6px -6px; inset-inline: 6px -6px;");
@@ -1849,7 +1849,7 @@ describe("D6 + D7 · the chart plots the fact, and the lanes figure is ranked", 
       HOME.indexOf('class="fy-figure fy-triangle"'),
       HOME.indexOf("</figure>", HOME.indexOf('class="fy-figure fy-triangle"')),
     );
-    const labels = [...tri.matchAll(/<text class="fy-speed-label"[^>]*>([^<]+)<\/text>/g)].map(
+    const labels = [...tri.matchAll(/<span class="fy-speed-label"[^>]*>([^<]+)<\/span>/g)].map(
       (m) => m[1]!,
     );
     expect(labels.length).toBe(3);

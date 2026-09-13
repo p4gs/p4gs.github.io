@@ -380,8 +380,18 @@ export function nestedDiagram(o: NestedOpts): string {
         ? ""
         : `      <div class="fy-stack">
         <div class="fy-repeat" data-group="local">
-          <p class="fy-repeat-label"><span>Only a maintainer's machine can answer these</span>
-          <span class="fy-repeat-count" aria-hidden="true">1&hellip;${localOnly.length}</span></p>
+          <!-- A SHORT LABEL, because the counter is the reference's register:
+               its own groups are labelled in two words ("Containers",
+               "Development environments") against a one-line right-aligned
+               1-to-n. Ours paired the counter with a sentence, which pushed the
+               range onto a second line in every narrow region AT BOTH WIDTHS —
+               "…can  1…" over "answer these  1" reads as two unrelated figures,
+               and at a glance as a rendering fault in the diagram the chapter is
+               named for. A one-member group also counted "1…1". -->
+          <p class="fy-repeat-label"><span>Maintainer&rsquo;s machine only</span>
+          <span class="fy-repeat-count" aria-hidden="true">${
+            localOnly.length === 1 ? "1" : `1&hellip;${localOnly.length}`
+          }</span></p>
           <div class="fy-nodes">
 ${localOnly.map((id) => nodeChip(id, o)).join("\n")}
           </div>
@@ -576,45 +586,58 @@ export function barChart(): string {
       )}</title></rect>`;
     })
     .join("\n");
-  const labels = data
+  const width = BAR_X0 + data.length * (BAR_W + BAR_GAP) + 20;
+  // THE LABELS ARE HTML, NOT SVG TEXT — because an SVG label's RENDERED size is
+  // whatever the viewBox happens to scale to. Declared at 16px, they measured
+  // ~12px at 1440 (a quarter under the reference) and ~8-9px at 390, which is
+  // under any mobile reading floor; at 390 the ids were dropped entirely, so
+  // nine unlabelled heights sat on a bare axis with the key that decodes them
+  // several screens away. In HTML a px is a px at both widths. The positions are
+  // still derived from the same plot geometry the bars are drawn from, as
+  // percentages of the plot box, so the two cannot drift apart.
+  const pctX = (x: number) => `${((100 * x) / width).toFixed(3)}%`;
+  const values = data
     .map((d, i) => {
-      const x = BAR_X0 + i * (BAR_W + BAR_GAP) + BAR_W / 2;
       const h = Math.round(d.n * unit);
-      return `      <text class="fy-data-label" x="${x}" y="${
-        PLOT_BOTTOM - h - 10
-      }" text-anchor="middle">${d.n}</text>
-      <text class="fy-data-label" x="${x}" y="${
-        PLOT_BOTTOM + 22
-      }" text-anchor="middle">${d.id}</text>`;
+      const x = BAR_X0 + i * (BAR_W + BAR_GAP) + BAR_W / 2;
+      // Distance from the plot's bottom edge up to the bar's top, in viewBox
+      // units: 320 − (PLOT_BOTTOM − h).
+      const up = 320 - (PLOT_BOTTOM - h);
+      return `        <span class="fy-chart-value" style="left:${pctX(x)};bottom:${(
+        (100 * up) /
+        320
+      ).toFixed(3)}%">${d.n}</span>`;
     })
     .join("\n");
-  const width = BAR_X0 + data.length * (BAR_W + BAR_GAP) + 20;
+  const ids = data.map((d) => `    <span>${d.id}</span>`).join("\n");
   return `<div class="fy-chart-grid">
   <figure class="fy-chart-figure">
-    <svg class="fy-plot" viewBox="0 0 ${width} 320" role="img"
-      aria-label="How many of the 54 checks defend each of the nine attack groups, and how many of those only a maintainer's own machine can answer">
-      <title>Checks that defend each attack group, split by where an answer could come from</title>
-      <!-- A 3-of-7 duty cycle at 42% white averages the 0.18 the second fill
-           wants, and delivers it AS a hatch — so the two segments differ on
-           texture as well as on value, which survives greyscale. -->
-      <defs>
-        <pattern id="fy-chart-hatch" width="7" height="7" patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)">
-          <path d="M0 0V7" stroke="rgba(255, 255, 255, 0.42)" stroke-width="3"></path>
-        </pattern>
-      </defs>
-      <line class="fy-baseline" x1="${AXIS_X}" y1="${PLOT_TOP - 8}" x2="${AXIS_X}" y2="${PLOT_BOTTOM}"></line>
-      <line class="fy-baseline" x1="${AXIS_X}" y1="${PLOT_BOTTOM}" x2="${width - 12}" y2="${PLOT_BOTTOM}"></line>
+    <span class="fy-chart-ylabel" aria-hidden="true">checks that defend it</span>
+    <div class="fy-plot-wrap">
+      <svg class="fy-plot" viewBox="0 0 ${width} 320" preserveAspectRatio="none" role="img"
+        aria-label="How many of the 54 checks defend each of the nine attack groups, and how many of those only a maintainer's own machine can answer">
+        <title>Checks that defend each attack group, split by where an answer could come from</title>
+        <!-- A 3-of-7 duty cycle at 42% white averages the 0.18 the second fill
+             wants, and delivers it AS a hatch — so the two segments differ on
+             texture as well as on value, which survives greyscale. -->
+        <defs>
+          <pattern id="fy-chart-hatch" width="7" height="7" patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)">
+            <path d="M0 0V7" stroke="rgba(255, 255, 255, 0.42)" stroke-width="3"></path>
+          </pattern>
+        </defs>
+        <line class="fy-baseline" x1="${AXIS_X}" y1="${PLOT_TOP - 8}" x2="${AXIS_X}" y2="${PLOT_BOTTOM}"></line>
+        <line class="fy-baseline" x1="${AXIS_X}" y1="${PLOT_BOTTOM}" x2="${width - 12}" y2="${PLOT_BOTTOM}"></line>
 ${bars}
-      <g class="fy-label-scale">
-      <text class="fy-axis-label" x="${AXIS_X - 14}" y="${
-        (PLOT_TOP + PLOT_BOTTOM) / 2
-      }" text-anchor="middle" transform="rotate(-90 ${AXIS_X - 14} ${
-        (PLOT_TOP + PLOT_BOTTOM) / 2
-      })">checks that defend it</text>
-${labels}
-      </g>
-    </svg>
+      </svg>
+      <div class="fy-chart-values" aria-hidden="true">
+${values}
+      </div>
+    </div>
+    <p class="fy-chart-ids" aria-hidden="true">
+${ids}
+    </p>
+    <p class="fy-chart-axis" aria-hidden="true">Attack group</p>
   </figure>
   <div class="fy-chart-copy">
     <h2>Nine ways in, and how many checks answer each.</h2>
@@ -801,8 +824,18 @@ interface TracedOpts {
   trace: string;
   /** Checkpoints, each with its path fraction and its name. */
   nodes: Array<{ at: number; x: number; y: number; name: string; hollow?: boolean }>;
-  /** Anything drawn on top (labels). */
+  /** Anything drawn on top (labels), inside the svg. */
   overlay?: string;
+  /**
+   * HTML drawn over the svg, in the figure's own coordinate space.
+   *
+   * SVG text renders at whatever the viewBox scales to: the ranked figure's
+   * 14px labels measured ~12px at 1440 and ~8-9px at 390, in light grey on
+   * black, and those three names ARE the figure's content — the trace only
+   * encodes their order. HTML positioned in percentages of the same box keeps
+   * a px a px at both widths.
+   */
+  html?: string;
   /** Rendered under the figure as a readable list. */
   legend?: boolean;
 }
@@ -846,14 +879,23 @@ ${o.nodes
   .join("\n")}
   </ol>`
     : "";
-  return `<figure class="fy-figure ${o.kind}" data-figure-progress="1" data-figure-mode="static">
-  <svg class="fy-drawing" viewBox="${o.viewBox}" role="img" aria-label="${escapeHtml(o.label)}">
+  const svg = `  <svg class="fy-drawing" viewBox="${o.viewBox}" role="img" aria-label="${escapeHtml(
+    o.label,
+  )}">
     <title>${escapeHtml(o.label)}</title>
 ${o.structure}
     <path class="fy-trace" d="${o.trace}" pathLength="1" style="stroke-dasharray:1px"></path>
 ${nodes}
 ${o.overlay ?? ""}
-  </svg>
+  </svg>`;
+  const drawn = o.html
+    ? `  <div class="fy-drawing-box">
+${svg}
+${o.html}
+  </div>`
+    : svg;
+  return `<figure class="fy-figure ${o.kind}" data-figure-progress="1" data-figure-mode="static">
+${drawn}
 ${legend}
 </figure>`;
 }
@@ -932,28 +974,41 @@ export function triangleFigure(): string {
   const l2 = len(pts[1]!, pts[2]!);
   const total = l1 + l2;
   const at = [0, l1 / total, 1];
-  const overlay = `    <g class="fy-label-scale">
-      <text class="fy-speed-label" x="160" y="70" text-anchor="start">${escapeHtml(
-        LANE_NODES[0].name,
-      )}</text>
-      <text class="fy-speed-label" x="334" y="150" text-anchor="middle">${escapeHtml(
-        LANE_NODES[1].name,
-      )}</text>
-      <text class="fy-speed-label" x="508" y="288" text-anchor="end">${escapeHtml(
-        LANE_NODES[2].name,
-      )}</text>
-      <text class="fy-rank-label" x="20" y="100" text-anchor="start">strongest</text>
-      <text class="fy-rank-label" x="20" y="260" text-anchor="start">weakest</text>
-    </g>`;
+  const VB_W = 580;
+  const VB_H = 330;
+  const px = (x: number) => `${((100 * x) / VB_W).toFixed(3)}%`;
+  const py = (y: number) => `${((100 * y) / VB_H).toFixed(3)}%`;
+  // PLACED OFF THE TRACE'S OWN CORRIDOR, which is the whole reason the three
+  // differ. The line descends left to right through the figure, so "above,
+  // centred" is clear for the first node and crosses the line for the other
+  // two — the middle label was printed straight through it. The first is
+  // centred above its node (it used to START at the node, which read as
+  // off-centre against the thing the ranking is read from); the second sits
+  // above-right, where the line has already passed; the third sits below, where
+  // the line does not go at all.
+  const PLACE = ["above-center", "above-start", "below-end"] as const;
+  const OFFSET = [-14, -14, 14];
+  const html = `    <div class="fy-speed-labels" aria-hidden="true">
+${pts
+  .map(
+    (p, i) =>
+      `      <span class="fy-speed-label" data-place="${PLACE[i]}" style="left:${px(
+        p[0],
+      )};top:${py(p[1] + OFFSET[i]!)}">${escapeHtml(LANE_NODES[i]!.name)}</span>`,
+  )
+  .join("\n")}
+      <span class="fy-rank-label" style="left:${px(8)};top:${py(86)}">strongest</span>
+      <span class="fy-rank-label" style="left:${px(8)};top:${py(246)}">weakest</span>
+    </div>`;
   return tracedFigure({
     kind: "fy-triangle",
     label:
       "Three ways a record gets made, ranked: the project's own signed build, a scan from outside, and a maintainer's own machine",
-    viewBox: "0 0 580 330",
+    viewBox: `0 0 ${VB_W} ${VB_H}`,
     // The ladder the ranking is read against — three rungs, no closed shape.
     structure: `    <path class="fy-structure" d="M120 96H548M120 176H548M120 256H548"></path>`,
     trace: `M${pts[0]![0]} ${pts[0]![1]}L${pts[1]![0]} ${pts[1]![1]}L${pts[2]![0]} ${pts[2]![1]}`,
-    overlay,
+    html,
     nodes: pts.map((p, i) => ({
       at: at[i]!,
       x: p[0],

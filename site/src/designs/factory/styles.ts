@@ -300,12 +300,47 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-areas: "chart copy"; align-items: center; gap: clamp(48px, 6.5vw, 96px);
 }
-.fy-chart-figure { grid-area: chart; margin: 0; min-inline-size: 0; }
+/* THE PLOT IS SVG; EVERY LABEL IS HTML. A label inside a viewBox renders at
+   whatever the box scales to — 16px declared measured ~12px at 1440 and ~8-9px
+   at 390 — so the type is set in real CSS pixels beside the drawing and
+   positioned from the same plot geometry the bars use. The column rhythm below
+   is the bars' own: a 60/584 left inset, a 32/584 right inset, nine equal
+   columns and a 12/584 gap, which resolves each column to exactly one bar. */
+.fy-chart-figure {
+  grid-area: chart; margin: 0; min-inline-size: 0;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px;
+}
 .fy-chart-copy { grid-area: copy; min-inline-size: 0; }
-.fy-plot { inline-size: 100%; display: block; overflow: visible; }
-.fy-axis-label, .fy-data-label { fill: var(--fy-dark-ink); font-size: 16px; font-family: var(--fy-body); }
-.fy-data-label { font-variant-numeric: tabular-nums; }
-.fy-baseline { stroke: var(--fy-dark-axis); stroke-width: 1px; }
+.fy-chart-ylabel {
+  grid-column: 1; grid-row: 1; align-self: center;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 16px; line-height: 1.2; color: var(--fy-dark-ink);
+}
+.fy-plot-wrap { grid-column: 2; grid-row: 1; position: relative; aspect-ratio: 584 / 320; }
+.fy-plot { inline-size: 100%; block-size: 100%; display: block; }
+.fy-chart-values { position: absolute; inset: 0; pointer-events: none; }
+.fy-chart-value {
+  position: absolute; transform: translate(-50%, -6px);
+  font-family: var(--fy-mono); font-size: 16px; line-height: 1;
+  font-variant-numeric: tabular-nums; color: var(--fy-dark-ink);
+}
+.fy-chart-ids, .fy-chart-axis { grid-column: 2; }
+/* IDS IN MONO, like every other identifier on this site — the chart was the one
+   place the convention broke, on the same black block as the A1-A9 list that
+   keeps it. */
+.fy-chart-ids {
+  grid-row: 2; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr));
+  column-gap: calc(12 / 584 * 100%);
+  padding-inline: calc(60 / 584 * 100%) calc(32 / 584 * 100%);
+  margin-block-start: 6px; text-align: center;
+  font-family: var(--fy-mono); font-size: 16px; line-height: 1.2; color: var(--fy-dark-ink);
+}
+/* ONE centred axis word, which the reference has and this chart did not. */
+.fy-chart-axis {
+  grid-row: 3; margin-block-start: 10px; text-align: center;
+  font-size: 16px; line-height: 1.2; color: var(--fy-dark-quiet);
+}
+.fy-baseline { stroke: var(--fy-dark-axis); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 /* TWO NEUTRAL FILLS, AND NO ACCENT. The brand blue used to single out two bars
    for a fact the chart could not show; the split is plotted now, and a chart
    about where an answer could come from has no business borrowing the colour
@@ -348,13 +383,29 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
    cannot, because ANY CSS fill rule beats it, which is exactly how this shipped
    solid the first time. */
 .fy-figure .fy-speed-node.fy-node-hollow { fill: none; }
+/* The ranked figure's labels, in real CSS pixels over the drawing. */
+.fy-drawing-box { position: relative; }
+.fy-speed-labels { position: absolute; inset: 0; pointer-events: none; }
+/* max-content, because an absolutely positioned box with only an inline START
+   offset shrink-to-fits against the space to its RIGHT — and the transform that
+   right-anchors it runs after layout. The third label was therefore sized in a
+   12% gutter and broke into four lines that hung out of the figure. */
 .fy-speed-label {
-  fill: var(--fy-dark-ink); font-size: 14px; font-family: var(--fy-body);
+  position: absolute; color: var(--fy-dark-ink); font-size: 14px; line-height: 1.25;
+  inline-size: max-content; max-inline-size: min(46%, 240px); text-wrap: balance;
 }
+.fy-speed-label[data-place="above-center"] { transform: translate(-50%, -100%); text-align: center; }
+.fy-speed-label[data-place="above-start"] { transform: translateY(-100%); text-align: start; }
+.fy-speed-label[data-place="below-end"] { transform: translateX(-100%); text-align: end; }
 .fy-rank-label {
-  fill: var(--fy-dark-quiet); font-size: 12px; font-family: var(--fy-mono);
-  letter-spacing: 0.06em;
+  position: absolute; transform: translateY(-50%);
+  color: var(--fy-dark-quiet); font-size: 12px; font-family: var(--fy-mono);
+  letter-spacing: 0.06em; line-height: 1;
 }
+/* THE WEAKEST NODE IS HOLLOW AND DASHED — D7 specified both; only the hollow
+   half landed, so the one node the figure sets apart was set apart by half a
+   treatment. */
+.fy-figure .fy-speed-node.fy-node-hollow { stroke-dasharray: 3 3; }
 .fy-trace-legend {
   list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap;
   gap: 6px 18px; font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet);
@@ -567,11 +618,17 @@ main [id] { scroll-margin-top: 88px; }
 .fy-repeat[data-group="local"] {
   border-color: var(--fy-edge-violet); background: var(--fy-tint-violet);
 }
+/* THE COUNTER GETS ITS OWN CELL AND NEVER WRAPS. In a flex row it was free to
+   break between the ellipsis and the number, which is how "1…" and "6" ended up
+   on two lines at opposite ends of a two-line label. */
 .fy-repeat-label {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 12px;
   font-size: 14px; color: var(--fy-muted); margin-block-end: 10px;
 }
-.fy-repeat-count { font-family: var(--fy-mono); font-size: 13px; color: var(--fy-muted); }
+.fy-repeat-count {
+  font-family: var(--fy-mono); font-size: 13px; color: var(--fy-muted);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 .fy-nodes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .fy-node {
   min-block-size: 44px; display: flex; align-items: center; gap: 10px;
@@ -1387,20 +1444,28 @@ export const RESPONSIVE_CSS = `
   .fy-response-line { margin-block-start: 18px; font-size: 16px; line-height: 26px; }
 
   .fy-dark h2 { font-size: 32px; }
-  .fy-metrics { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 24px 28px; }
+  /* 1-UP. Two 124px columns gave every caption a three-line label and left the
+     fifth counter alone with the right half of its row empty. */
+  .fy-metrics { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .fy-metric-value { font-size: 42px; }
+  .fy-kicker .fy-sep { display: none; }
+  .fy-kicker span { display: block; }
   .fy-chapter h2 { font-size: 36px; letter-spacing: -0.72px; }
   .fy-chapter-lead { font-size: 17px; line-height: 28px; }
 
-  /* The bar chart's one genuinely clever trick: copy first, then a plot
-     stretched 1.35x vertically with the label group counter-scaled, so the
-     short bars stay legible on a narrow screen without the numbers stretching
-     with them. */
+  /* The bar chart: copy first, then a plot stretched 1.35x vertically so the
+     short bars stay legible on a narrow screen. The stretch is the WRAP's
+     aspect-ratio now, not a transform on the plot — the SVG carries
+     preserveAspectRatio="none", so the drawing stretches while every label,
+     being HTML positioned in percentages of the same box, keeps its real size
+     and lands where it did. The old counter-scaled label group is gone with it. */
   .fy-chart-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "chart"; gap: 36px; }
-  .fy-chart-figure { --fy-stretch: 1.35; aspect-ratio: 580 / calc(320 * var(--fy-stretch)); position: relative; overflow: hidden; }
-  .fy-plot { block-size: auto; transform: scaleY(var(--fy-stretch)); transform-origin: 0 0; position: absolute; inset-block-start: 0; inset-inline-start: 0; }
-  .fy-axis-label, .fy-data-label { font-size: 20px; }
-  .fy-label-scale { transform: scaleY(calc(1 / var(--fy-stretch))); transform-origin: 0 0; }
+  .fy-plot-wrap { aspect-ratio: 584 / 432; }
+  .fy-chart-ylabel, .fy-chart-axis { font-size: 12px; }
+  .fy-chart-value { font-size: 11px; }
+  /* The ids survive at 390 — nine unlabelled heights on a bare axis is not a
+     chart, and the list that would decode them is several screens away. */
+  .fy-chart-ids { font-size: 11px; column-gap: calc(12 / 584 * 100%); }
 
   .fy-trace-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   /* THE RAIL SPANS THE GUTTERS. Capped at 278px inside a 344px column it cost
@@ -1422,6 +1487,17 @@ export const RESPONSIVE_CSS = `
      stacks, so it goes rather than pointing at the edge of the screen. */
   .fy-ov-label::before, .fy-ov-label::after { content: none; }
   .fy-nodes { grid-template-columns: minmax(0, 1fr); }
+  /* A NESTED CHIP KEEPS ITS ID IN ONE PIECE. Indent plus a verdict pill plus a
+     "local" pill left ~95px for a mono identifier, so commit- / signing and
+     ai-dep- / gate split across two lines — while the un-nested chips beside
+     them did not. Identifiers are the one thing on this page a reader copies,
+     and the chips that broke were the class-C ones the whole honesty argument
+     is about. The group gives back its indent, the id stops breaking inside a
+     token, and the pills wrap to a second line instead. */
+  .fy-repeat { padding: 10px 8px; }
+  .fy-stack::before { inset-block: 4px -4px; inset-inline: 4px -4px; }
+  .fy-node { flex-wrap: wrap; }
+  .fy-node-label { overflow-wrap: normal; }
   /* The composition collapses to one column in PHASES order, which is the
      source order — every slot rule is dropped rather than re-pointed. */
   .fy-regions { grid-template-columns: minmax(0, 1fr); }
@@ -1578,6 +1654,19 @@ export const RESPONSIVE_CSS = `
   .fy-ph-count { float: none; display: block; margin-block-start: 4px; }
   .fy-panel-port { padding: 14px; }
   .fy-cards { grid-template-columns: minmax(0, 1fr); }
+
+  /* EVERY LABEL-PLUS-ITEMS ROW BECOMES A LIST. Centred and wrapped, each of
+     these captured its first item with the run-in label and then landed every
+     wrapped line on a different left edge — which, for a KEY, defeats the one
+     thing a key exists to do: let you scan a column of marks. The label takes
+     its own line and the items align to one edge. */
+  .fy-legend, .fy-trace-legend, .fy-verdict-key, .fy-phase-names, .fy-key {
+    flex-direction: column; align-items: flex-start; justify-content: flex-start;
+    text-align: start;
+  }
+  .fy-ctl-bar { justify-content: flex-start; }
+  .fy-ctl-bar .fy-key-label, :root .design-switcher .ds-label { flex: 0 0 100%; }
+  :root .design-switcher { justify-content: flex-start; }
 
   /* The flow turns the corner: inputs, then checks, then the record, with the
      wires redrawn as a short vertical run and a downward arrow. The stretched
