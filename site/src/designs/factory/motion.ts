@@ -333,6 +333,32 @@ export const MOTION_CSS = `
 }
 .fy-wrap[data-overflow-start="true"] { --fy-mask-start: rgba(0, 0, 0, 0); }
 .fy-wrap[data-overflow-end="true"] { --fy-mask-end: rgba(0, 0, 0, 0); }
+/* THE SAME AFFORDANCE ON THE SHARED SCROLL CONTAINERS. Five methodology tables
+   — including the one that carries all 54 checks, their questions and the groups
+   each defends — are 560-640px wide inside a 344px window at 390, so every
+   question was cut mid-word at the viewport edge and the whole third column was
+   off screen, with no fade, no shadow and no scrollbar to say so. The document
+   never widens, which is why every overflow probe stayed green. */
+.table-scroll {
+  --fy-mask-start: rgba(0, 0, 0, 1);
+  --fy-mask-end: rgba(0, 0, 0, 1);
+  transition-property: --fy-mask-start, --fy-mask-end;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-mask-image: linear-gradient(to right, var(--fy-mask-start) 0, #000 24px,
+    #000 calc(100% - 24px), var(--fy-mask-end) 100%);
+  mask-image: linear-gradient(to right, var(--fy-mask-start) 0, #000 24px,
+    #000 calc(100% - 24px), var(--fy-mask-end) 100%);
+}
+.table-scroll[data-overflow-start="true"] { --fy-mask-start: rgba(0, 0, 0, 0); }
+.table-scroll[data-overflow-end="true"] { --fy-mask-end: rgba(0, 0, 0, 0); }
+.table-scroll:focus-visible { outline: 2px solid var(--fy-ring); outline-offset: -2px; }
+/* The cue itself, because a fade alone still asks the reader to guess. */
+.fy-swipe {
+  display: block; margin-block-start: 8px; font-family: var(--fy-mono);
+  font-size: 12px; line-height: 18px; color: var(--fy-muted);
+}
+.fy-dark .fy-swipe { color: var(--fy-dark-quiet); }
 
 /* The toggletip. 0.4 s in with an 8px rise, 0.2 s out the way it came —
    side-aware, so a panel that opened upward closes upward.
@@ -754,11 +780,25 @@ export const MOTION_SCRIPT = `(function () {
     each(inputs, function (input) { input.addEventListener("change", sync); });
     sync();
   });
-  each(document.querySelectorAll(".fy-wrap"), function (wrap) {
+  // The design's own wraps AND the shared .table-scroll containers, which ship
+  // no affordance of their own: a 640px table in a 344px window cut every
+  // question mid-word with nothing on the page saying more was there.
+  each(document.querySelectorAll(".fy-wrap, .table-scroll"), function (wrap) {
+    var cue = null;
+    if (wrap.className.indexOf("table-scroll") !== -1) {
+      if (!wrap.hasAttribute("tabindex")) wrap.setAttribute("tabindex", "0");
+      cue = document.createElement("span");
+      cue.className = "fy-swipe";
+      cue.setAttribute("aria-hidden", "true");
+      cue.hidden = true;
+      cue.textContent = "swipe to see the rest \\u2192";
+      if (wrap.parentNode) wrap.parentNode.insertBefore(cue, wrap.nextSibling);
+    }
     var sync = function () {
       var max = wrap.scrollWidth - wrap.clientWidth;
       wrap.setAttribute("data-overflow-start", max > 1 && wrap.scrollLeft > 1 ? "true" : "false");
       wrap.setAttribute("data-overflow-end", max > 1 && wrap.scrollLeft < max - 1 ? "true" : "false");
+      if (cue) cue.hidden = max <= 1;
     };
     wrap.addEventListener("scroll", sync, { passive: true });
     addEventListener("resize", sync);

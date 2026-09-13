@@ -1074,8 +1074,15 @@ function loopCard(s: LoopStage, i: number, n: number): string {
   const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
   const x = 50 + 30 * Math.cos(angle);
   const y = 50 + 30 * Math.sin(angle);
+  // `--fy-rail-order` is what interleaves the compact rail at ≤767: the cards
+  // and the connectors live in two sibling containers, so the only way to get a
+  // connector BETWEEN two cards is to flatten both containers and order the
+  // items. The number is derived here rather than written as five literals in
+  // the stylesheet, so a sixth stage rails itself.
   return `    <li class="fy-loop-card" data-stage="${s.id}"
-      style="--fy-circle-x:${x.toFixed(3)}%;--fy-circle-y:${y.toFixed(3)}%">
+      style="--fy-circle-x:${x.toFixed(3)}%;--fy-circle-y:${y.toFixed(
+        3,
+      )}%;--fy-rail-order:${i * 2 + 1}">
       <svg class="fy-card-ring" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
         <circle cx="50" cy="50" r="49.5" pathLength="150"></circle>
       </svg>
@@ -1100,7 +1107,7 @@ function loopConnector(i: number, n: number, edge: string): string {
   return `    <div class="fy-connector" data-loop-edge="${edge}"
       style="--fy-edge-x:${mx.toFixed(3)}%;--fy-edge-y:${my.toFixed(3)}%;--fy-edge-a:${deg.toFixed(
         2,
-      )}deg">
+      )}deg;--fy-rail-order:${i * 2 + 2}">
       <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
         <path class="fy-edge-base" d="${LOOP_EDGE_PATH}"></path>
         <path class="fy-edge-highlight" d="${LOOP_EDGE_PATH}"></path>

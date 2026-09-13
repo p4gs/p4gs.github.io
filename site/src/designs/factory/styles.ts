@@ -1403,9 +1403,16 @@ export const RESPONSIVE_CSS = `
   .fy-label-scale { transform: scaleY(calc(1 / var(--fy-stretch))); transform-origin: 0 0; }
 
   .fy-trace-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  /* THE RAIL SPANS THE GUTTERS. Capped at 278px inside a 344px column it cost
+     three things at once: one pill less of capacity on the two longest pages,
+     a left edge indented ~34px from every other element, and — because the
+     opaque plate was NARROWER than the measure — a line passing under it was
+     left visible on BOTH sides, so "ar … an" and "ings" survived beside the
+     chrome as word fragments. The reference's own 390 rail is full-bleed; ours
+     takes a 20px gutter and clips at the screen edge instead. */
   .fy-chapters {
-    margin-top: 80px; inset-block-start: 8px;
-    max-inline-size: calc(100% - var(--fy-gutter) * 2 - 64px);
+    margin: 80px 20px 0; inset-block-start: 8px;
+    inline-size: calc(100% - 40px); max-inline-size: none;
   }
   .fy-chapters a { padding: 10px 12px; font-size: 13px; }
 
@@ -1438,10 +1445,34 @@ export const RESPONSIVE_CSS = `
      property of the viewport, so the media query is the only thing that should
      know about it. */
   .fy-loop-stage { padding: 16px; }
+  /* SYMMETRIC. The 20px the rail reserves for its return bracket was taken off
+     the left only, so the cards sat 10px right of the stage's centre and the
+     gutter the reference fills with a return line was reserved and empty. */
   .fy-process {
     inline-size: 100%; margin-inline: 0; margin-block: 0;
     aspect-ratio: auto; display: grid; grid-template-columns: minmax(0, 1fr);
-    gap: 24px; padding-inline-start: 20px;
+    gap: 10px; padding-inline: 20px;
+  }
+  /* THE RAIL IS THE REFERENCE'S COMPACT RAIL, AND IT IS A LOOP. Five stacked
+     cards with no connector and no return read as a numbered list on a phone —
+     on the chapter named "The loop". The cards and the connectors live in two
+     sibling containers, so both are flattened into the rail's own grid and the
+     items carry the order the renderer derived; the fifth edge (05 back to 01)
+     is the RETURN and is drawn in the gutter instead of the flow. */
+  .fy-loop-cards, .fy-connections { display: contents; }
+  .fy-loop-card, .fy-connector { order: var(--fy-rail-order, 0); }
+  .fy-connector {
+    display: block; position: relative; inset: auto; transform: none;
+    inline-size: 100%; block-size: 22px;
+  }
+  .fy-connector svg { display: none; }
+  /* The dotted run, aligned with the step-number gutter inside the cards. */
+  .fy-connector::before {
+    content: ""; position: absolute; inset-block: 0; inset-inline-start: 31px;
+    border-inline-start: 1px dotted var(--fy-accent); opacity: 0.75;
+  }
+  .fy-connector[data-edge-state="running"]::before {
+    border-inline-start-style: solid; opacity: 1;
   }
   /* RELATIVE, NOT STATIC. The active and arrival rings are absolutely
      positioned at inset -1px and take their containing block from the nearest
@@ -1455,14 +1486,21 @@ export const RESPONSIVE_CSS = `
      STATIC card ignores and a RELATIVE one obeys: the first cut of this fix
      scattered all five cards by their circle coordinates and pushed the
      document to 575px wide at 390. Measured, both times. */
+  /* THE STEP NUMBER SITS IN A LEFT GUTTER BESIDE THE TITLE, which is the
+     reference's own compact card — ours stacked it above, where it read as a
+     caption rather than as a position in a sequence. The gutter is also what
+     the connector's dotted run lines up with. */
   .fy-loop-card {
     position: relative; inset-block-start: auto; inset-inline-start: auto;
-    transform: none; inline-size: 100%; block-size: auto; min-block-size: 96px;
+    transform: none; inline-size: 100%; block-size: auto; min-block-size: 84px;
     border-radius: 8px; border-color: color-mix(in srgb, var(--fy-ink) 44%, transparent);
-    padding: 16px; place-content: start; text-align: start;
+    padding: 14px 16px; text-align: start;
+    grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px;
+    place-content: start stretch; align-items: baseline;
   }
-  .fy-card-title { font-size: 17px; }
-  .fy-card-body { font-size: 13px; }
+  .fy-card-meta { grid-column: 1; grid-row: 1; }
+  .fy-card-title { grid-column: 2; grid-row: 1; font-size: 17px; margin-block-start: 0; }
+  .fy-card-body { grid-column: 2; grid-row: 2; font-size: 13px; }
   .fy-card-ring { display: none; }
   .fy-context-store {
     position: static; transform: none; inline-size: 100%; block-size: auto; min-block-size: 64px;
@@ -1476,11 +1514,23 @@ export const RESPONSIVE_CSS = `
      card, so the halo that bled 9px of document past the right edge at 390 has
      nothing left to be a halo of — it goes, and the stage needs no clip. */
   .fy-context-pattern, .fy-context-pulse { display: none; }
-  .fy-connections { position: static; }
-  .fy-connector { display: none; }
+  /* THE RETURN BRACKET, in the gutter the rail reserves for it: 05 back to 01,
+     with the arrowhead at the top. Drawn with borders rather than the desktop
+     arc — a path whose 120-unit box is squeezed into 20px renders as a smudge,
+     which is what the rail shipped with. */
   .fy-connector[data-loop-edge="rescan"] {
-    display: block; position: absolute; inline-size: 20px; block-size: auto;
-    inset-block: 120px 16px; inset-inline-start: 0; transform: none;
+    display: block; position: absolute; inline-size: 14px; block-size: auto;
+    inset-block: 118px 26px; inset-inline-start: 3px; transform: none; order: 0;
+  }
+  .fy-connector[data-loop-edge="rescan"]::before {
+    content: ""; position: absolute; inset-block: 0; inset-inline: 0 auto;
+    inline-size: 14px; border: 1px dotted var(--fy-accent); border-inline-end: 0;
+    border-start-start-radius: 7px; border-end-start-radius: 7px; opacity: 0.75;
+  }
+  .fy-connector[data-loop-edge="rescan"]::after {
+    content: ""; position: absolute; inset-block-start: 0; inset-inline-start: 11px;
+    inline-size: 6px; block-size: 6px; border-block-start: 1px solid var(--fy-accent);
+    border-inline-end: 1px solid var(--fy-accent); transform: rotate(-45deg);
   }
   /* GATED ON THE EDGE ACTUALLY RUNNING, not on the layout being compact.
      Keyed on a layout class this rule outranked the reduced-motion and
@@ -1494,7 +1544,6 @@ export const RESPONSIVE_CSS = `
     border-radius: 50%; background: var(--fy-ink);
     box-shadow: 0 0 0 1px var(--fy-ground); inset-block-start: 0; inset-inline-start: 7px;
   }
-  .fy-connector[data-loop-edge="rescan"] svg { block-size: 100%; }
   /* THE LISTING RESTACKS INTO CARDS, it does not side-scroll. A five-column
      results table in a 350px wrap means dragging sideways to find out who ran
      the scan and when — the two columns a reader most often wants — and the
