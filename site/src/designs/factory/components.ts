@@ -833,7 +833,42 @@ ${edges}
 /* ══ 4.9 the segmented explorer ══════════════════════════════════════════ */
 
 /**
- * "Every check" — six segments, one per phase, and one typed card per control.
+ * The three things a scan reads, as the flow diagram's Inputs column.
+ *
+ * Typed by evidence class, so the tint on an input card means exactly what the
+ * same tint means on a check card two columns to the right: this is the kind of
+ * thing that answers it. Class A′ shares A's tint and its column entry — "the
+ * build files the project commits" is committed files read a second way, not a
+ * fourth source.
+ */
+const FLOW_INPUTS: ReadonlyArray<{ cls: EvidenceClass; line: string }> = [
+  { cls: "A", line: "Everything in the tree at one commit, read and never run." },
+  { cls: "B", line: "A live read of what the project has switched on at GitHub." },
+  { cls: "C", line: "Reachable from one machine only, and only by its owner." },
+];
+
+/** The bracket that gathers the three inputs into the checks column. */
+const FLOW_WIRE_BRACKET = `<svg class="fy-flow-lines" viewBox="0 0 56 100"
+        preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path d="M0 16H22M0 50H22M0 84H22M22 16V84M22 50H52"></path>
+      </svg>`;
+
+/** The single run from the checks column into the record. */
+const FLOW_WIRE_RUN = `<svg class="fy-flow-lines" viewBox="0 0 56 100"
+        preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path d="M0 50H52"></path>
+      </svg>`;
+
+/**
+ * "Every check" — the reference's flow diagram, with six segments selecting
+ * what sits in its middle column.
+ *
+ * The cards were always right and always orphaned: fifty-four typed panels
+ * behind a phase picker, with nothing on the page saying where they come from
+ * or what they produce. The reference draws the same component as a left-to-
+ * right flow — Inputs, the dotted working viewport, Outputs — and that shape
+ * happens to be the true one here: three evidence sources feed the checks, and
+ * the checks produce one record.
  *
  * The segmented control is real radio inputs with a checked-label background
  * that cross-fades in 0.15 s. THERE IS NO SLIDING THUMB: the reference has
@@ -885,21 +920,57 @@ ${cards}
   // The legend paints the CARD's own tokens, not a second opinion about them.
   // Keyed off the evidence class it mapped `meta` and `artifact` to the same
   // grey, so two of the four types were indistinguishable in the one place that
-  // exists to distinguish them.
+  // exists to distinguish them. Dots rather than swatches, and one dotted-square
+  // glyph for the frame the phase's checks sit in — the reference's own key.
   const legend = CARD_LEGEND.map(
     (t) =>
-      `<span><span class="fy-legend-swatch" data-reference-type="${t.type}"></span>${escapeHtml(
+      `<span><span class="fy-legend-dot" data-reference-type="${t.type}"></span>${escapeHtml(
         t.label,
       )}</span>`,
   ).join("\n    ");
+  const inputs = FLOW_INPUTS.map(
+    (i) => `      <div class="fy-flowcard" data-reference-type="${CARD_TYPE[i.cls]}">
+        <span class="fy-flowcard-title">${escapeHtml(CLASS_SHORT[i.cls])}</span>
+        <span class="fy-flowcard-line">${escapeHtml(i.line)}</span>
+      </div>`,
+  ).join("\n");
   return `<div class="fy-explorer">
+  <p class="fy-legend"><span class="fy-key-label">Key</span>
+    ${legend}
+    <span><span class="fy-legend-frame"></span>the phase these checks belong to</span>
+  </p>
   <div class="fy-segmented" role="radiogroup" aria-label="Pick a phase" data-segmented>
 ${options}
   </div>
+  <div class="fy-flow">
+    <div class="fy-flow-grid">
+      <p class="fy-flow-head" data-flow-head="in">Inputs</p>
+      <p class="fy-flow-head" data-flow-head="checks">Checks</p>
+      <p class="fy-flow-head" data-flow-head="out">Record</p>
+      <div class="fy-flow-band" data-flow-band="in">
+        <div class="fy-flow-col">
+${inputs}
+        </div>
+        <div class="fy-flow-wire" aria-hidden="true">${FLOW_WIRE_BRACKET}</div>
+      </div>
+      <div class="fy-flow-band" data-flow-band="checks">
+        <div class="fy-flow-col">
 ${panels}
-  <p class="fy-legend">
-    ${legend}
-  </p>
+        </div>
+        <div class="fy-flow-wire" aria-hidden="true">${FLOW_WIRE_RUN}</div>
+      </div>
+      <div class="fy-flow-band" data-flow-band="out">
+        <div class="fy-flow-col">
+          <div class="fy-flowcard fy-flowcard-record" data-flow="record">
+            <span class="fy-flowcard-title">One listing</span>
+            <span class="fy-flowcard-line">A grade &middot; ${PHASES.length} phase bars &middot;
+            every check with its verdict &mdash; passed, failed, no defence found, or no answer
+            at all.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>`;
 }
 

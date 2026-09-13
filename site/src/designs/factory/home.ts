@@ -257,6 +257,13 @@ function chapterChecks(ctx: DesignCtx): string {
       <p class="fy-chapter-lead">Pick a phase. Every check in it is a card, and every card is a
       question you can answer yes or no.</p>
     </div>
+  </div>
+  <!-- THE FLOW TAKES THE MEDIA FRAME, not the prose wrap. The reference's own
+       viewport is 1376 wide, and at 1120 the checks column is too narrow to
+       hold two card columns — which makes the middle band twice as tall as it
+       needs to be and pushes the Inputs and Record columns, which centre
+       against it, far down the page. -->
+  <div class="fy-mediaframe">
     ${explorer(ctx.h)}
   </div>
 </section>`;

@@ -647,9 +647,85 @@ main [id] { scroll-margin-top: 88px; }
   background: var(--fy-ground); color: var(--fy-ink); box-shadow: rgba(0, 9, 68, 0.08) 0 1px 3px;
 }
 .fy-seg-input:focus-visible + .fy-seg-label { outline: 2px solid var(--fy-ring); outline-offset: -2px; }
+/* ── the flow diagram the cards now live inside ─────────────────────────────
+   The reference draws this component as a left-to-right flow — Inputs, a
+   dotted working viewport, Outputs — on a dotted-grid stage, and that shape is
+   the true one here: three evidence sources feed the checks, and the checks
+   produce one record. Before this the cards were right and orphaned: fifty-four
+   typed panels behind a phase picker with nothing saying where they came from
+   or what they made.
+
+   THE BANDS ARE WHAT MAKES THE WIRING LINE UP. Each band is its own two-column
+   grid (content + a 56px wire) with align-content center, so the wire's row
+   is exactly as tall as the column beside it — which is what lets the bracket's
+   arms at 16 / 50 / 84 % land on the three input cards' centres, and what puts
+   every band's content centre on the same y. A wire stretched to the GRID row
+   instead would take its percentages from the tallest column on the page. */
+.fy-flow {
+  margin-block-start: 28px; border: 1px dashed var(--fy-edge-grey); border-radius: 8px;
+  padding: 20px 24px 24px;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.7px, rgba(0, 0, 0, 0) 0.9px);
+  background-size: 6px 6px;
+}
+.fy-flow-grid {
+  display: grid; align-items: stretch; row-gap: 16px;
+  grid-template-columns: minmax(190px, 1fr) minmax(0, 3fr) minmax(190px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+/* The three heads are ONE row of the OUTER grid, so they line up across the
+   stage. They cannot live inside the bands: a band centres its content against
+   the tallest column on the stage, which would push the Inputs head halfway
+   down the page — measured, and it is what the first cut of this shipped. */
+.fy-flow-head {
+  grid-row: 1; font-family: var(--fy-mono); font-size: 13px;
+  letter-spacing: 0.06em; color: var(--fy-muted); text-align: center;
+}
+.fy-flow-head[data-flow-head="in"] { grid-column: 1; padding-inline-end: 56px; }
+.fy-flow-head[data-flow-head="checks"] { grid-column: 2; padding-inline-end: 56px; }
+.fy-flow-head[data-flow-head="out"] { grid-column: 3; }
+.fy-flow-band {
+  position: relative; grid-row: 2; display: grid; align-content: center;
+  grid-template-columns: minmax(0, 1fr) 56px;
+}
+.fy-flow-band[data-flow-band="in"] { grid-column: 1; }
+.fy-flow-band[data-flow-band="checks"] { grid-column: 2; }
+.fy-flow-band[data-flow-band="out"] { grid-column: 3; grid-template-columns: minmax(0, 1fr); }
+/* The column separators: the reference's faint dotted rules at the boundaries,
+   drawn on the band rather than as items so they cannot fall out of step with
+   the columns they divide, and lifted to start beside the heads. */
+.fy-flow-band:not([data-flow-band="out"])::after {
+  content: ""; position: absolute; inset-block: -36px 0; inset-inline-end: 0;
+  border-inline-start: 1px dotted rgba(0, 0, 0, 0.16);
+}
+.fy-flow-col { grid-column: 1; display: grid; gap: 12px; align-content: center; }
+.fy-flow-wire { grid-column: 2; position: relative; }
+.fy-flow-lines {
+  inline-size: 100%; block-size: 100%; display: block; overflow: visible;
+  fill: none; stroke: #9a9a9a; stroke-width: 1px; vector-effect: non-scaling-stroke;
+}
+.fy-flow-lines path { vector-effect: non-scaling-stroke; }
+.fy-flow-wire::after {
+  content: ""; position: absolute; inset-inline-end: 4px; inset-block-start: 50%;
+  inline-size: 7px; block-size: 7px; border-block-start: 1px solid #9a9a9a;
+  border-inline-end: 1px solid #9a9a9a; transform: translateY(-50%) rotate(45deg);
+}
+.fy-flowcard {
+  border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start;
+  --fy-ref-bg: var(--fy-surface); --fy-ref-edge: var(--fy-edge-grey); --fy-ref-ink: #181818;
+  background: var(--fy-ref-bg); border: 1px solid var(--fy-ref-edge); color: var(--fy-ref-ink);
+}
+.fy-flowcard[data-reference-type="observed"] { --fy-ref-bg: #e8f3fe; --fy-ref-edge: var(--fy-edge-blue); }
+.fy-flowcard[data-reference-type="artifact"] { --fy-ref-bg: var(--fy-surface); --fy-ref-edge: var(--fy-edge-grey); }
+.fy-flowcard[data-reference-type="local"] { --fy-ref-bg: #ede5fc; --fy-ref-edge: var(--fy-edge-violet); }
+/* The record is not an evidence class and takes no tint: the four tints encode
+   the class and nothing else. It takes the reference's emphasis type instead —
+   white on an ink hairline — because it is the thing the whole flow produces. */
+.fy-flowcard-record { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }
+.fy-flowcard-title { font-size: 15px; font-weight: 500; }
+.fy-flowcard-line { font-size: 14px; line-height: 20px; color: var(--fy-quiet); }
 .fy-panel-port {
-  margin-block-start: 32px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--fy-hair); border-radius: 8px; padding: 20px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border: 1px dotted var(--fy-dash); border-radius: 8px; padding: 20px;
 }
 .fy-panel-port:focus-visible { outline: 2px solid var(--fy-ring); outline-offset: 3px; }
 .fy-panel-note { font-size: 14px; line-height: 21px; color: var(--fy-muted); margin-block-end: 16px; }
@@ -670,19 +746,26 @@ main [id] { scroll-margin-top: 88px; }
 }
 .fy-refcard-id { font-family: var(--fy-mono); font-size: 13px; overflow-wrap: anywhere; }
 .fy-refcard-q { font-size: 14px; line-height: 20px; color: var(--fy-quiet); }
+/* The key sits ABOVE the panel it explains, as the reference's does, and reads
+   as dots plus one dotted-square glyph rather than as four filled swatches —
+   a swatch the size of a word competes with the cards it is describing. */
 .fy-legend {
-  display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: center;
-  margin-block-start: 24px; font-size: 14px; color: var(--fy-muted);
+  display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: center; align-items: center;
+  margin-block: 24px 20px; font-size: 14px; color: var(--fy-muted);
 }
-.fy-legend-swatch {
-  inline-size: 14px; block-size: 14px; border-radius: 4px; display: inline-block;
-  margin-inline-end: 8px; vertical-align: -2px;
+.fy-legend-dot {
+  inline-size: 11px; block-size: 11px; border-radius: 50%; display: inline-block;
+  margin-inline-end: 8px; vertical-align: -1px;
   background: var(--fy-ref-bg, var(--fy-surface)); border: 1px solid var(--fy-ref-edge, var(--fy-edge-grey));
 }
-.fy-legend-swatch[data-reference-type="observed"] { --fy-ref-bg: #e8f3fe; --fy-ref-edge: var(--fy-edge-blue); }
-.fy-legend-swatch[data-reference-type="artifact"] { --fy-ref-bg: var(--fy-surface); --fy-ref-edge: var(--fy-edge-grey); }
-.fy-legend-swatch[data-reference-type="local"] { --fy-ref-bg: #ede5fc; --fy-ref-edge: var(--fy-edge-violet); }
-.fy-legend-swatch[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }
+.fy-legend-dot[data-reference-type="observed"] { --fy-ref-bg: #a4cdfb; --fy-ref-edge: var(--fy-edge-blue); }
+.fy-legend-dot[data-reference-type="artifact"] { --fy-ref-bg: var(--fy-surface); --fy-ref-edge: #9a9a9a; }
+.fy-legend-dot[data-reference-type="local"] { --fy-ref-bg: #c9b1f6; --fy-ref-edge: var(--fy-edge-violet); }
+.fy-legend-dot[data-reference-type="meta"] { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }
+.fy-legend-frame {
+  inline-size: 12px; block-size: 12px; border-radius: 2px; display: inline-block;
+  margin-inline-end: 8px; vertical-align: -2px; border: 1px dotted var(--fy-dash);
+}
 
 /* ══ the scrollable table wrap ═══════════════════════════════════════════ */
 .fy-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -1089,6 +1172,36 @@ export const RESPONSIVE_CSS = `
   .fy-ph-count { float: none; display: block; margin-block-start: 4px; }
   .fy-panel-port { padding: 14px; }
   .fy-cards { grid-template-columns: minmax(0, 1fr); }
+
+  /* The flow turns the corner: inputs, then checks, then the record, with the
+     wires redrawn as a short vertical run and a downward arrow. The stretched
+     SVG brackets are HIDDEN rather than rotated — a path whose x and y are
+     scaled independently cannot be rotated into a legible vertical. */
+  .fy-flow { padding: 16px; }
+  .fy-flow-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 14px; }
+  .fy-flow-band, .fy-flow-band[data-flow-band="out"] { grid-template-columns: minmax(0, 1fr); }
+  .fy-flow-band:not([data-flow-band="out"])::after { content: none; }
+  /* Source order is heads-then-bands, which is what lets the heads be one row
+     at desktop; the order property interleaves them again when stacked. */
+  .fy-flow-head, .fy-flow-band { grid-column: 1; grid-row: auto; }
+  .fy-flow-head { text-align: start; padding-inline-end: 0; }
+  .fy-flow-head[data-flow-head="in"] { order: 1; }
+  .fy-flow-band[data-flow-band="in"] { order: 2; }
+  .fy-flow-head[data-flow-head="checks"] { order: 3; }
+  .fy-flow-band[data-flow-band="checks"] { order: 4; }
+  .fy-flow-head[data-flow-head="out"] { order: 5; }
+  .fy-flow-band[data-flow-band="out"] { order: 6; }
+  .fy-flow-col { grid-column: 1; grid-row: 1; }
+  .fy-flow-wire { grid-column: 1; grid-row: 2; block-size: 26px; }
+  .fy-flow-lines { display: none; }
+  .fy-flow-wire::before {
+    content: ""; position: absolute; inset-inline-start: 50%; inset-block: 0 8px;
+    border-inline-start: 1px solid #9a9a9a;
+  }
+  .fy-flow-wire::after {
+    inset-inline: auto; inset-inline-start: 50%; inset-block-start: auto; inset-block-end: 1px;
+    transform: translateX(-50%) rotate(135deg);
+  }
   .fy-figs { gap: 24px; }
   .fy-fig-num { font-size: 42px; }
   .fy-pagehead { padding-block: 40px 24px; }

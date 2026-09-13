@@ -37,6 +37,7 @@ import {
 } from "../src/designs/factory/motion";
 import { mazeRoute } from "../src/designs/factory/components";
 import { CONTROL_COUNT, CONTROL_REGISTRY } from "../src/reclassify";
+import { CLASS_SHORT } from "../src/designs/factory/components";
 import { PHASES } from "../src/scoring";
 import { ATTACK_CLASSES, controlsDefending, type AttackClassId } from "../src/threats";
 import { ctxFor, RECORDS } from "./fixtures";
@@ -586,7 +587,7 @@ describe("what the browser found, and what keeps it found", () => {
     // Keyed off the evidence class it gave `meta` and `artifact` the same grey,
     // so two of the four types were identical in the one place that exists to
     // tell them apart.
-    const types = attrOfEach(HOME, ".fy-legend-swatch", "data-reference-type");
+    const types = attrOfEach(HOME, ".fy-legend-dot", "data-reference-type");
     expect(types).toEqual(["observed", "artifact", "local", "meta"]);
     const cardTypes = [...new Set(attrOfEach(HOME, ".fy-refcard", "data-reference-type"))].sort();
     expect(types.slice().sort()).toEqual(cardTypes);
@@ -847,5 +848,117 @@ describe("A4 + E2 · the pill nav is on all four pages, and every pill resolves"
   test("the dead empty-state script placeholder is gone", () => {
     expect(DIRECTORY).not.toContain("DIR_EMPTY_SCRIPT");
     expect(attrOfEach(DIRECTORY, "script[src]", "src").length).toBe(1);
+  });
+});
+
+describe("A5 · the explorer is the reference's flow diagram", () => {
+  test("three mono column headers name the flow, left to right", () => {
+    expect(HOME).toContain(`<p class="fy-flow-head" data-flow-head="in">Inputs</p>`);
+    expect(HOME).toContain('<p class="fy-flow-head" data-flow-head="checks">Checks</p>');
+    expect(HOME).toContain('<p class="fy-flow-head" data-flow-head="out">Record</p>');
+    expect(CSS).toMatch(/\.fy-flow-head \{[^}]*font-family: var\(--fy-mono\)/);
+  });
+
+  test("the Inputs column is the three evidence sources, typed by class", () => {
+    const types = attrOfEach(HOME, ".fy-flowcard", "data-reference-type");
+    expect(types).toEqual(["observed", "artifact", "local"]);
+    // the words are the registry's own short names, not a second vocabulary
+    for (const cls of ["A", "B", "C"] as const) {
+      const esc = CLASS_SHORT[cls].replaceAll("'", "&#39;");
+      expect(HOME).toContain(`<span class="fy-flowcard-title">${esc}</span>`);
+    }
+  });
+
+  test("the Record column is one card in the emphasis type, and carries no tint", () => {
+    expect(countOf(HOME, 'class="fy-flowcard fy-flowcard-record" data-flow="record"')).toBe(1);
+    expect(CSS).toContain(".fy-flowcard-record { --fy-ref-bg: #ffffff; --fy-ref-edge: #262626; }");
+    // it is an OUTPUT, not an evidence class: no data-reference-type on it, or
+    // the four tints would be encoding two different things.
+    const record = HOME.slice(
+      HOME.indexOf('class="fy-flowcard fy-flowcard-record"'),
+      HOME.indexOf("</div>", HOME.indexOf('class="fy-flowcard fy-flowcard-record"')),
+    );
+    expect(record).not.toContain("data-reference-type");
+    expect(record).toContain(`${PHASES.length} phase bars`);
+  });
+
+  test("the stage is dotted-grid with a dotted working viewport inside it", () => {
+    expect(CSS).toContain("border: 1px dashed var(--fy-edge-grey); border-radius: 8px;");
+    expect(CSS).toContain(
+      "background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.7px, rgba(0, 0, 0, 0) 0.9px);",
+    );
+    expect(CSS).toContain("border: 1px dotted var(--fy-dash); border-radius: 8px; padding: 20px;");
+    // and it is NOT the solid hairline box the cards used to sit in
+    expect(CSS).not.toContain("border: 1px solid var(--fy-hair); border-radius: 8px; padding: 20px;");
+  });
+
+  test("orthogonal connectors run left to right, with arrowheads", () => {
+    // The bracket gathers three inputs into one run; the second wire is a
+    // single run into the record. Both keep a 1px stroke under a non-uniform
+    // scale, which is the whole reason for vector-effect here.
+    expect(HOME).toContain('d="M0 16H22M0 50H22M0 84H22M22 16V84M22 50H52"');
+    expect(HOME).toContain('d="M0 50H52"');
+    expect(countOf(HOME, 'class="fy-flow-wire"')).toBe(2);
+    expect(CSS).toContain("vector-effect: non-scaling-stroke;\n}");
+    expect(CSS).toMatch(/\.fy-flow-wire::after \{[^}]*transform: translateY\(-50%\) rotate\(45deg\)/);
+  });
+
+  test("the bands are what makes the bracket land on the input cards", () => {
+    // A wire stretched to the GRID row would take its 16/50/84 percentages
+    // from the tallest column on the page — the 54-card checks column.
+    expect(CSS).toMatch(/\.fy-flow-band \{[^}]*align-content: center;/);
+    expect(CSS).toMatch(/\.fy-flow-band \{[^}]*grid-template-columns: minmax\(0, 1fr\) 56px;/);
+  });
+
+  test("the key is above the panel, as dots plus one dotted-square glyph", () => {
+    const legendAt = HOME.indexOf('<p class="fy-legend">');
+    const flowAt = HOME.indexOf('<div class="fy-flow">');
+    expect(legendAt).toBeGreaterThan(-1);
+    expect(legendAt).toBeLessThan(flowAt);
+    expect(countOf(HOME, "fy-legend-dot")).toBe(4);
+    expect(countOf(HOME, "fy-legend-frame")).toBe(1);
+    expect(CSS).toMatch(/\.fy-legend-dot \{[^}]*border-radius: 50%;/);
+    expect(CSS).toContain("border: 1px dotted var(--fy-dash);\n}");
+    // the four-swatch key is gone
+    expect(CSS).not.toContain("fy-legend-swatch");
+    expect(HOME).not.toContain("fy-legend-swatch");
+  });
+
+  test("the flow stacks at <=767 and the stretched brackets are hidden there", () => {
+    expect(MOBILE).toContain(".fy-flow-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 14px; }");
+    // the heads are one row at desktop and interleave with their bands when stacked
+    expect(MOBILE).toContain('.fy-flow-head[data-flow-head="in"] { order: 1; }');
+    expect(MOBILE).toContain('.fy-flow-band[data-flow-band="out"] { order: 6; }');
+    expect(MOBILE).toContain(".fy-flow-lines { display: none; }");
+    expect(MOBILE).toContain("transform: translateX(-50%) rotate(135deg);");
+  });
+
+  test("the cards are still one per control, and still 54", () => {
+    const cards = attrOfEach(HOME, ".fy-refcard", "data-reference-type");
+    expect(cards.length).toBe(CONTROL_COUNT);
+  });
+});
+
+describe("A5 · the flow's heads are one row, and the bands align on one centre", () => {
+  test("the three heads are the OUTER grid's first row, not band children", () => {
+    // Inside a band, a head centres against the tallest column on the stage —
+    // which pushed "Inputs" and "Record" hundreds of pixels down the page while
+    // "Checks" sat at the top. Measured, and it is what the first cut shipped.
+    expect(CSS).toContain(".fy-flow-head[data-flow-head=\"in\"] { grid-column: 1; padding-inline-end: 56px; }");
+    expect(CSS).toContain(".fy-flow-band[data-flow-band=\"in\"] { grid-column: 1; }");
+    expect(CSS).toMatch(/\.fy-flow-head \{\n  grid-row: 1;/);
+    expect(CSS).toMatch(/\.fy-flow-band \{\n  position: relative; grid-row: 2;/);
+    // heads precede bands in source order, which is what the mobile `order`
+    // rules re-interleave
+    expect(HOME.indexOf('data-flow-head="out"')).toBeLessThan(HOME.indexOf('data-flow-band="in"'));
+  });
+
+  test("the flow takes the media frame, because 1120 is one card column too narrow", () => {
+    const chapter = HOME.slice(HOME.indexOf('id="ch-checks"'), HOME.indexOf('id="ch-yours"'));
+    expect(chapter).toContain('<div class="fy-mediaframe">');
+    expect(chapter.indexOf('<div class="fy-mediaframe">')).toBeLessThan(
+      chapter.indexOf('<div class="fy-explorer">'),
+    );
+    expect(CSS).toContain("grid-template-columns: minmax(190px, 1fr) minmax(0, 3fr) minmax(190px, 1fr);");
   });
 });
