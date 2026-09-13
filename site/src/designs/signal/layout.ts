@@ -75,13 +75,35 @@ export function factsFor(r: Parameters<typeof lookupFacts>[1]): ListingFacts {
  * Google Fonts: Inter Tight (display), Inter (body and tables), JetBrains Mono
  * (data and identifiers). All three are licensed and on Google Fonts; the
  * proprietary faces the reference sites use are deliberately not attempted.
+ *
+ * Inter Tight is requested at 600 ONLY. The weight ceiling of this design is
+ * 600 and size makes hierarchy, so nothing on any of the four pages ever set
+ * Inter Tight 500 — measured live, `document.fonts.check('500 16px "Inter
+ * Tight"')` was false on every page and only the 600 face ever loaded. A
+ * weight in the request that no element can use is a claim the page does not
+ * keep.
  */
 export const FONTS_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">`;
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">`;
 
 /** The wordmark glyph: a signal rising through a hairline baseline. */
 const MARK = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 14.5h16"></path><path d="M4.5 11.5V13"></path><path d="M8 7.5V13"></path><path d="M11.5 4V13"></path><path d="M15 9V13"></path></svg>`;
+
+/**
+ * The pill's search affordance.
+ *
+ * The brief's persistent set for the condensed pill is search, Directory,
+ * Methodology, GitHub. Round 1 shipped the last three: a reader deep in a
+ * repo or methodology page had no route back to the directory's search
+ * without navigating first. This is that route — it lands on the directory
+ * with the field as the fragment, so the browser scrolls it into view.
+ *
+ * It is a link and not a field because a second `#dir-filter` input in the
+ * header would collide with the one filter.js binds on both pages; the ids
+ * are the shipped contract, not this design's to duplicate.
+ */
+const SEARCH_GLYPH = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5 14 14"></path></svg>`;
 
 const GITHUB_GLYPH = `<svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path></svg>`;
 
@@ -228,6 +250,7 @@ ${FONTS_HEAD}
   <div class="sg-head-in">
     <a class="sg-mark" href="${href("")}">${MARK}<span>sscsb</span></a>
     <nav class="sg-nav" aria-label="Site">
+      <a class="sg-nav-find" href="${href("directory/#dir-filter")}">${SEARCH_GLYPH}<span>Search</span></a>
       ${nav("directory", "Directory", "directory/")}
       ${nav("methodology", "Methodology", "methodology/")}
       <a class="sg-nav-ext" href="${ACTION_REPO_URL}">Action</a>

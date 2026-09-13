@@ -35,7 +35,7 @@ export function renderMethodology(): string {
         .filter(([, cls]) => cls === key)
         .map(([id]) => `<code>${id}</code>`)
         .join(", ");
-      return `<tr><td><strong>${d.name}</strong></td><td>${members}</td><td>${d.rule}</td></tr>`;
+      return `<tr><td data-label="Class"><strong>${d.name}</strong></td><td data-label="Controls">${members}</td><td data-label="Rule">${d.rule}</td></tr>`;
     })
     .join("\n");
 
@@ -57,7 +57,7 @@ ${chapterRail([
   { id: LOCAL_SECTION_ID, label: "Local records" },
 ])}
 
-<section class="panel panel-lead" id="honesty">
+<section class="method-section panel-lead" id="honesty">
   <h2 class="panel-title">The honesty rule</h2>
   <p class="body-copy">The scanner runs <code>sscsb init</code> before verifying. That
   installs the very files many controls check for. So we snapshot the file list first:
@@ -139,12 +139,12 @@ coverage  = Σ countable / |scope|</code></pre>
     <table class="method-table">
     <thead><tr><th>Grade</th><th>Overall</th></tr></thead>
     <tbody>
-    <tr><td><strong>A+</strong></td><td>exactly 100%</td></tr>
-    <tr><td><strong>A</strong></td><td>≥ 90%, &lt; 100%</td></tr>
-    <tr><td><strong>B</strong></td><td>≥ 80%, &lt; 90%</td></tr>
-    <tr><td><strong>C</strong></td><td>≥ 70%, &lt; 80%</td></tr>
-    <tr><td><strong>D</strong></td><td>≥ 60%, &lt; 70%</td></tr>
-    <tr><td><strong>F</strong></td><td>&lt; 60%</td></tr>
+    <tr><td data-label="Grade"><strong>A+</strong></td><td data-label="Overall">exactly 100%</td></tr>
+    <tr><td data-label="Grade"><strong>A</strong></td><td data-label="Overall">≥ 90%, &lt; 100%</td></tr>
+    <tr><td data-label="Grade"><strong>B</strong></td><td data-label="Overall">≥ 80%, &lt; 90%</td></tr>
+    <tr><td data-label="Grade"><strong>C</strong></td><td data-label="Overall">≥ 70%, &lt; 80%</td></tr>
+    <tr><td data-label="Grade"><strong>D</strong></td><td data-label="Overall">≥ 60%, &lt; 70%</td></tr>
+    <tr><td data-label="Grade"><strong>F</strong></td><td data-label="Overall">&lt; 60%</td></tr>
     </tbody>
     </table>
     </div>

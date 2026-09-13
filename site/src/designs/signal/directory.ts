@@ -153,13 +153,38 @@ function coverageNoteBody(f: CoverageFacts): string {
 }
 
 /**
- * The merge's findings, in the row. A contradiction is scored as a gap, and a
- * gap that does not say why is a silent downgrade — the opposite of the point.
+ * The merge's findings, in the row.
+ *
+ * ROUND-2 CORRECTION. Every finding used to be printed in full inside the
+ * Repository cell, so three listings carrying the same ~130-word self-report
+ * paragraph turned a 52px hairline row into a 330px wall of identical grey
+ * prose — at fifty listings the table would have stopped being a table. The
+ * findings are still ON the row, because a gap that does not say why is a
+ * silent downgrade, but only the one finding the contract names stays open:
+ *
+ *  - A CONTRADICTION is always visible. types.ts requires the disagreement to
+ *    be named on the listing AND the detail page, and a reader must not have
+ *    to open anything to meet the most interesting fact about that record.
+ *  - Everything else — a stale local record, assertions held back, the
+ *    submitter's own score block — is a footnote about provenance, and rides
+ *    in a closed `<details>` that counts itself in its own summary.
+ *
+ * `factSentences` puts the contradiction first, so the split is positional
+ * rather than a second copy of the rule.
  */
 function factNotes(lf: ListingFacts, directory: Score): string {
-  return factSentences(lf, directory)
-    .map((n) => `<p class="rn rn-conflict">${escapeHtml(n)}</p>`)
+  const all = factSentences(lf, directory);
+  const contradicted = lf.contradictions.length > 0;
+  const open = contradicted ? all.slice(0, 1) : [];
+  const folded = contradicted ? all.slice(1) : all;
+  const head = open
+    .map((n) => `<p class="rn rn-contra">${escapeHtml(n)}</p>`)
     .join("");
+  if (folded.length === 0) return head;
+  const label = `${folded.length} ${folded.length === 1 ? "note" : "notes"} on this record`;
+  return `${head}<details class="row-notes"><summary>${escapeHtml(label)}</summary>${folded
+    .map((n) => `<p class="rn rn-note">${escapeHtml(n)}</p>`)
+    .join("")}</details>`;
 }
 
 /** The same findings as a detail-page section, beside the per-control ids. */
@@ -211,8 +236,8 @@ export function renderDirectory(
     <a class="row-link" href="${href(repoSlugPath(r))}"><span class="row-owner">${escapeHtml(
       r.repo.owner,
     )}/</span><span class="row-name">${escapeHtml(r.repo.name)}</span></a>
-    ${desc}
-    ${coverageNote(f)}${factNotes(lf, r.score)}
+    <div class="row-sub">${desc}${factNotes(lf, r.score)}</div>
+    ${coverageNote(f)}
   </td>
   <td class="c-grade" data-label="Grade">${gradeBadge(r.score)}</td>
   <td class="c-num" data-label="Passed"><span class="num">${escapeHtml(
@@ -267,6 +292,7 @@ export function renderDirectory(
   <p class="scan-status" id="dir-scan-status" aria-live="polite" hidden></p>
 </div>
 
+<div class="legend-top">${legend()}</div>
 <div class="table-wrap">
 <table class="directory">
   <thead>
@@ -285,7 +311,7 @@ ${rows}
   </tbody>
 </table>
 </div>
-${legend()}
+<div class="legend-bottom">${legend()}</div>
 ${directoryTermsNote(href)}
 <script src="${href("filter.js")}" defer></script>`;
   return page({ title: "Scan Directory", body, active: "directory" });
@@ -328,8 +354,11 @@ function controlRow(c: ScanRecord["controls"][number]): string {
       : "";
   const oos = c.in_scope ? "" : `<span class="ctl-oos">out of scope</span>`;
   const reason = c.reason ? `<p class="ctl-reason">${escapeHtml(c.reason)}</p>` : "";
+  // A bare "EVIDENCE" label read as an unfinished caption 42 times per page —
+  // nothing said it opened. The count gives the label weight and tells a
+  // reader what they get for the tap; the caret comes from the stylesheet.
   const msgs = c.messages.length
-    ? `<details class="ctl-evidence"><summary>evidence</summary><ul>${c.messages
+    ? `<details class="ctl-evidence"><summary>evidence · ${c.messages.length}</summary><ul>${c.messages
         .map((m) => `<li>${escapeHtml(m)}</li>`)
         .join("")}</ul></details>`
     : "";
@@ -346,7 +375,11 @@ function controlRow(c: ScanRecord["controls"][number]): string {
 /** One phase, as a nested container: family header, then its control rows. */
 function phaseGroup(r: ScanRecord, phase: number): string {
   const controls = r.controls.filter((c) => c.phase === phase);
-  if (controls.length === 0 && !r.score.phases.some((p) => p.phase === phase)) return "";
+  // A family with nothing in scope rendered as a full card reading
+  // "0 pass · 0 fail · 0 gap · 0 unanswered" beside a "no evidence" chip —
+  // an empty container claiming to be a section. Nothing is hidden by this:
+  // a phase with no controls contributes to no sum and has no verdicts.
+  if (controls.length === 0) return "";
   const p = r.score.phases.find((s) => s.phase === phase);
   const counts = p
     ? `${p.pass} pass · ${p.fail} fail · ${p.gap} gap · ${p.unverified} unanswered`
@@ -610,6 +643,8 @@ export function renderRepoDetail(r: ScanRecord, t?: TrustInfo, lt?: TrustInfo): 
   </div>
 </div>
 ${legend()}
+<p class="terms-note terms-note-stats">${defineTerm("lane")} —
+<a href="${href("methodology/#trust")}">how that is checked</a>.</p>
 
 ${chapterRail([
   { id: "exposure", label: "Defences found" },
@@ -629,8 +664,6 @@ ${phases}
 ${provenanceCard(r, t, kind, lt)}
 ${lt && kind !== "local" ? localCard(r, lt, false) : ""}
 ${renderFactsSection(factsFor(r), r.score)}
-${coverageCard(r, facts)}
-<p class="terms-note">${defineTerm("lane")} —
-<a href="${href("methodology/#trust")}">how that is checked</a>.</p>`;
+${coverageCard(r, facts)}`;
   return page({ title: `${slug} — Scan`, body, active: "directory" });
 }

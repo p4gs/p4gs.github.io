@@ -62,7 +62,7 @@ export function renderHome(records: ScanRecord[], ctx: DesignCtx): string {
 <section class="sg-hero">
   <div class="sg-hero-copy">
     <p class="sg-eyebrow">SUPPLY-CHAIN SECURITY · SCANNED IN PUBLIC</p>
-    <h1 class="sg-display">What each repository can <em class="hl">prove</em> — and what nobody could check.</h1>
+    <h1 class="sg-display">What each repository can <em class="hl">prove</em>&nbsp;— and what nobody could check.</h1>
     <p class="sg-lede">Every listing here is a public record of one scan of one commit.</p>
     ${searchControl(href, records, {
       label: "Find a repository — or ask for one to be scanned",
