@@ -1482,10 +1482,17 @@ describe("D1 · the aperture's honesty half is true, and the caveat is above the
     // and the local lane exists so that party can answer it.
     expect(countOf(HOME, "&mdash; and what only its maintainer could.")).toBe(2);
     expect(HOME).not.toContain("nobody could check");
-    // The directory and the sheet still render the SHARED plain gloss of
-    // `unverified` ("nobody could check this", glossary.ts) — shared copy, out
-    // of this design's scope, and recorded rather than reworded here.
-    expect(METHODOLOGY).not.toContain("nobody could check");
+    // R5 · AND ITS SIBLING, WHICH SURVIVED. `glossary.ts` defines `unverified`
+    // as "nobody could answer this check" — the identical construction, wrong
+    // for the identical reason: on a sheet with eight local-lane answers, eight
+    // of them WERE answered, with the signature verified two sections below.
+    // The shared entry still feeds the other five designs; Factory renders its
+    // own wording instead of the glossary's, on all four pages.
+    for (const [name, html] of PAGES) {
+      expect(html, `${name}: nobody could answer`).not.toContain("nobody could answer");
+      expect(html, `${name}: nobody could check`).not.toContain("nobody could check");
+    }
+    expect(DETAIL).toContain("no lane available here could answer it, which is not the same as");
     // the supporting line is unchanged, and it is the one that carries the rule
     expect(HOME).toContain("An unperformed check is never a verdict. It is shown,");
     // both halves of the aperture say the same thing, or the seam lies mid-close
@@ -1666,13 +1673,42 @@ describe("D4 · the contradiction is in the hero, before any figure", () => {
   });
 
   test("the wording is words, never MERGE and never the not-equals sign", () => {
-    expect(HONEST_DETAIL).toContain("DIFFERENT COMMIT &mdash; the maintainer" + String.fromCharCode(39) + "s");
+    expect(HONEST_DETAIL).toContain("DIFFERENT COMMIT — the maintainer&#39;s");
     expect(HONEST_DETAIL).toContain("this listing scans");
     expect(HONEST_DETAIL).toContain("Both score A+.");
     for (const [name, html] of [["detail", HONEST_DETAIL], ["directory", DIRECTORY]] as const) {
       expect(html, `${name}: not-equals`).not.toContain("≠");
       expect(html, `${name}: MERGE`).not.toContain(">Merge<");
     }
+  });
+
+  test("R4 · the contradiction family is never painted in the fail red", () => {
+    // The ISA's own anti-claim: red is `did not pass` and nothing else. Both
+    // listings that render this box have zero fails and grade A+.
+    for (const sel of [".fy-badge-conflict {", ".fy-panel-conflict {", ".fy-conflict {"]) {
+      const rule = blockAfter(CSS, sel.slice(0, -2));
+      expect(rule, `${sel} must not borrow the fail red`).not.toContain("--fy-fail");
+    }
+    expect(CSS).toContain(".fy-panel-conflict { border-color: var(--fy-ink); }");
+  });
+
+  test("R4 · both badges render when both facts are true", () => {
+    // It returned on staleAgainstBase BEFORE it tested contradictions, so a
+    // listing carrying both showed the commit mismatch and swallowed the
+    // contradiction — which types.ts requires on the sheet, and which is the
+    // more serious of the two. Only a fixture carrying BOTH can see it.
+    const both = {
+      ...HONEST_CTX,
+      facts: new Map([
+        ["p4gs--sscsb-action", { ...HONEST_FACTS, contradictions: ["codeql"] }],
+      ]),
+    };
+    const page = factory.renderRepoDetail(HONEST_RECORD as never, both as never);
+    expect(countOf(page, 'class="fy-badge-conflict"')).toBe(2);
+    expect(page).toContain("DIFFERENT COMMIT");
+    expect(page).toContain("SOURCES DISAGREE");
+    // and one badge alone still renders alone
+    expect(countOf(HONEST_DETAIL, 'class="fy-badge-conflict"')).toBe(1);
   });
 
   test('"not provisional" is qualified in the same breath', () => {

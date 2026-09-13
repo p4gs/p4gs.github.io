@@ -81,9 +81,10 @@ export function renderMethodology(ctx: DesignCtx): string {
   <p class="fy-honesty-head">The honesty rule</p>
   <p class="fy-body">The scanner runs <code>sscsb init</code> before it verifies, which
   installs the very files many controls look for. So it snapshots the file list first:
-  <strong>evidence the scanner created never counts.</strong> A check that could not run is
-  <strong>unverified — a third state</strong> ${define("unverified")}. It is shown hatched,
-  and left out of the sums entirely.</p>
+  <strong>evidence the scanner created never counts.</strong> A check that could not run gets
+  <strong>no answer — a third state</strong> <span class="term-def"
+  data-defines="unverified">— no lane available here could answer it, which is not the same as
+  failing it</span>. It is shown, and left out of the grade entirely.</p>
   <p class="fy-body">Three things can produce a record, and they see different amounts. That
   is the ${defineTerm("lane")}. It decides nothing about the score. It says how far the
   scanner could see. An <strong>external</strong> record was produced here, from outside the

@@ -1100,9 +1100,15 @@ export const PAGES_CSS = `
   color: var(--fy-warn); border: 1px solid var(--fy-warn); border-radius: 999px;
   padding: 0 8px; margin-inline-end: 8px; white-space: nowrap;
 }
+/* ATTENTION, NOT FAILURE — and this design's own anti-claim says so: red means
+   "did not pass" here and nothing else. Both listings that render this box have
+   ZERO fails and grade A+, and a reader who learned red = did not pass from a
+   legend two screens up read a red-bordered alert as a failure. Amber is taken
+   (it is the gap colour), so the contradiction family takes the neutral ink
+   hairline the directory row already uses for the same fact. */
 .fy-conflict {
   display: block; margin-block-start: 10px; padding: 10px 12px; border-radius: 8px;
-  border: 1px solid var(--fy-fail); background: var(--fy-ground);
+  border: 1px solid var(--fy-ink); background: var(--fy-ground);
   font-size: 14px; line-height: 21px; color: var(--fy-text); max-inline-size: 64ch;
 }
 .fy-merge { margin-block-start: 10px; font-size: 14px; }
@@ -1220,7 +1226,7 @@ export const PAGES_CSS = `
   border: 1px solid var(--fy-line); border-radius: 8px; padding: 24px; margin-block: 24px;
   background: var(--fy-ground);
 }
-.fy-panel-conflict { border-color: var(--fy-fail); }
+.fy-panel-conflict { border-color: var(--fy-ink); }
 .fy-panel h2 { font-size: 22px; font-weight: 500; letter-spacing: 0; }
 .fy-panel .fy-body { font-size: 16px; line-height: 26px; }
 .fy-cmd {
@@ -1284,12 +1290,15 @@ export const PAGES_CSS = `
   display: inline-flex; align-items: center; min-block-size: 44px;
 }
 .fy-row-lane:hover { color: var(--fy-ink); border-color: var(--fy-ink); }
-/* The contradiction badge, in the hero, before any figure. */
+/* The contradiction badge, in the hero, before any figure — and in the same
+   neutral register as the directory row that carries the same fact. A provenance
+   mismatch is not a verdict; red is. */
 .fy-badge-conflict {
   display: block; margin-block-start: 12px; padding: 10px 14px; border-radius: 8px;
-  border: 1px solid var(--fy-fail); background: var(--fy-ground); color: var(--fy-text);
+  border: 1px solid var(--fy-ink); background: var(--fy-ground); color: var(--fy-text);
   font-size: 14px; line-height: 21px; max-inline-size: 64ch; text-decoration: none;
 }
+.fy-badge-conflict + .fy-badge-conflict { margin-block-start: 8px; }
 .fy-badge-conflict:hover { background: var(--fy-surface-2); }
 .fy-raw { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); margin-inline-start: 8px; }
 .fy-oos { font-family: var(--fy-mono); font-size: 11px; color: var(--fy-muted); }
@@ -1611,6 +1620,16 @@ export const OVERRIDES = `
    taxonomy explainer (28px). Both are standalone controls, not links inside a
    running sentence, so the WCAG 2.5.8 inline exemption does not cover them. */
 :root .ex-name { min-block-size: 44px; align-items: center; }
+/* A PROVENANCE MARK IN A VERDICT COLOUR. "reported" says this site has not
+   opened the primary document — the same category as "scored under methodology
+   v1", which D11 already moved off amber. The shared layer paints it in
+   --hp-warn, which on this site is the gap colour. Neutral, and a 999px pill
+   like every other chip here. */
+:root .tx-reported {
+  color: var(--fy-muted); border-color: var(--fy-line); border-radius: 999px;
+  padding: 0 8px; margin-inline-start: 6px;
+}
+.fy-dark .tx-reported { color: var(--fy-dark-quiet); border-color: var(--fy-dark-rule); }
 :root .tx-incident > a { display: inline-flex; align-items: center; min-block-size: 44px; }
 
 /* ══ the shared layer, on the black ground ═══════════════════════════════

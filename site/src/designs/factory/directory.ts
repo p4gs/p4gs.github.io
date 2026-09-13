@@ -168,6 +168,27 @@ const UNVERIFIED_GLOSS =
   "<strong>no answer</strong> &mdash; no lane available here could answer it, which is not the " +
   "same as failing it.";
 
+/** The shared glossary's wording for the same state, verbatim. */
+const SHARED_UNVERIFIED_GLOSS = "nobody could answer this check";
+const FACTORY_UNVERIFIED_GLOSS = "no lane available here could answer it";
+
+/**
+ * The same override, applied to a SHARED block Factory renders whole.
+ *
+ * `directoryTermsNote` is `home-shared.ts`'s, and it carries the glossary's
+ * plain gloss inside a sentence this design has no other way to reach. Rewriting
+ * the shared module would change the other five designs; rewriting the OUTPUT is
+ * the shape `heroSearch` already uses for the same class of problem — and it
+ * fails loudly rather than silently shipping the sentence if the shared copy
+ * moves under it.
+ */
+function withFactoryGloss(html: string, where: string): string {
+  if (!html.includes(SHARED_UNVERIFIED_GLOSS)) {
+    throw new Error(`factory: ${where} no longer carries the shared unverified gloss`);
+  }
+  return html.replaceAll(SHARED_UNVERIFIED_GLOSS, FACTORY_UNVERIFIED_GLOSS);
+}
+
 /**
  * P1–P6 against the names they stand for.
  *
@@ -223,21 +244,43 @@ function localOverlayChip(lt: TrustInfo | undefined, href?: string): string {
  * The contradiction badge, in the words D4 settles on — never "MERGE", never
  * "≠", which are internal notation a reader has no way to decode.
  */
+/**
+ * The stale-commit sentence, shared by the sheet's badge and the directory row.
+ *
+ * The row printed `self-reported A+ 100% vs this listing A+ 100%` for the same
+ * fact — "vs" between two equal values still reads as a grade dispute, and the
+ * sheet had already resolved it as "Both score A+."
+ */
+export function staleCommitSentence(lf: ListingFacts, score: Score): string {
+  if (!lf.staleAgainstBase) return "";
+  const self = lf.selfReported;
+  const both = self && self.grade === score.grade ? ` Both score ${score.grade}.` : "";
+  return `DIFFERENT COMMIT — the maintainer's local record describes ${shortSha(
+    lf.staleAgainstBase.local,
+  )}, this listing scans ${shortSha(lf.staleAgainstBase.base)}.${both}`;
+}
+
+/**
+ * BOTH BADGES WHEN BOTH ARE TRUE. This returned on `staleAgainstBase` before it
+ * ever tested `contradictions`, so a listing carrying both showed the commit
+ * mismatch and swallowed the contradiction — which `types.ts` requires on the
+ * sheet, and which is the more serious of the two.
+ */
 function conflictBadge(lf: ListingFacts, score: Score, href: string): string {
+  const out: string[] = [];
   if (lf.staleAgainstBase) {
-    const self = lf.selfReported;
-    const both =
-      self && self.grade === score.grade ? ` Both score ${escapeHtml(score.grade)}.` : "";
-    return `<a class="fy-badge-conflict" href="${href}">DIFFERENT COMMIT &mdash; the maintainer's
-    local record describes ${escapeHtml(shortSha(lf.staleAgainstBase.local))}, this listing scans
-    ${escapeHtml(shortSha(lf.staleAgainstBase.base))}.${both}</a>`;
+    out.push(
+      `<a class="fy-badge-conflict" href="${href}">${escapeHtml(
+        staleCommitSentence(lf, score),
+      )}</a>`,
+    );
   }
   if (lf.contradictions.length > 0) {
-    return `<a class="fy-badge-conflict" href="${href}">SOURCES DISAGREE &mdash;
+    out.push(`<a class="fy-badge-conflict" href="${href}">SOURCES DISAGREE &mdash;
     ${escapeHtml(plural(lf.contradictions.length))} scored a gap because two records answered
-    them differently.</a>`;
+    them differently.</a>`);
   }
-  return "";
+  return out.join("\n    ");
 }
 
 /* ══ the coverage verdict ════════════════════════════════════════════════ */
@@ -376,10 +419,15 @@ function mergeSummary(lf: ListingFacts, directory: Score): string {
   }
   const s = lf.selfReported;
   if (s) {
+    // NEVER "vs" BETWEEN TWO EQUAL VALUES. It reads as a grade dispute where
+    // there is none — and the sheet already resolves the same pair as
+    // "Both score A+."
     bits.push(
-      `self-reported ${s.grade} ${pct(s.overall_percent)} vs this listing ${directory.grade} ${pct(
-        directory.overall_percent,
-      )}`,
+      s.grade === directory.grade && s.overall_percent === directory.overall_percent
+        ? `both score ${s.grade} ${pct(s.overall_percent)}`
+        : `self-reported ${s.grade} ${pct(s.overall_percent)}, this listing ${
+            directory.grade
+          } ${pct(directory.overall_percent)}`,
     );
   }
   return bits.map(escapeHtml).join(" &middot; ");
@@ -626,7 +674,7 @@ ${verdictKey()}
 <p class="fy-note">${UNVERIFIED_GLOSS}</p>
 ${phaseKeyLine()}
 ${laneKey()}
-${directoryTermsNote(ctx.h)}
+${withFactoryGloss(directoryTermsNote(ctx.h), "directoryTermsNote")}
 </section>
 <script src="${ctx.h("filter.js")}" defer></script>
 </div>`;
@@ -752,10 +800,16 @@ function coveragePanelBody(r: ScanRecord, f: CoverageFacts, ctx: DesignCtx): str
 </section>`;
   }
   if (f.state === "local-applied") {
+    // "OUTSIDE EVERY DENOMINATOR" IS FALSE UNDER THE SITE'S OWN FORMULA. §05
+    // prints `coverage = Σ answered / |scope|`, and an unanswered in-scope check
+    // is inside that denominator — which is exactly why coverage reads 90.9%
+    // and not 100%. It is outside the GRADE's denominator only, and saying
+    // otherwise understates what an unanswered check costs.
     return `${open}
   <p class="fy-body">A signed local scan already resolved ${plural(f.resolvedByLocal)}. Coverage
-  is still <strong>${f.coverage}%</strong>, under the ${COVERAGE_FLOOR_PROVISIONAL}% floor,
-  with ${plural(f.unverified)} outside every denominator.</p>
+  is still <strong>${f.coverage}%</strong>, under the ${COVERAGE_FLOOR_PROVISIONAL}% floor:
+  ${plural(f.unverified)} are never counted toward the grade, and always counted in evidence
+  coverage. That is the permanent ceiling.</p>
 </section>`;
   }
   return `${open}
@@ -796,6 +850,13 @@ function localProvenance(r: ScanRecord, lt: TrustInfo, primary: boolean, ctx: De
   <p class="fy-body">Re-verify it yourself:
   <a href="${recordHref}">${LOCAL_RECORD_PUBLISHED}</a> &middot;
   <a href="${sigHref}">detached signature</a></p>
+  <!-- THE REDACTION IS RENDER-ONLY, AND THE PAGE SAYS SO. The rendered evidence
+       above shows a tilde path; the signed bytes linked from this paragraph cannot
+       be rewritten without breaking the signature, so they still carry the
+       absolute workstation paths. That is not a rendering bug — it is an
+       undisclosed one unless the page discloses it. -->
+  <p class="fy-note">The signed bytes are republished verbatim, and contain the workstation paths
+  this page redacts.</p>
   <pre class="fy-cmd"><code>ssh-keygen -Y verify -f allowed_signers \\
   -I "${escapeHtml(lt.signer ?? "")}" -n ${LOCAL_SIGNATURE_NAMESPACE} \\
   -s ${LOCAL_SIGNATURE_PUBLISHED} &lt; ${LOCAL_RECORD_PUBLISHED}</code></pre>

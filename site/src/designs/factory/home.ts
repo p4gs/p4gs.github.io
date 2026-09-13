@@ -154,7 +154,16 @@ function blackBlock(records: ScanRecord[], ctx: DesignCtx): string {
       <blockquote class="fy-pullquote">${escapeHtml(EXPOSURE_CAVEAT)}</blockquote>
       <div class="fy-metrics">
         ${metric(String(CONTROL_COUNT), "checks in the standard set")}
-        ${metric(String(localOnly), "of them only a maintainer's own machine can answer")}
+        ${
+          // 16 IS THE STANDARD SET; TEN OR ELEVEN ARE IN SCOPE ON A LISTING. Both
+          // figures are true and the site printed them on different pages with
+          // nothing reconciling them — the methodology says "about a dozen", this
+          // said 16, and a reader who noticed had no way to settle it.
+          metric(
+            String(localOnly),
+            `of the standard ${CONTROL_COUNT} only a maintainer's own machine can answer. Ten or eleven are in scope on a typical repository.`,
+          )
+        }
         ${metric(String(n), n === 1 ? "repository on the board" : "repositories on the board")}
         ${metric(String(PHASES.length), `phases the ${CONTROL_COUNT} checks are grouped into`)}
         ${metric(String(ATTACK_CLASSES.length), "attack groups the checks are written against")}
