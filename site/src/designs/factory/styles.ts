@@ -292,6 +292,9 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
   font-size: 24px; line-height: 1.4; text-align: center;
   color: var(--fy-dark-ink); margin: 40px auto 0; max-inline-size: 44ch;
   padding: 0; border: 0; text-wrap: balance;
+  /* "…is not a break-" / "in, and a full set…" — the reference never hyphenates
+     display copy, and a centred 24px quote is the last place to start. */
+  hyphens: none; -webkit-hyphens: none;
 }
 .fy-quote-by {
   display: block; margin-block-start: 16px; font-size: 14px; line-height: 21px;
@@ -464,15 +467,30 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-attack-trigger[aria-expanded="true"] .fy-chevron { transform: rotate(180deg); color: var(--fy-accent); }
 .fy-attack-panel { padding-block: 0 24px; display: grid; gap: 12px; }
 .fy-attack-line { font-size: 17px; line-height: 1.6; color: var(--fy-dark-body); }
-/* T10 · THE RUN-IN LABEL HANGS THE LIST. Set inline, "Checks that defend it"
-   captured the first id and every wrapped line after it started at the label's
-   left edge instead of the list's, so the block read as prose with code in it
-   rather than as a labelled list. */
-.fy-attack-checks {
-  font-size: 14px; line-height: 1.7; color: var(--fy-dark-quiet); overflow-wrap: anywhere;
-  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: baseline;
+/* ONE RULE FOR BOTH COPIES OF THIS COMPONENT, AND THE LABEL TAKES ITS OWN LINE.
+   T10 made this a two-column grid so the run-in label would hang the list. In a
+   GRID each '<code>' is its own item and each ", " between them is an ANONYMOUS
+   item, so auto-placement dealt them alternately into the two tracks: nine ids
+   in column 2 and nine bare commas stacked in column 1, 179px from the token
+   each belonged to — measured at x=320 against ids at x=499.4 (1440) and x=24
+   against 203.4 (390), and up to 81 of them on a fully expanded page. It was
+   the payoff of the one interaction the section's copy advertises.
+
+   The label on its own line gives the ids the whole measure, restores ordinary
+   inline layout (so a comma can never be dealt anywhere but hard against the
+   token before it), and makes home's instance and methodology's '.tx-class-
+   controls' — which wrapped back to the LABEL's edge while home hung at the
+   list's — one behaviour instead of two. 'overflow-wrap: normal' plus 'nowrap'
+   on the code keeps an identifier whole at 390, where 'branch-protection',
+   'pr-template', 'maintainer-mfa' and 'publish-provenance' were splitting. */
+.fy-attack-checks, :root .tx-class-controls {
+  display: block; overflow-wrap: normal;
 }
-.fy-attack-checks > a { grid-column: 1 / -1; }
+.fy-attack-checks { font-size: 14px; line-height: 1.7; color: var(--fy-dark-quiet); }
+.fy-attack-checks > .fy-attack-label, :root .tx-class-controls > .tx-label {
+  display: block; margin-block-end: 2px;
+}
+.fy-attack-checks code, :root .tx-class-controls code { white-space: nowrap; }
 .fy-attack-checks code { color: var(--fy-dark-ink); }
 .fy-attack-label {
   font-family: var(--fy-mono); font-size: 12px; text-transform: uppercase;
@@ -481,9 +499,16 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-incident { font-size: 14px; line-height: 21px; color: var(--fy-dark-quiet); }
 .fy-incident a { color: var(--fy-dark-ink); }
 .fy-incident-when { font-family: var(--fy-mono); margin-inline: 8px; }
+/* ONE COMPONENT, BOTH PAGES. Methodology's 'reported' mark is a 999px pill;
+   home's was a ~2px-radius rectangle among 999px chips, with 'margin-inline-
+   start: 8px' stacked on top of the 8px '.fy-incident-when' already supplies
+   and on top of the source space in the sourcing sentence — a double word space
+   in front of it. The radius, the padding and the spacing are the values
+   ':root .tx-reported' sets, so the two instances are the same object. */
 .fy-reported {
   font-family: var(--fy-mono); font-size: 12px; border: 1px solid var(--fy-dark-rule);
-  padding: 0 6px; margin-inline-start: 8px;
+  border-radius: 999px; padding: 0 8px; margin-inline-start: 0;
+  color: var(--fy-dark-quiet); white-space: nowrap;
 }
 
 /* ══ the pill nav ════════════════════════════════════════════════════════ */
@@ -688,8 +713,18 @@ main [id] { scroll-margin-top: 88px; }
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .fy-nodes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+/* THE VERDICT WORD WRAPS; THE IDENTIFIER NEVER DOES. This pair used to live
+   only inside the 767px block below, so at 1440 the chips in a narrow
+   region shredded their ids mid-token: 'publish-provenance' set as
+   'publis' / 'h-' / 'proven' in the five-across Distribution & publishing band,
+   which is not a control id and cannot be searched for. The squeeze is round
+   2's new verdict word — 'NOT IN THIS RECORD' is the longest in the set and
+   carries 'flex: 0 0 auto', so it never yields and the label absorbed all of
+   it. Letting the chip wrap to a second flex line gives the label the whole
+   chip width, and 'overflow-wrap: normal' then confines any break to a real
+   hyphen. An identifier is the one string on this page a reader copies out. */
 .fy-node {
-  min-block-size: 44px; display: flex; align-items: center; gap: 10px;
+  min-block-size: 44px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: var(--fy-ground); border: 1px solid var(--fy-edge-grey); border-radius: 8px;
   padding: 8px 12px; cursor: pointer; text-align: start; font: inherit;
   color: var(--fy-text); inline-size: 100%;
@@ -703,7 +738,7 @@ main [id] { scroll-margin-top: 88px; }
 .fy-node-icon[data-cls="B"] { color: #6f6f74; }
 .fy-node-icon[data-cls="C"] { color: #8b62e0; }
 .fy-node-icon[data-cls="M"] { color: #262626; }
-.fy-node-label { font-family: var(--fy-mono); font-size: 13px; line-height: 22px; overflow-wrap: anywhere; }
+.fy-node-label { font-family: var(--fy-mono); font-size: 13px; line-height: 22px; overflow-wrap: normal; }
 .fy-node-verdict {
   margin-inline-start: auto; font-family: var(--fy-mono); font-size: 11px;
   letter-spacing: 0.04em; text-transform: uppercase; flex: 0 0 auto;
@@ -1149,9 +1184,13 @@ export const PAGES_CSS = `
   min-block-size: 44px; border: 0; padding: 0 10px; background: 0 0;
   text-decoration: none; white-space: nowrap;
 }
+/* 18px, NOT 22. The drawn pill is meant to read as a matched pair with the
+   '.fy-oc-pass' chip beside it, and that chip renders at 18.0px — a 4px
+   difference on a 20px object is a quarter taller, which is what "same
+   component" stops meaning. */
 :root .fy-hit-pill::before {
   content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%;
-  block-size: 22px; transform: translateY(-50%);
+  block-size: 18px; transform: translateY(-50%);
   border: 1px dashed currentcolor; border-radius: 999px;
 }
 
@@ -1275,9 +1314,16 @@ export const PAGES_CSS = `
    declared later in this stylesheet, so an equally-specific selector loses. */
 .fy-table .fy-merge summary { align-items: flex-start; gap: 8px; }
 .fy-table .fy-merge summary .fy-merge-tag { margin-inline-end: 0; }
+/* A 999px RADIUS ON A TWO-LINE BOX IS AN ELLIPSE, NOT A PILL. 'DIFFERENT COMMIT'
+   broke between its two words inside the capsule and set a ~60px egg beside the
+   17px sentence it labels — on the directory's primary row, once per listing,
+   at both widths, while the sheet hero draws the same fact correctly as an 8px
+   box. One line, and it never shrinks below its own label: as a flex item in
+   'summary''s inline-flex it was free to be squeezed under its content width. */
 .fy-merge-tag {
   font-family: var(--fy-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
   border: 1px solid var(--fy-line); border-radius: 999px; padding: 0 8px; margin-inline-end: 8px;
+  white-space: nowrap; flex: 0 0 auto; display: inline-block;
 }
 .fy-merge p { margin-block-start: 10px; line-height: 21px; color: var(--fy-quiet); max-inline-size: 64ch; }
 .fy-lane {
@@ -1349,6 +1395,13 @@ export const PAGES_CSS = `
    dot, so a wrap moves the dot down with its own item instead of stranding it
    at the end of the line above. */
 .fy-sl > span + span::before { content: "\\B7\\A0"; }
+/* …AND IT DOES NOT RENDER AT A LINE BOUNDARY. Written after layout by the
+   page's own script (motion.ts §6), because whether a separator opens or closes
+   a rendered line is a question only layout can answer. 'visibility' and not
+   'content: none': hiding the glyph must not move a single box, or marking a
+   separator would change the wrap that produced it. */
+.fy-sl > span + span[data-sep="off"]::before,
+.fy-rm + .fy-rm[data-sep="off"]::before { visibility: hidden; }
 .fy-swatch { inline-size: 14px; block-size: 14px; border-radius: 4px; display: inline-block; margin-inline-end: 8px; vertical-align: -2px; }
 .fy-swatch-pass { background: var(--fy-pass); }
 .fy-swatch-fail { background: var(--fy-fail); }
@@ -1492,6 +1545,27 @@ export const PAGES_CSS = `
 .fy-reason { display: block; font-size: 14px; line-height: 21px; color: var(--fy-quiet); }
 .fy-table details { margin-block-start: 8px; font-size: 14px; }
 .fy-table summary { cursor: pointer; color: var(--fy-muted); min-block-size: 44px; display: inline-flex; align-items: center; }
+/* 45 OF 54 DISCLOSURES SAID NOTHING ABOUT OPENING. Round 2 gave '.tx-details
+   summary' a rotating chevron and recorded that these two families already had
+   one; read against the built CSS they did not — they had 'cursor: pointer' and
+   then 'display: inline-flex', which is itself what suppresses the '::marker'.
+   So the 41 'evidence (n)' rows on a sheet and the merge summaries on the
+   directory were caption-coloured text that happened to be a button, on a page
+   whose entire argument is that the evidence is there to be opened, and on a
+   phone with no hover and no cursor to fall back on. Same glyph, same rotation,
+   same three declarations as '.tx-details', so the site has one disclosure. The
+   44px target above is untouched: the chevron is a flex item inside it. */
+.fy-merge summary, .fy-table summary { display: inline-flex; align-items: center; list-style: none; }
+.fy-merge summary::-webkit-details-marker,
+.fy-table summary::-webkit-details-marker { display: none; }
+.fy-merge summary::before, .fy-table summary::before {
+  content: ""; inline-size: 7px; block-size: 7px; flex: 0 0 auto;
+  margin-inline-end: 10px; margin-block-start: -3px;
+  border-inline-end: 1.5px solid currentcolor; border-block-end: 1.5px solid currentcolor;
+  transform: rotate(45deg);
+}
+.fy-merge[open] > summary::before,
+.fy-table details[open] > summary::before { transform: rotate(-135deg); margin-block-start: 3px; }
 .fy-table details ul { margin: 8px 0 0; padding-inline-start: 20px; color: var(--fy-quiet); line-height: 21px; }
 
 /* ══ methodology ═════════════════════════════════════════════════════════ */
@@ -1629,8 +1703,11 @@ export const RESPONSIVE_CSS = `
      token, and the pills wrap to a second line instead. */
   .fy-repeat { padding: 10px 8px; }
   .fy-stack::before { inset-block: 4px -4px; inset-inline: 4px -4px; }
-  .fy-node { flex-wrap: wrap; }
-  .fy-node-label { overflow-wrap: normal; }
+  /* '.fy-node { flex-wrap: wrap }' and '.fy-node-label { overflow-wrap: normal }'
+     used to be declared HERE, and only here. They are unconditional now: a
+     narrow region at 1440 squeezes a chip exactly the way a 390 viewport does,
+     and the fix that had already been written for one width was the fix the
+     other needed. See the pair beside '.fy-node' above. */
   /* The composition collapses to one column in PHASES order, which is the
      source order — every slot rule is dropped rather than re-pointed. */
   .fy-regions { grid-template-columns: minmax(0, 1fr); }

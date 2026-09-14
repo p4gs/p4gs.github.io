@@ -2148,7 +2148,11 @@ describe("what the self-check found, and what keeps it found", () => {
     // height of the PASS pill beside it — it used to reach 44 by becoming a
     // dashed ~46px circle, a shape that appears nowhere else on the site.
     expect(CSS).toMatch(/:root \.fy-hit-pill \{[^}]*min-block-size: 44px;/);
-    expect(CSS).toMatch(/:root \.fy-hit-pill::before \{[^}]*block-size: 22px;/);
+    // …and the DRAWN pill is the height of the chip it is meant to pair with,
+    // not 4px taller. `.fy-oc-pass` measures 18.0px; 22 against 18 is a quarter
+    // more on a 20px object, which is where "the same component" stops holding.
+    expect(CSS).toMatch(/:root \.fy-hit-pill::before \{[^}]*block-size: 18px;/);
+    expect(CSS).not.toMatch(/:root \.fy-hit-pill::before \{[^}]*block-size: 22px;/);
     expect(CSS).not.toMatch(/\.fy-row-lane \{[^}]*min-block-size: 44px/);
     // and the cell keeps them on one line box, so the 390 card restack cannot
     // blockify the link out of the inline exception
@@ -2301,8 +2305,18 @@ describe("S · the 390 structure, in the rules that produce it", () => {
   });
 
   test("S7 + S8 · nested chips, counters and the kicker at 390", () => {
-    expect(MOBILE).toContain(".fy-node { flex-wrap: wrap; }");
-    expect(MOBILE).toContain(".fy-node-label { overflow-wrap: normal; }");
+    // ROUND 3 · these two moved OUT of the 767 block and are unconditional now.
+    // A narrow region at 1440 squeezes a chip exactly the way a 390 viewport
+    // does — `publish-provenance` set as `publis`/`h-`/`proven` in the
+    // five-across Distribution & publishing band — so the fix that had been
+    // written for one width was the fix the other needed. Two-sided: the pair
+    // must be global AND `overflow-wrap: anywhere` must be gone from the label,
+    // because that declaration is what shredded the ids.
+    expect(CSS).toMatch(/\.fy-node \{[^}]*flex-wrap: wrap;/);
+    expect(CSS).toContain(".fy-node-label { font-family: var(--fy-mono); font-size: 13px; line-height: 22px; overflow-wrap: normal; }");
+    expect(CSS).not.toMatch(/\.fy-node-label \{[^}]*overflow-wrap: anywhere/);
+    expect(MOBILE).not.toContain(".fy-node { flex-wrap: wrap; }");
+    expect(MOBILE).not.toContain(".fy-node-label { overflow-wrap: normal; }");
     expect(MOBILE).toContain(".fy-metrics { grid-template-columns: minmax(0, 1fr); gap: 24px; }");
     expect(MOBILE).toContain(".fy-kicker .fy-sep { display: none; }");
     expect(HOME).toContain('<span class="fy-sep"');
@@ -2381,7 +2395,18 @@ describe("T · the polish class, in the rules that carry it", () => {
     expect(CSS).toMatch(/\.fy-method-section p \{ margin-block-start: 42px;/);
     expect(CSS).toContain(".fy-method-section h2 + p, .fy-method-section h3 + p { margin-block-start: 16px; }");
     expect(CSS).toMatch(/:root \.term-def \{[^}]*font-style: normal; color: var\(--fy-muted\)/);
-    expect(CSS).toMatch(/\.fy-attack-checks \{[^}]*display: grid; grid-template-columns: auto minmax\(0, 1fr\)/);
+    // ROUND 3 · T10's two-column grid is GONE, and the reason is worth keeping:
+    // in a grid each `<code>` is an item and each ", " between them an ANONYMOUS
+    // item, so auto-placement dealt nine ids into column 2 and nine bare commas
+    // into column 1 — 179px from the token each belonged to. The label takes its
+    // own line instead, which is one behaviour for home's copy and methodology's
+    // `.tx-class-controls`, and leaves ordinary inline layout in charge of the
+    // commas.
+    expect(CSS).toContain(".fy-attack-checks, :root .tx-class-controls {\n  display: block; overflow-wrap: normal;\n}");
+    expect(CSS).toContain(
+      ".fy-attack-checks > .fy-attack-label, :root .tx-class-controls > .tx-label {\n  display: block; margin-block-end: 2px;\n}",
+    );
+    expect(CSS).not.toMatch(/\.fy-attack-checks \{[^}]*display: grid; grid-template-columns: auto minmax\(0, 1fr\)/);
     expect(CSS).toMatch(/\.fy-ov-count \{[^}]*min-inline-size: 2\.4ch; text-align: end;/);
     expect(CSS).toMatch(/\.fy-trace-legend \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
     expect(CSS).toMatch(/\.fy-panel \{[^}]*max-inline-size: calc\(var\(--fy-prose\) \+ 48px\)/);
@@ -2413,5 +2438,103 @@ describe("T · the polish class, in the rules that carry it", () => {
     expect(HOME).not.toContain('<span class="fy-attack-mark" aria-hidden="true">');
     expect(MOTION_SCRIPT).toContain('querySelectorAll(".fy-track[data-window-in-view]")');
     expect(MOTION_SCRIPT).toContain('track.setAttribute("data-window-in-view", en.isIntersecting ? "true" : "false");');
+  });
+});
+
+/* ══ round 3 — the last targeted pass ════════════════════════════════════ */
+
+/**
+ * Round 3's four judges and the independent measurement agreed on one sentence
+ * for most of this list: a token must not break away from what belongs to it.
+ * The id away from its chip, the comma away from its id, the middot away from
+ * the item it introduces, the badge away from its own pill — four shapes of the
+ * same fault, and each is pinned here with the old form required to be gone,
+ * because every one of them shipped silently once already.
+ */
+describe("round 3 — a token never breaks away from what belongs to it", () => {
+  test("A1 · the chip's id is unbreakable at EVERY width, not only at 390", () => {
+    // `.fy-node-label { overflow-wrap: anywhere }` was global while its repair
+    // was in the 767 block, so the five-across Distribution & publishing band
+    // at 1440 set `publish-provenance` as `publis` / `h-` / `proven`.
+    expect(CSS).toMatch(/\.fy-node \{[^}]*flex-wrap: wrap;/);
+    expect(CSS).toMatch(/\.fy-node-label \{[^}]*overflow-wrap: normal;/);
+    expect(CSS).not.toMatch(/\.fy-node-label \{[^}]*overflow-wrap: anywhere/);
+  });
+
+  test("A2 + E20 · the run-in checks list is one component with one behaviour", () => {
+    // The grid dealt nine ids into column 2 and nine bare commas into column 1.
+    // One rule, both instances, label on its own line, ordinary inline layout
+    // back in charge of the separators.
+    expect(CSS).toContain(".fy-attack-checks, :root .tx-class-controls {");
+    expect(CSS).toContain(".fy-attack-checks > .fy-attack-label, :root .tx-class-controls > .tx-label {");
+    expect(CSS).not.toMatch(/\.fy-attack-checks \{[^}]*display: grid/);
+    expect(CSS).not.toContain(".fy-attack-checks > a { grid-column: 1 / -1; }");
+  });
+
+  test("A3 · an identifier in the methodology threat lists never splits", () => {
+    expect(CSS).toContain(".fy-attack-checks code, :root .tx-class-controls code { white-space: nowrap; }");
+  });
+
+  test("A4 · the merge badge is one line inside its 999px pill", () => {
+    expect(CSS).toMatch(/\.fy-merge-tag \{[^}]*white-space: nowrap;/);
+    expect(CSS).toMatch(/\.fy-merge-tag \{[^}]*flex: 0 0 auto;/);
+    // and it is still the 999px pill, not a re-shaped box
+    expect(CSS).toMatch(/\.fy-merge-tag \{[^}]*border-radius: 999px;/);
+  });
+
+  test("A5 · a separator never opens or closes a rendered line", () => {
+    // CSS can express neither case: the dot strands at a line END when the item
+    // it introduces is an atomic inline-block that wraps whole, and nothing
+    // anywhere stops a line BEGINNING on one. Asked after layout, re-asked on
+    // resize, and answered by hiding the GLYPH rather than removing the box —
+    // `visibility` changes no geometry, so the mark cannot move the wrap that
+    // produced it and the pass cannot oscillate against its own effect.
+    expect(CSS).toContain('.fy-sl > span + span[data-sep="off"]::before,');
+    expect(CSS).toContain('.fy-rm + .fy-rm[data-sep="off"]::before { visibility: hidden; }');
+    expect(CSS).not.toMatch(/\[data-sep="off"\]::before \{[^}]*content: none/);
+    expect(MOTION_SCRIPT).toContain('var SEP_SEL = ".fy-sl > span + span, .fy-rm + .fy-rm";');
+    expect(MOTION_SCRIPT).toContain("var stranded = mine.length > 1;");
+    expect(MOTION_SCRIPT).toContain('el.setAttribute("data-sep", "off");');
+    expect(MOTION_SCRIPT).toContain('addEventListener("resize", seps);');
+    // web fonts land after first layout and change every one of these measurements
+    expect(MOTION_SCRIPT).toContain("document.fonts.ready.then(seps);");
+  });
+
+  test("A6 · the pull-quote does not hyphenate", () => {
+    expect(CSS).toMatch(/\.fy-pullquote \{[\s\S]*?hyphens: none;/);
+  });
+
+  test("C10 · all three summary families say they open", () => {
+    // `.tx-details summary` had the chevron; round 2 recorded that these two
+    // already did and they did not — they had `cursor: pointer` and then the
+    // `display: inline-flex` that is itself what suppresses the ::marker.
+    expect(CSS).toContain(".fy-merge summary, .fy-table summary { display: inline-flex; align-items: center; list-style: none; }");
+    expect(CSS).toContain(".fy-merge summary::before, .fy-table summary::before {");
+    expect(CSS).toContain(".fy-merge[open] > summary::before,");
+    expect(CSS).toContain(".fy-table details[open] > summary::before { transform: rotate(-135deg); margin-block-start: 3px; }");
+    // the closed state is the same 45deg glyph `.tx-details` draws
+    expect(CSS).toMatch(/\.fy-merge summary::before, \.fy-table summary::before \{[^}]*transform: rotate\(45deg\);/);
+    // the 44px tap target survives
+    expect(CSS).toMatch(/\.fy-table summary \{[^}]*min-block-size: 44px;/);
+    // every summary the tree renders is covered by one of the three rules
+    for (const [name, html] of PAGES) {
+      const summaries = (html.match(/<summary/g) ?? []).length;
+      const covered = (html.match(/class="(?:fy-merge|tx-details)"/g) ?? []).length
+        + (html.match(/<details><summary>evidence \(/g) ?? []).length;
+      expect(summaries, `${name}: ${summaries} summaries, ${covered} covered`).toBe(covered);
+    }
+  });
+
+  test("E19 · the swipe cue is hidden when the region does not overflow", () => {
+    // `.fy-swipe { display: block }` is an author rule and beats the UA's
+    // `[hidden] { display: none }`, so `cue.hidden = max <= 1` did nothing.
+    expect(MOTION_CSS).toContain(".fy-swipe[hidden] { display: none; }");
+    expect(MOTION_SCRIPT).toContain("if (cue) cue.hidden = max <= 1;");
+  });
+
+  test("E24 · the reported chip is one component on both pages", () => {
+    expect(CSS).toMatch(/\.fy-reported \{[\s\S]*?border-radius: 999px; padding: 0 8px; margin-inline-start: 0;/);
+    expect(CSS).toMatch(/:root \.tx-reported \{[^}]*border-radius: 999px/);
+    expect(CSS).not.toMatch(/\.fy-reported \{[^}]*padding: 0 6px; margin-inline-start: 8px/);
   });
 });

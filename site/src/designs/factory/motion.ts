@@ -358,7 +358,37 @@ export const MOTION_CSS = `
   display: block; margin-block-start: 8px; font-family: var(--fy-mono);
   font-size: 12px; line-height: 18px; color: var(--fy-muted);
 }
+/* AN AUTHOR 'display' BEATS THE UA'S '[hidden] { display: none }', so the
+   script's own 'cue.hidden = max <= 1' did nothing and three methodology tables
+   that fit their own window advertised a swipe that cannot move. A false
+   affordance is worse on touch than none, and it undercuts the two real cues on
+   the same page. */
+.fy-swipe[hidden] { display: none; }
 .fy-dark .fy-swipe { color: var(--fy-dark-quiet); }
+/* THE PHASE PICKER GETS THE SAME TREATMENT THE TABLES GOT. At 390 the control
+   is a scrollbar-less horizontal scroller showing two and a half of its six
+   phases, with a rounded cap 20px inside the screen edge that reads as the end
+   of the thing — on the site's one interactive device, whose copy says "pick a
+   phase". Same mask, same cue, and the script scrolls the checked label fully
+   into view the way the chapter rail already does for its active pill. */
+.fy-segmented {
+  --fy-mask-start: rgba(0, 0, 0, 1);
+  --fy-mask-end: rgba(0, 0, 0, 1);
+  transition-property: --fy-mask-start, --fy-mask-end;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-mask-image: linear-gradient(to right, var(--fy-mask-start) 0, #000 20px,
+    #000 calc(100% - 20px), var(--fy-mask-end) 100%);
+  mask-image: linear-gradient(to right, var(--fy-mask-start) 0, #000 20px,
+    #000 calc(100% - 20px), var(--fy-mask-end) 100%);
+}
+.fy-segmented[data-overflow-start="true"] { --fy-mask-start: rgba(0, 0, 0, 0); }
+.fy-segmented[data-overflow-end="true"] { --fy-mask-end: rgba(0, 0, 0, 0); }
+.fy-seg-swipe {
+  display: block; margin-block-start: 8px; text-align: center; font-family: var(--fy-mono);
+  font-size: 12px; line-height: 18px; color: var(--fy-muted);
+}
+.fy-seg-swipe[hidden] { display: none; }
 
 /* The toggletip. 0.4 s in with an 8px rise, 0.2 s out the way it came —
    side-aware, so a panel that opened upward closes upward.
@@ -796,6 +826,38 @@ export const MOTION_SCRIPT = `(function () {
       var panel = document.getElementById(input.getAttribute("aria-controls") || "");
       if (panel) panels.push({ input: input, panel: panel });
     });
+    // THE CONTROL SAYS WHEN IT IS HOLDING MORE, AND MOVES WHAT YOU PICKED INTO
+    // VIEW. At 390 this scrolled horizontally with no scrollbar, no mask, no cue
+    // and no scroll-into-view: two and a half of six phases, under a rounded cap
+    // 20px inside the screen edge that reads as the end of the control. A reader
+    // could finish the chapter believing the site has three phases while its own
+    // copy, the chart, the sheet and the directory all say six. The tables two
+    // selectors away already had every part of this.
+    var cue = document.createElement("span");
+    cue.className = "fy-seg-swipe";
+    cue.setAttribute("aria-hidden", "true");
+    cue.hidden = true;
+    cue.textContent = "swipe for the rest \\u2192";
+    if (group.parentNode) group.parentNode.insertBefore(cue, group.nextSibling);
+    var edges = function () {
+      var max = group.scrollWidth - group.clientWidth;
+      group.setAttribute("data-overflow-start", max > 1 && group.scrollLeft > 1 ? "true" : "false");
+      group.setAttribute("data-overflow-end", max > 1 && group.scrollLeft < max - 1 ? "true" : "false");
+      cue.hidden = max <= 1;
+    };
+    // Padded by the mask's own 20px, so a label scrolled into view never lands
+    // under the fade that says there is more. Clamped by the element itself at
+    // either end, which is what puts the last label flush inside the track.
+    var reveal = function (input) {
+      var label = input.parentNode;
+      if (!label || !label.getBoundingClientRect) return;
+      if (group.scrollWidth - group.clientWidth <= 1) return;
+      var g = group.getBoundingClientRect();
+      var l = label.getBoundingClientRect();
+      if (l.left < g.left + 20) group.scrollLeft -= g.left + 20 - l.left;
+      else if (l.right > g.right - 20) group.scrollLeft += l.right - (g.right - 20);
+      edges();
+    };
     var sync = function () {
       each(panels, function (p) {
         p.panel.hidden = !p.input.checked;
@@ -803,8 +865,13 @@ export const MOTION_SCRIPT = `(function () {
         if (label && label.setAttribute) label.setAttribute("data-state", p.input.checked ? "on" : "off");
       });
     };
-    each(inputs, function (input) { input.addEventListener("change", sync); });
+    each(inputs, function (input) {
+      input.addEventListener("change", function () { sync(); reveal(input); });
+    });
+    group.addEventListener("scroll", edges, { passive: true });
+    addEventListener("resize", edges);
     sync();
+    edges();
   });
   // The design's own wraps AND the shared .table-scroll containers, which ship
   // no affordance of their own: a 640px table in a 344px window cut every
@@ -830,4 +897,45 @@ export const MOTION_SCRIPT = `(function () {
     addEventListener("resize", sync);
     sync();
   });
+
+  /* ── 6. a separator never opens or closes a line ───────────────────────── */
+  // T4 moved every middot from a trailing ::after to a LEADING ::before bound by
+  // a non-breaking space, which is what stopped lines ending on one — measured 0
+  // across four pages. Two cases survive it, and CSS can express neither:
+  //
+  //   · the dot still strands at a line END when the item it introduces is an
+  //     atomic inline-block that wraps whole — the directory card's
+  //     "… 30 of 33 in scope ·" with its coverage pill on the next line;
+  //   · and nothing anywhere stops a line BEGINNING on one, which is what the
+  //     fix traded into: the sheet's first viewport at 390 opened two metadata
+  //     lines on a middot, and so did the colophon.
+  //
+  // Whether a separator sits at a line boundary is a question only layout can
+  // answer, so it is asked after layout and re-asked on resize. The mark HIDES
+  // the glyph rather than removing the box: 'visibility' changes no geometry at
+  // all, so marking a separator can never move the wrap that produced it, and
+  // the pass cannot oscillate against its own effect. An element that spans two
+  // line boxes is the trailing case; an element whose first box sits on a
+  // different line from its predecessor's last is the leading one.
+  var SEP_SEL = ".fy-sl > span + span, .fy-rm + .fy-rm";
+  var seps = function () {
+    var items = document.querySelectorAll(SEP_SEL);
+    each(items, function (el) { el.removeAttribute("data-sep"); });
+    each(items, function (el) {
+      var prev = el.previousElementSibling;
+      if (!prev) return;
+      var mine = el.getClientRects();
+      var theirs = prev.getClientRects();
+      if (!mine.length || !theirs.length) return;
+      var stranded = mine.length > 1;
+      var leads = Math.abs(mine[0].top - theirs[theirs.length - 1].top) > 1;
+      if (stranded || leads) el.setAttribute("data-sep", "off");
+    });
+  };
+  addEventListener("resize", seps);
+  seps();
+  // Web fonts land after first layout and change every one of these measurements.
+  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+    document.fonts.ready.then(seps);
+  }
 })();`;
