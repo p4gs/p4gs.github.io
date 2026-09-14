@@ -7,8 +7,9 @@ import type { Design } from "./types";
 import { bulletin } from "./bulletin/index";
 import { chain } from "./chain/index";
 import { consoleDesign } from "./console/index";
+import { factory } from "./factory/index";
 import { ledger } from "./ledger/index";
 import { signal } from "./signal/index";
 
-export const DESIGNS: Design[] = [ledger, consoleDesign, chain, signal, bulletin];
+export const DESIGNS: Design[] = [ledger, consoleDesign, chain, signal, bulletin, factory];
 export const DEFAULT_DESIGN = DESIGNS[0]!;

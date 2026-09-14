@@ -87,6 +87,18 @@ describe("sentence length is bounded on every page, in every design", () => {
  * The methodology page is allowed to be the most technical page. It is not
  * allowed to drift back to being a different KIND of page from the rest, which
  * is what "13.2 mean against 8.1" actually described.
+ *
+ * THE MARGIN HERE IS NOT UNIFORM ACROSS THE DESIGNS, and one of them sits close
+ * to this ceiling for a structural reason rather than a prose one. Factory
+ * measures ~4.7 against 1.0–2.6 for the other five: its chapter 03 renders all
+ * 54 checks AS QUESTIONS and its nested diagram carries 54 more inside
+ * toggletips, so its home and repo pages hold several hundred genuinely short
+ * sentences that pull their means down — which widens the gap from the other
+ * end. The clamp passes, but an edit that lengthens the SHARED methodology
+ * copy, which no design owns, can push Factory over it while leaving the other
+ * five comfortable. If this test goes red on Factory alone, look at what
+ * changed in `designs/methodology-shared.ts` or `compare-shared.ts` before
+ * looking at Factory.
  */
 test("the methodology page stays in the same register as the rest of the site", () => {
   for (const d of DESIGNS) {

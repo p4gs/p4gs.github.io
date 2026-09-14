@@ -92,10 +92,10 @@ function prose(html: string): string {
 describe("every design renders the new home page", () => {
   // Named, not counted: a design added to the registry and forgotten here
   // would otherwise ship a home page nothing below ever renders.
-  test("all five designs are covered by this suite", () => {
-    expect(HOMES.length).toBe(5);
+  test("all six designs are covered by this suite", () => {
+    expect(HOMES.length).toBe(6);
     expect(HOMES.map(([id]) => id).sort()).toEqual([
-      "bulletin", "chain", "console", "ledger", "signal",
+      "bulletin", "chain", "console", "factory", "ledger", "signal",
     ]);
   });
 
