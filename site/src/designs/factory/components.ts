@@ -1131,7 +1131,7 @@ export function triangleFigure(): string {
   // above-right, where the line has already passed; the third sits below, where
   // the line does not go at all.
   const PLACE = ["above-center", "above-start", "below-end"] as const;
-  const OFFSET = [-14, -14, 14];
+  const OFFSET = [-18, -14, 14];
   const html = `    <div class="fy-speed-labels" aria-hidden="true">
 ${pts
   .map(
@@ -1141,8 +1141,18 @@ ${pts
       )};top:${py(p[1] + OFFSET[i]!)}">${escapeHtml(LANE_NODES[i]!.name)}</span>`,
   )
   .join("\n")}
-      <span class="fy-rank-label" style="left:${px(8)};top:${py(86)}">strongest</span>
-      <span class="fy-rank-label" style="left:${px(8)};top:${py(246)}">weakest</span>
+      <!-- THE RANK WORD HANGS UNDER THE RUNG IT NAMES, on both rungs, which is
+           what takes it out of the label band. Above the rung, "strongest" sat
+           in the same horizontal band as the first node's centred label and the
+           descenders of "project's / signed" ran through its cap height - a
+           40.5 x 4.0px overlap at 1440 and 39.8 x 5.1px at 390, the only text
+           overlap on the site and at both widths. Horizontal separation is not
+           available here (node 1 is 40 units right of the ladder's own left
+           edge, so a label centred on it always reaches into the rank gutter),
+           so the separation is vertical and the rule is the same for both
+           words. -->
+      <span class="fy-rank-label" style="left:${px(8)};top:${py(110)}">strongest</span>
+      <span class="fy-rank-label" style="left:${px(8)};top:${py(270)}">weakest</span>
     </div>`;
   return tracedFigure({
     kind: "fy-triangle",
@@ -1500,9 +1510,26 @@ ${inputs}
         <div class="fy-flow-col">
 ${panels}
         </div>
-        <div class="fy-flow-wire" aria-hidden="true">${FLOW_WIRE_RUN}</div>
+        <!-- THE STACKED CONNECTOR, and only at 390. At that width the SVG runs
+             are hidden and the connector is drawn by the wire's own ::before and
+             ::after as a short vertical with a downward arrow, so this element
+             exists to sit BETWEEN the checks cards and the Record head in
+             reading order. At >=768 it is display:none and the run below does
+             the work. -->
+        <div class="fy-flow-wire" data-flow-wire="stack" aria-hidden="true"></div>
       </div>
       <div class="fy-flow-band" data-flow-band="out">
+        <!-- THE OUTGOING RUN LIVES IN THE RECORD CARD'S OWN GRID ROW, which is
+             the only way its 50% can mean the card's centre. In the checks band
+             the wire stretched to the ~2000px row that band fills and its
+             arrowhead resolved to y=779, on bare dotted grid, ~330px below the
+             only card it can mean. That was the cost of top-anchoring the three
+             columns - correct, and not to be undone: centring the Record card
+             again would put it a third of a screen under the head that names it.
+             Here the row is the card's own and the SVG is taken out of flow, so
+             it contributes no intrinsic height and the arrow lands on the card's
+             centre-line at every width that draws it. -->
+        <div class="fy-flow-wire" data-flow-wire="out" aria-hidden="true">${FLOW_WIRE_RUN}</div>
         <div class="fy-flow-col">
           <div class="fy-flowcard fy-flowcard-record" data-flow="record">
             <span class="fy-flowcard-title">One listing</span>

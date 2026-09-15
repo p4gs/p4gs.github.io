@@ -968,7 +968,14 @@ describe("A5 · the explorer is the reference's flow diagram", () => {
     // scale, which is the whole reason for vector-effect here.
     expect(HOME).toContain('d="M0 16H22M0 50H22M0 84H22M22 16V84M22 50H52"');
     expect(HOME).toContain('d="M0 50H52"');
-    expect(countOf(HOME, 'class="fy-flow-wire"')).toBe(2);
+    // ROUND 3 · three wire elements now, because the outgoing run moved into the
+    // Record card's own grid row (so its 50% means the card's centre) and the
+    // 390 connector has to stay between the checks cards and the Record head in
+    // reading order. Each width paints exactly one of the two.
+    expect(countOf(HOME, 'class="fy-flow-wire" data-flow-wire=')).toBe(2);
+    // three elements, and exactly one of them is the untagged inbound bracket
+    expect(countOf(HOME, 'class="fy-flow-wire"')).toBe(3);
+    expect(countOf(HOME, '<div class="fy-flow-wire" aria-hidden="true">')).toBe(1);
     expect(CSS).toContain("vector-effect: non-scaling-stroke;\n}");
     expect(CSS).toMatch(/\.fy-flow-wire::after \{[^}]*transform: translateY\(-50%\) rotate\(45deg\)/);
   });
@@ -1007,7 +1014,9 @@ describe("A5 · the explorer is the reference's flow diagram", () => {
     expect(MOBILE).toContain(
       ".fy-flow-head[data-flow-head], .fy-flow-band[data-flow-band] {\n    grid-column: 1; grid-row: auto;\n  }",
     );
-    expect(MOBILE).toContain(".fy-flow-head[data-flow-head] { text-align: start; padding-inline-end: 0; }");
+    // `padding-inline` and not `-end`: the out head carries a start padding at
+    // desktop now, and a stacked head centres over nothing.
+    expect(MOBILE).toContain(".fy-flow-head[data-flow-head] { text-align: start; padding-inline: 0; }");
     // the unqualified forms are the ones that lost; neither may come back
     expect(MOBILE).not.toMatch(/\.fy-flow-head, \.fy-flow-band \{/);
     expect(MOBILE).not.toMatch(/\n  \.fy-flow-head \{/);
@@ -2566,5 +2575,70 @@ describe("round 3 — a token never breaks away from what belongs to it", () => 
     expect(CSS).toMatch(/\.fy-reported \{[\s\S]*?border-radius: 999px; padding: 0 8px; margin-inline-start: 0;/);
     expect(CSS).toMatch(/:root \.tx-reported \{[^}]*border-radius: 999px/);
     expect(CSS).not.toMatch(/\.fy-reported \{[^}]*padding: 0 6px; margin-inline-start: 8px/);
+  });
+});
+
+describe("round 3 — the diagrams' connective claims are true", () => {
+  test("B7 · the outgoing wire shares the Record card's own grid row", () => {
+    // In the CHECKS band the wire stretched to that band's ~2000px row, so its
+    // arrowhead's 50% resolved to bare dotted grid ~330px below the only card it
+    // can mean. The row has to BE the card's row for 50% to mean the card.
+    expect(CSS).toContain('.fy-flow-band[data-flow-band="out"] { grid-column: 3; grid-template-columns: 56px minmax(0, 1fr); }');
+    expect(CSS).toContain('.fy-flow-band[data-flow-band="out"] .fy-flow-wire { grid-column: 1; grid-row: 1; }');
+    expect(CSS).toContain('.fy-flow-band[data-flow-band="out"] .fy-flow-col { grid-column: 2; grid-row: 1; }');
+    // out of flow, or the SVG's own viewBox aspect sets the row and 50% means
+    // the wire's midpoint again — which IS the defect
+    expect(CSS).toContain('.fy-flow-band[data-flow-band="out"] .fy-flow-lines { position: absolute; inset: 0; }');
+    // the checks band gives its 56px back to the cards, and its head with it
+    expect(CSS).toContain('.fy-flow-band[data-flow-band="checks"] { grid-column: 2; grid-template-columns: minmax(0, 1fr); }');
+    expect(CSS).toContain('.fy-flow-head[data-flow-head="checks"] { grid-column: 2; }');
+    expect(CSS).toContain('.fy-flow-head[data-flow-head="out"] { grid-column: 3; padding-inline-start: 56px; }');
+    // the 390 connector is a second element, so reading order stays
+    // checks-cards → connector → Record head; each width shows exactly one
+    expect(HOME).toContain('<div class="fy-flow-wire" data-flow-wire="stack" aria-hidden="true"></div>');
+    expect(HOME).toContain('<div class="fy-flow-wire" data-flow-wire="out" aria-hidden="true">');
+    expect(CSS).toContain('.fy-flow-wire[data-flow-wire="stack"] { display: none; }');
+    expect(MOBILE).toContain('.fy-flow-wire[data-flow-wire="stack"] { display: block; }');
+    expect(MOBILE).toContain('.fy-flow-wire[data-flow-wire="out"] { display: none; }');
+    // the inbound bracket is untouched — its arms still target 16/50/84%
+    expect(HOME).toContain('d="M0 16H22M0 50H22M0 84H22M22 16V84M22 50H52"');
+  });
+
+  test("B8 · the rank word hangs under the rung it names, on both rungs", () => {
+    // "strongest" above its rung sat in the same horizontal band as the first
+    // node's centred label: 40.5 x 4.0px at 1440, 39.8 x 5.1px at 390 — the only
+    // text overlap on the site, and at both widths. Horizontal separation is not
+    // available (node 1 is 40 units right of the ladder's left edge, so a label
+    // centred on it always reaches into the rank gutter), so it is vertical.
+    const beat = HOME.slice(HOME.indexOf('id="lanes"'), HOME.indexOf('id="ways-in"'));
+    // 110 and 270 are 14 units BELOW the rungs at 96 and 256
+    expect(beat).toContain(`top:${((100 * 110) / 330).toFixed(3)}%">strongest`);
+    expect(beat).toContain(`top:${((100 * 270) / 330).toFixed(3)}%">weakest`);
+    expect(beat).not.toContain(`top:${((100 * 86) / 330).toFixed(3)}%">strongest`);
+    expect(beat).not.toContain(`top:${((100 * 246) / 330).toFixed(3)}%">weakest`);
+    // and the first label lifts a little further off its node
+    expect(beat).toContain(`top:${((100 * (96 - 18)) / 330).toFixed(3)}%"`);
+    // both rank words share one left, so the rule reads as one rule
+    expect(countOf(beat, `class="fy-rank-label" style="left:${((100 * 8) / 580).toFixed(3)}%`)).toBe(2);
+  });
+
+  test("B9 · the phase picker says it is holding more, and moves what you picked into view", () => {
+    // At 390 this showed two and a half of its six phases behind a scrollbar-less
+    // scroll, under a rounded cap 20px inside the screen edge that reads as the
+    // end of the control — on the site's one interactive device, whose own copy
+    // says "pick a phase". The tables two selectors away already had every part
+    // of this.
+    expect(MOTION_CSS).toContain(".fy-segmented[data-overflow-end=\"true\"] { --fy-mask-end: rgba(0, 0, 0, 0); }");
+    expect(MOTION_CSS).toContain(".fy-seg-swipe[hidden] { display: none; }");
+    expect(MOTION_SCRIPT).toContain('cue.className = "fy-seg-swipe";');
+    expect(MOTION_SCRIPT).toContain("cue.hidden = max <= 1;");
+    // padded by the mask's own 20px, so a revealed label never lands under the
+    // fade that says there is more
+    expect(MOTION_SCRIPT).toContain("if (l.left < g.left + 20) group.scrollLeft -= g.left + 20 - l.left;");
+    expect(MOTION_SCRIPT).toContain("else if (l.right > g.right - 20) group.scrollLeft += l.right - (g.right - 20);");
+    expect(MOTION_SCRIPT).toContain('input.addEventListener("change", function () { sync(); reveal(input); });');
+    // the radio semantics and the no-sliding-thumb rule are untouched
+    expect(HOME).toContain('<div class="fy-segmented" role="radiogroup" aria-label="Pick a phase" data-segmented>');
+    expect(MOTION_CSS).not.toContain(".fy-seg-thumb");
   });
 });
