@@ -685,31 +685,67 @@ ${ids}
 
 /* ══ 4.4 the traced figures ══════════════════════════════════════════════ */
 
-/* The lattice: 12 x 8 cells of 40 units, drawn 26..506 by 26..346 inside the
-   reference's own 532 x 374 viewBox, with cell centres at 46 + 40k. Every wall
-   segment is one 40-unit cell edge, which is the grammar the reference's own
-   `structure` path is written in (`M26 26h40 M66 26v40 ...`). */
+/* The board: 12 x 8 cells of 40 units, drawn 26..506 by 26..346 inside a
+   532 x 374 viewBox, with cell centres at 46 + 40k. Every segment of the trace
+   is one 40-unit cell step, which is what makes an index into the point list a
+   real arc fraction rather than an evenly-spaced guess. */
 const STEP = 40;
 const M_LEFT = 26;
 const M_TOP = 26;
 const M_COLS = 12;
 const M_ROWS = 8;
-/** Exported so a test can derive the wall count rather than restate it. */
-export const MAZE_GRID = { cols: M_COLS, rows: M_ROWS } as const;
+/** Exported so a test can derive the geometry rather than restate it. */
+export const PIPELINE_GRID = { cols: M_COLS, rows: M_ROWS } as const;
 const cx = (i: number): number => M_LEFT + STEP / 2 + i * STEP;
 const cy = (j: number): number => M_TOP + STEP / 2 + j * STEP;
+
+/**
+ * THE FOUR SYSTEMS CODE ACTUALLY MOVES THROUGH, and which phases sit in each.
+ *
+ * This is not a new taxonomy. `PHASES` and `PHASE_NAMES` are unchanged and in
+ * their own order; this only says which real-world system each existing phase
+ * belongs to, which is the thing the figure was failing to show:
+ *
+ *   Repository (SCM)  — P1 Commit integrity
+ *   Build (CI)        — P2 Dependencies · P3 Build receipts · P4 Code & build hardening
+ *   Production        — P5 Ongoing posture
+ *   Registry (CD)     — P6 Distribution & publishing
+ *
+ * The zone WIDTHS are the phase counts, so Build is three times either
+ * neighbour because three of the six phases are build-time concerns. A phase
+ * this table does not name falls into the last zone rather than vanishing.
+ */
+export const STAGE_ZONES: ReadonlyArray<{ label: string; phases: readonly number[] }> = [
+  { label: "Repository", phases: [1] },
+  { label: "Build", phases: [2, 3, 4] },
+  { label: "Production", phases: [5] },
+  { label: "Registry", phases: [6] },
+];
+
+interface Zone {
+  label: string;
+  /** First and last lattice column this zone owns, inclusive of the first. */
+  from: number;
+  to: number;
+  /** How many of this route's checkpoints land inside it. */
+  holds: number;
+}
 
 interface Route {
   points: Array<[number, number]>;
   /** Index into `points` of each checkpoint, in order. */
   stops: number[];
-  /** The `d` of every wall the maze keeps. */
+  /** The `d` of the board drawn behind the trace. */
   walls: string;
+  /** The four zones, with the lattice columns each owns. */
+  zones: Zone[];
+  /** The lattice column each checkpoint sits in — strictly increasing. */
+  columns: number[];
 }
 
 /**
- * A deterministic PRNG. The maze must be byte-identical on every build, so the
- * carve cannot reach for `Math.random()` and cannot depend on iteration order.
+ * A deterministic PRNG. The board must be byte-identical on every build, so
+ * nothing here reaches for `Math.random()` or depends on iteration order.
  */
 function rng(seed: number): () => number {
   let s = seed >>> 0;
@@ -721,107 +757,146 @@ function rng(seed: number): () => number {
   };
 }
 
-const edgeKey = (a: number, b: number): string => (a < b ? `${a}:${b}` : `${b}:${a}`);
-
 /**
- * Carve a perfect maze over the lattice with a seeded depth-first walk.
+ * Which zone each of `n` checkpoints belongs to, in weight space.
  *
- * "Perfect" means every cell is reachable and there is exactly ONE path between
- * any two of them — which is what makes the route below a property of the maze
- * rather than a line drawn on top of one. The first cut of this figure drew a
- * serpentine over a field of random wall stubs: the route never turned a corner
- * the walls made, and the six checkpoints stacked on two edges because that is
- * where a serpentine's legs end.
+ * At the real call — `n` = `PHASES.length` — this is exactly the table above:
+ * one checkpoint in Repository, three in Build, one in Production, one in
+ * Registry. For any other `n` the checkpoints are dealt across the same
+ * weighted span, so the generator follows the phase count rather than a
+ * literal and a seventh phase widens Build rather than falling off the board.
  */
-function carve(seed: number): Set<string> {
-  const rand = rng(seed);
-  const at = (i: number, j: number) => j * M_COLS + i;
-  const open = new Set<string>();
-  const seen = new Uint8Array(M_COLS * M_ROWS);
-  const stack: Array<[number, number]> = [[0, 0]];
-  seen[0] = 1;
-  while (stack.length > 0) {
-    const [i, j] = stack[stack.length - 1]!;
-    const next: Array<[number, number]> = [];
-    if (i > 0 && !seen[at(i - 1, j)]) next.push([i - 1, j]);
-    if (i < M_COLS - 1 && !seen[at(i + 1, j)]) next.push([i + 1, j]);
-    if (j > 0 && !seen[at(i, j - 1)]) next.push([i, j - 1]);
-    if (j < M_ROWS - 1 && !seen[at(i, j + 1)]) next.push([i, j + 1]);
-    if (next.length === 0) {
-      stack.pop();
-      continue;
-    }
-    const pick = next[Math.min(next.length - 1, Math.floor(rand() * next.length))]!;
-    open.add(edgeKey(at(i, j), at(pick[0], pick[1])));
-    seen[at(pick[0], pick[1])] = 1;
-    stack.push(pick);
-  }
-  return open;
-}
-
-/** The one path through a perfect maze, from the top-left cell to the last. */
-function solve(open: Set<string>): Array<[number, number]> {
-  const at = (i: number, j: number) => j * M_COLS + i;
-  const goal = at(M_COLS - 1, M_ROWS - 1);
-  const seen = new Uint8Array(M_COLS * M_ROWS);
-  const path: Array<[number, number]> = [];
-  const walk = (i: number, j: number): boolean => {
-    seen[at(i, j)] = 1;
-    path.push([i, j]);
-    if (at(i, j) === goal) return true;
-    const steps: Array<[number, number]> = [
-      [i + 1, j],
-      [i, j + 1],
-      [i - 1, j],
-      [i, j - 1],
-    ];
-    for (const [ni, nj] of steps) {
-      if (ni < 0 || nj < 0 || ni >= M_COLS || nj >= M_ROWS) continue;
-      if (seen[at(ni, nj)]) continue;
-      if (!open.has(edgeKey(at(i, j), at(ni, nj)))) continue;
-      if (walk(ni, nj)) return true;
-    }
-    path.pop();
-    return false;
-  };
-  walk(0, 0);
-  return path;
-}
-
-/**
- * The road, with exactly `n` checkpoints on it.
- *
- * Points are one per 40-unit step, so an index into them IS the arc fraction —
- * which is what lets a checkpoint's `data-node-at` be a real position on the
- * path rather than an evenly-spaced guess. The checkpoints are spread over the
- * whole road, first and last at its ends.
- */
-export function mazeRoute(n: number): Route {
-  const open = carve(0x5c5b_1234 ^ (M_COLS * 131 + M_ROWS));
-  const cells = solve(open);
-  const points: Array<[number, number]> = cells.map(([i, j]) => [cx(i), cy(j)]);
-  const last = points.length - 1;
-  const stops: number[] = [];
+function zonesFor(n: number): Zone[] {
+  const weights = STAGE_ZONES.map((z) => z.phases.length);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let before = 0;
+  const zones: Zone[] = STAGE_ZONES.map((z, i) => {
+    const from = Math.round((M_COLS * before) / total);
+    before += weights[i]!;
+    const to = Math.round((M_COLS * before) / total);
+    return { label: z.label, from, to, holds: 0 };
+  });
   for (let k = 0; k < n; k += 1) {
-    stops.push(n === 1 ? 0 : Math.round((k * last) / (n - 1)));
+    // The checkpoint's position in weight space, at the centre of its own share.
+    const u = ((k + 0.5) * total) / n;
+    let acc = 0;
+    let idx = zones.length - 1;
+    for (let z = 0; z < weights.length; z += 1) {
+      acc += weights[z]!;
+      if (u < acc) {
+        idx = z;
+        break;
+      }
+    }
+    zones[idx]!.holds += 1;
   }
-  return { points, stops, walls: mazeWalls(open) };
+  return zones;
 }
 
-/** Every lattice edge the carve did NOT open, plus the outer border. */
-function mazeWalls(open: Set<string>): string {
-  const at = (i: number, j: number) => j * M_COLS + i;
+/**
+ * The column each checkpoint sits in — inside its own zone, and never
+ * backwards. A zone holding `m` of them spaces them evenly across its own
+ * columns, which is what keeps three build-time checkpoints legible as three
+ * stops inside one system rather than three systems.
+ */
+function checkpointColumns(zones: readonly Zone[]): number[] {
+  const cols: number[] = [];
+  for (const z of zones) {
+    const span = z.to - z.from;
+    for (let j = 0; j < z.holds; j += 1) {
+      cols.push(z.from + Math.floor(((2 * j + 1) * span) / (2 * z.holds)));
+    }
+  }
+  return cols;
+}
+
+/**
+ * The trace: a DIRECTED left-to-right run with right-angle jogs.
+ *
+ * Monotonically non-decreasing in column by construction — it can never double
+ * back into a system it has already left, which is the one thing the old
+ * carved maze could not promise and the whole reason it read as a puzzle rather
+ * than a pipeline. The jogs are seeded so the run has a board's character
+ * rather than a ruler's, and every step is one 40-unit cell, so an index into
+ * `points` is a real arc fraction.
+ */
+export function pipelineRoute(n: number): Route {
+  const zones = zonesFor(n);
+  const columns = checkpointColumns(zones);
+  const rand = rng(0x5c5b_1234 ^ (M_COLS * 131 + M_ROWS) ^ (n * 7919));
+  // Rows 1..M_ROWS-2: the outermost rows stay clear so the trace never runs
+  // along the board's own border, where it would read as part of the frame.
+  //
+  // AND EACH STEP IS AT MOST TWO ROWS. Free rows gave a sawtooth — a full-height
+  // dive into Production and a full-height climb back out — which reads as noise
+  // rather than as a pipeline. A bounded step keeps every corner a jog: the run
+  // stays legible as one line going somewhere, which is the whole claim the
+  // figure makes. A jog is also REQUIRED at every step, because two checkpoints
+  // on one row give a flat run with no corner, and a flat run is the serpentine
+  // this figure was rebuilt to stop being.
+  // The direction ALTERNATES and only the size is seeded. A free coin drifts:
+  // six steps of a random walk put the whole run in the top half of a board it
+  // is supposed to cross. Alternating keeps it oscillating about the middle
+  // while the seeded magnitude keeps it from reading as a regular zigzag.
+  const LO = 1;
+  const HI = M_ROWS - 2;
+  const MID = Math.round((LO + HI) / 2);
+  const rows: number[] = [MID];
+  let up = rand() < 0.5;
+  for (let k = 1; k < columns.length; k += 1) {
+    const prev = rows[k - 1]!;
+    const size = 1 + Math.floor(rand() * 2);
+    let next = up ? prev - size : prev + size;
+    if (next < LO || next > HI) next = up ? prev + size : prev - size;
+    if (next < LO || next > HI) next = prev === LO ? LO + 1 : LO;
+    rows.push(next);
+    up = !up;
+  }
+  const points: Array<[number, number]> = [[cx(columns[0]!), cy(rows[0]!)]];
+  const stops: number[] = [0];
+  for (let k = 1; k < columns.length; k += 1) {
+    const c0 = columns[k - 1]!;
+    const c1 = columns[k]!;
+    const r0 = rows[k - 1]!;
+    const r1 = rows[k]!;
+    // Turn inside the gap rather than at either checkpoint, so a node always
+    // sits on a straight run and never in a corner.
+    const turn = c0 + Math.max(1, Math.round((c1 - c0) / 2));
+    for (let c = c0 + 1; c <= turn; c += 1) points.push([cx(c), cy(r0)]);
+    const step = r1 > r0 ? 1 : -1;
+    for (let r = r0 + step; r !== r1 + step; r += step) points.push([cx(turn), cy(r)]);
+    for (let c = turn + 1; c <= c1; c += 1) points.push([cx(c), cy(r1)]);
+    stops.push(points.length - 1);
+  }
+  return { points, stops, walls: board(zones, rand), zones, columns };
+}
+
+/**
+ * The board behind the trace: the outer frame, a divider between each pair of
+ * systems, and a few dead stubs per zone.
+ *
+ * The stubs are what make this read as a board rather than as an empty box —
+ * they are unused traces, drawn in the structure grey, and they deliberately
+ * go nowhere: nothing about them is data, and a reader who follows one finds
+ * it ends. The one line that means something is the blue one.
+ */
+function board(zones: readonly Zone[], rand: () => number): string {
   const right = M_LEFT + M_COLS * STEP;
   const bottom = M_TOP + M_ROWS * STEP;
   const d: string[] = [`M${M_LEFT} ${M_TOP}H${right}V${bottom}H${M_LEFT}Z`];
-  for (let j = 0; j < M_ROWS; j += 1) {
-    for (let i = 0; i < M_COLS; i += 1) {
-      if (i < M_COLS - 1 && !open.has(edgeKey(at(i, j), at(i + 1, j)))) {
-        d.push(`M${M_LEFT + (i + 1) * STEP} ${M_TOP + j * STEP}v${STEP}`);
-      }
-      if (j < M_ROWS - 1 && !open.has(edgeKey(at(i, j), at(i, j + 1)))) {
-        d.push(`M${M_LEFT + i * STEP} ${M_TOP + (j + 1) * STEP}h${STEP}`);
-      }
+  for (const z of zones) {
+    if (z.from > 0) d.push(`M${M_LEFT + z.from * STEP} ${M_TOP}V${bottom}`);
+  }
+  for (const z of zones) {
+    const span = z.to - z.from;
+    // Two stubs a zone, top and bottom, inset from the dividers on both sides.
+    for (const row of [0, M_ROWS - 1]) {
+      const len = Math.max(1, Math.round(span * (0.3 + rand() * 0.35)));
+      const at = z.from + Math.max(0, Math.floor((span - len) * rand()));
+      const x = cx(at);
+      const y = cy(row);
+      const tick = row === 0 ? STEP / 2 : -STEP / 2;
+      d.push(`M${x} ${y}h${len * STEP}v${tick}`);
     }
   }
   return d.join(" ");
@@ -931,7 +1006,7 @@ ${legend}
 }
 
 /**
- * The road code travels — the maze.
+ * The road code travels — the four systems, and the checks along them.
  *
  * WHAT THIS FIGURE DEPICTS, AND WHAT IT MUST NOT. It is not a scan walking a
  * route: the scanner reads a clone and a settings API, once, and produces every
@@ -941,17 +1016,53 @@ ${legend}
  * ones it could not answer. So no copy anywhere near this figure says walks,
  * passes, in order, or none is skipped, and a test enforces that.
  *
- * Six checkpoints because there are six phases, named from `PHASE_NAMES` in
- * `PHASES` order, listed under the figure so the order is readable without
- * hovering anything.
+ * WHY IT IS NO LONGER A MAZE. The concept above was always right and the shape
+ * contradicted it. `carve()` + `solve()` generated a PERFECT MAZE — an enclosed
+ * labyrinth over the whole lattice with exactly one path between any two cells
+ * — so the figure read as a puzzle a reader has to solve rather than as a
+ * pipeline they can follow. It had no legible direction, no start or end that
+ * said "commit → published package", and no visible systems: a route that
+ * doubles back into an earlier column is a maze's property, and code does not
+ * double back into a repository it has already left.
+ *
+ * What replaced it is a DIRECTED left-to-right trace through the four real
+ * systems the six phases already belong to — Repository, Build, Production,
+ * Registry (`STAGE_ZONES`) — monotonically non-decreasing in column, with
+ * right-angle jogs so it still reads as a board rather than a ruler. The zone
+ * widths are the phase counts, so Build is three times either neighbour.
+ *
+ * Nothing about the DATA changed: six checkpoints because there are six
+ * phases, named from `PHASE_NAMES` in `PHASES` order, listed under the figure
+ * so the order is readable without hovering anything. The motion mechanism is
+ * untouched — same `tracedFigure`, same `pathLength="1"` scroll-bound
+ * `stroke-dashoffset`, same `data-node-at` / `data-reached`, same
+ * markup-carries-the-finished-state. Only the shape the trace draws is new.
+ *
+ * The zone names are generic structural labels, not per-repository facts, so
+ * they are authored rather than data-bound — and they are drawn as HTML over
+ * the drawing rather than as SVG text, because an SVG label renders at whatever
+ * the viewBox scales to (the ranked figure's 14px measured ~8px at 390).
  */
 export function mazeFigure(): string {
-  const route = mazeRoute(PHASES.length);
+  const route = pipelineRoute(PHASES.length);
   const total = route.points.length - 1;
+  const VB_W = 532;
+  const VB_H = 374;
+  const pct = (v: number, of: number) => `${((100 * v) / of).toFixed(3)}%`;
+  // Centred on the zone's own span, above the board — the band between the
+  // viewBox top and the frame at y=26 is empty at every width.
+  const labels = route.zones
+    .map((z) => {
+      const mid = M_LEFT + ((z.from + z.to) / 2) * STEP;
+      return `      <span class="fy-zone-label" style="left:${pct(mid, VB_W)}">${escapeHtml(
+        z.label,
+      )}</span>`;
+    })
+    .join("\n");
   return tracedFigure({
-    kind: "fy-maze",
-    label: `The road code travels, from a commit to a published package, with the ${PHASES.length} groups of checks marked along it`,
-    viewBox: "0 0 532 374",
+    kind: "fy-pipeline",
+    label: `The road code travels, from a commit to a published package, through ${route.zones.length} systems, with the ${PHASES.length} groups of checks marked along it`,
+    viewBox: `0 0 ${VB_W} ${VB_H}`,
     structure: `    <path class="fy-structure" d="${route.walls}"></path>`,
     trace: traceD(route.points),
     legend: true,
@@ -960,6 +1071,9 @@ export function mazeFigure(): string {
       const [x, y] = route.points[idx]!;
       return { at: idx / total, x, y, name: PHASE_NAMES[phase] ?? `Phase ${phase}` };
     }),
+    html: `    <div class="fy-zone-labels" aria-hidden="true">
+${labels}
+    </div>`,
   });
 }
 

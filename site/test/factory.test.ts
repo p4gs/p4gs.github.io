@@ -38,8 +38,9 @@ import {
 } from "../src/designs/factory/motion";
 import {
   LOOP_EDGE_PATH,
-  MAZE_GRID,
-  mazeRoute,
+  PIPELINE_GRID,
+  pipelineRoute,
+  STAGE_ZONES,
   slotForPhases,
   VERDICT_STATES,
   VERDICT_WORD,
@@ -400,8 +401,8 @@ describe("every diagram is derived, and a literal would fail here", () => {
 
   test("the maze carries one checkpoint per phase, at real path fractions", () => {
     const maze = HOME.slice(
-      HOME.indexOf('class="fy-figure fy-maze"'),
-      HOME.indexOf("</figure>", HOME.indexOf('class="fy-figure fy-maze"')),
+      HOME.indexOf('class="fy-figure fy-pipeline"'),
+      HOME.indexOf("</figure>", HOME.indexOf('class="fy-figure fy-pipeline"')),
     );
     const at = attrOfEach(maze, "[data-node-at]", "data-node-at").map(Number);
     expect(at.length).toBe(PHASES.length);
@@ -416,7 +417,7 @@ describe("every diagram is derived, and a literal would fail here", () => {
 
   test("the route generator follows the phase count rather than a literal", () => {
     for (const n of [3, 5, PHASES.length, 8]) {
-      const r = mazeRoute(n);
+      const r = pipelineRoute(n);
       expect(r.stops.length, `n=${n}`).toBe(n);
       expect(r.stops[0]).toBe(0);
       expect(r.stops[r.stops.length - 1]).toBe(r.points.length - 1);
@@ -426,6 +427,9 @@ describe("every diagram is derived, and a literal would fail here", () => {
         expect(y).toBeGreaterThanOrEqual(0);
         expect(y).toBeLessThanOrEqual(374);
       }
+      // every checkpoint lands inside a zone, and the zones account for all of
+      // them — a seventh phase widens Build rather than falling off the board
+      expect(r.zones.reduce((a, z) => a + z.holds, 0), `n=${n}`).toBe(n);
     }
   });
 
@@ -1219,48 +1223,74 @@ describe("A7 + D8 · the lanes diagram says what differs, and emphasises the rig
   });
 });
 
-describe("A8 + D5 · the maze is a real lattice, and it stops asserting a walk", () => {
+describe("A8 + D5 + round 3 · the figure is a directed pipeline, and it stops asserting a walk", () => {
   const beat = HOME.slice(HOME.indexOf('id="chaining"'), HOME.indexOf('id="lanes"'));
-  const route = mazeRoute(PHASES.length);
+  const route = pipelineRoute(PHASES.length);
 
-  test("the route threads carved corridors rather than serpentining over stubs", () => {
+  test("the trace is DIRECTED — it never doubles back into a system it has left", () => {
+    // The whole reason the carved maze went: a perfect maze's route is free to
+    // re-enter any column, which is a puzzle's property and not a pipeline's.
+    for (let i = 1; i < route.points.length; i += 1) {
+      expect(route.points[i]![0], `step ${i}`).toBeGreaterThanOrEqual(route.points[i - 1]![0]);
+    }
+    // strictly forward at the checkpoints, one per column, left to right
+    for (let k = 1; k < route.columns.length; k += 1) {
+      expect(route.columns[k]!, `checkpoint ${k}`).toBeGreaterThan(route.columns[k - 1]!);
+    }
+    // and it still turns corners: a straight rule would not read as a board
     const d = beat.match(/<path class="fy-trace" d="([^"]+)"/)![1]!;
-    const segs = d.split(/(?=[ML])/).filter((s) => s.trim().length > 0);
-    expect(segs.length).toBeGreaterThanOrEqual(12);
-    // direction changes and true axis reversals — a serpentine down two edges
-    // has almost none of the latter
-    const pts = route.points;
-    const runs: string[] = [];
-    for (let i = 1; i < pts.length; i += 1) {
-      const key = `${Math.sign(pts[i]![0] - pts[i - 1]![0])},${Math.sign(pts[i]![1] - pts[i - 1]![1])}`;
-      if (runs[runs.length - 1] !== key) runs.push(key);
+    const segs = d.split(/(?=[ML])/).filter((s: string) => s.trim().length > 0);
+    expect(segs.length).toBeGreaterThanOrEqual(10);
+    let verticalRuns = 0;
+    for (let i = 1; i < route.points.length; i += 1) {
+      if (route.points[i]![1] !== route.points[i - 1]![1]) verticalRuns += 1;
     }
-    let reversals = 0;
-    let lastX = 0;
-    let lastY = 0;
-    for (const r of runs) {
-      const [dx, dy] = r.split(",").map(Number) as [number, number];
-      if (dx !== 0) {
-        if (lastX !== 0 && dx !== lastX) reversals += 1;
-        lastX = dx;
-      }
-      if (dy !== 0) {
-        if (lastY !== 0 && dy !== lastY) reversals += 1;
-        lastY = dy;
-      }
-    }
-    expect(runs.length - 1).toBeGreaterThanOrEqual(4);
-    expect(reversals).toBeGreaterThanOrEqual(4);
+    expect(verticalRuns).toBeGreaterThanOrEqual(PHASES.length - 1);
   });
 
-  test("the maze is a PERFECT maze — every wall the carve left is drawn", () => {
-    // 12 x 8 cells: 96 cells, 95 carved passages in a spanning tree, so
-    // (11*8 + 12*7) - 95 = 77 interior walls, plus the one border subpath.
-    const { cols, rows } = MAZE_GRID;
+  test("the four zones are the phases regrouped, never a new taxonomy", () => {
+    // PHASES and PHASE_NAMES are untouched; STAGE_ZONES only says which system
+    // each existing phase belongs to, and the zone WIDTHS are the phase counts.
+    const named = STAGE_ZONES.flatMap((z) => z.phases);
+    expect(new Set(named).size).toBe(named.length);
+    for (const p of named) expect(PHASES as readonly number[]).toContain(p);
+    expect(named.length).toBe(PHASES.length);
+    expect(STAGE_ZONES.map((z) => z.label)).toEqual([
+      "Repository",
+      "Build",
+      "Production",
+      "Registry",
+    ]);
+    // Build holds three of the six phases, so it is three times either neighbour
+    const build = route.zones[1]!;
+    const repo = route.zones[0]!;
+    expect(build.to - build.from).toBe(3 * (repo.to - repo.from));
+    expect(route.zones.map((z) => z.holds)).toEqual([1, 3, 1, 1]);
+    // every checkpoint sits inside the zone it belongs to
+    let k = 0;
+    for (const z of route.zones) {
+      for (let j = 0; j < z.holds; j += 1, k += 1) {
+        expect(route.columns[k]!, `${z.label} #${j}`).toBeGreaterThanOrEqual(z.from);
+        expect(route.columns[k]!).toBeLessThan(z.to);
+      }
+    }
+    // …and each zone is named on the figure, over its own span
+    expect(countOf(beat, 'class="fy-zone-label"')).toBe(STAGE_ZONES.length);
+    for (const z of STAGE_ZONES) expect(beat).toContain(`>${z.label}</span>`);
+  });
+
+  test("the board is a frame with a divider between each pair of systems", () => {
+    const { cols, rows } = PIPELINE_GRID;
+    expect(route.walls.startsWith(`M26 26H506V346H26Z`)).toBe(true);
+    // one full-height divider per interior zone boundary
+    const dividers = route.walls.match(/M\d+ 26V346/g) ?? [];
+    expect(dividers.length).toBe(STAGE_ZONES.length - 1);
+    // and nothing left of the carved labyrinth: a perfect maze over this
+    // lattice draws 77 interior walls, and every one of them is gone
     const interior = (cols - 1) * rows + cols * (rows - 1) - (cols * rows - 1);
-    const walls = route.walls.split(/(?=M)/).filter((s) => s.trim().length > 0);
-    expect(walls.length).toBe(interior + 1);
-    expect(route.walls.startsWith("M26 26H506V346H26Z")).toBe(true);
+    expect(interior).toBe(77);
+    const subpaths = route.walls.split(/(?=M)/).filter((s: string) => s.trim().length > 0);
+    expect(subpaths.length).toBeLessThan(interior);
   });
 
   test("the checkpoints are spread along the road, not stacked on two edges", () => {
@@ -1271,13 +1301,13 @@ describe("A8 + D5 · the maze is a real lattice, and it stops asserting a walk",
     for (let i = 1; i < at.length; i += 1) {
       expect(at[i]! - at[i - 1]!, `gap ${i}`).toBeGreaterThanOrEqual(0.1);
     }
-    // and they are on distinct lattice cells, which a serpentine's ends are not
-    const xy = route.stops.map((i) => route.points[i]!.join(","));
+    const xy = route.stops.map((i: number) => route.points[i]!.join(","));
     expect(new Set(xy).size).toBe(PHASES.length);
   });
 
-  test("the same build draws the same maze — the carve is seeded, never random", () => {
-    expect(mazeRoute(PHASES.length).walls).toBe(route.walls);
+  test("the same build draws the same board — the jogs are seeded, never random", () => {
+    expect(pipelineRoute(PHASES.length).walls).toBe(route.walls);
+    expect(pipelineRoute(PHASES.length).points).toEqual(route.points);
     expect(factory.renderHome(RECORDS, ctxFor("factory"))).toBe(HOME);
   });
 

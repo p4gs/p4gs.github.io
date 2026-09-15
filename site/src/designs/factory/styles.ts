@@ -395,7 +395,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-drawing { inline-size: 100%; block-size: auto; display: block; overflow: visible; }
 .fy-structure { fill: none; stroke: #454545; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .fy-trace { fill: none; stroke: var(--fy-figure-accent); stroke-width: 2.5px; }
-.fy-maze .fy-trace { vector-effect: none; }
+.fy-pipeline .fy-trace { vector-effect: none; }
 .fy-triangle .fy-trace { vector-effect: non-scaling-stroke; }
 .fy-checkpoint-base { fill: #000000; }
 .fy-checkpoint { stroke-width: 1px; }
@@ -410,6 +410,21 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-figure .fy-speed-node.fy-node-hollow { fill: none; }
 /* The ranked figure's labels, in real CSS pixels over the drawing. */
 .fy-drawing-box { position: relative; }
+/* THE FOUR SYSTEMS, NAMED OVER THE BOARD THEY DIVIDE. Generic structural
+   labels — Repository, Build, Production, Registry — not per-repository facts,
+   so they are authored rather than derived; which PHASES sit in each is the
+   derived half, and it is what sets the zone widths. HTML and not SVG text for
+   the same reason the ranked figure's labels are: an SVG label renders at
+   whatever the viewBox scales to, which put a declared 14px at ~8px on a phone.
+   They sit in the empty band above the frame, so they cannot cross the trace or
+   a checkpoint at any width. */
+.fy-zone-labels { position: absolute; inset: 0; pointer-events: none; }
+.fy-zone-label {
+  position: absolute; inset-block-start: 0; transform: translateX(-50%);
+  font-family: var(--fy-mono); font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--fy-dark-quiet); line-height: 1;
+  white-space: nowrap;
+}
 .fy-speed-labels { position: absolute; inset: 0; pointer-events: none; }
 /* max-content, because an absolutely positioned box with only an inline START
    offset shrink-to-fits against the space to its RIGHT — and the transform that
@@ -1675,6 +1690,9 @@ export const RESPONSIVE_CSS = `
   .fy-chart-ids { font-size: 11px; column-gap: calc(12 / 584 * 100%); }
 
   .fy-trace-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  /* A zone is 51px wide at this width where it is 80 at 1440, so the label set
+     comes down with it rather than running into its neighbour. */
+  .fy-zone-label { font-size: 8px; letter-spacing: 0.04em; }
   /* THE RAIL SPANS THE GUTTERS. Capped at 278px inside a 344px column it cost
      three things at once: one pill less of capacity on the two longest pages,
      a left edge indented ~34px from every other element, and — because the
