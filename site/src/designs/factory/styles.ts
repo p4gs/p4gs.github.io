@@ -395,7 +395,7 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-drawing { inline-size: 100%; block-size: auto; display: block; overflow: visible; }
 .fy-structure { fill: none; stroke: #454545; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .fy-trace { fill: none; stroke: var(--fy-figure-accent); stroke-width: 2.5px; }
-.fy-maze .fy-trace { vector-effect: none; }
+.fy-pipeline .fy-trace { vector-effect: none; }
 .fy-triangle .fy-trace { vector-effect: non-scaling-stroke; }
 .fy-checkpoint-base { fill: #000000; }
 .fy-checkpoint { stroke-width: 1px; }
@@ -410,6 +410,21 @@ code { font-family: var(--fy-mono); font-size: 0.92em; }
 .fy-figure .fy-speed-node.fy-node-hollow { fill: none; }
 /* The ranked figure's labels, in real CSS pixels over the drawing. */
 .fy-drawing-box { position: relative; }
+/* THE FOUR SYSTEMS, NAMED OVER THE BOARD THEY DIVIDE. Generic structural
+   labels — Repository, Build, Production, Registry — not per-repository facts,
+   so they are authored rather than derived; which PHASES sit in each is the
+   derived half, and it is what sets the zone widths. HTML and not SVG text for
+   the same reason the ranked figure's labels are: an SVG label renders at
+   whatever the viewBox scales to, which put a declared 14px at ~8px on a phone.
+   They sit in the empty band above the frame, so they cannot cross the trace or
+   a checkpoint at any width. */
+.fy-zone-labels { position: absolute; inset: 0; pointer-events: none; }
+.fy-zone-label {
+  position: absolute; inset-block-start: 0; transform: translateX(-50%);
+  font-family: var(--fy-mono); font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--fy-dark-quiet); line-height: 1;
+  white-space: nowrap;
+}
 .fy-speed-labels { position: absolute; inset: 0; pointer-events: none; }
 /* max-content, because an absolutely positioned box with only an inline START
    offset shrink-to-fits against the space to its RIGHT — and the transform that
@@ -1012,8 +1027,10 @@ main [id] { scroll-margin-top: 88px; }
   letter-spacing: 0.06em; color: var(--fy-muted); text-align: center;
 }
 .fy-flow-head[data-flow-head="in"] { grid-column: 1; padding-inline-end: 56px; }
-.fy-flow-head[data-flow-head="checks"] { grid-column: 2; padding-inline-end: 56px; }
-.fy-flow-head[data-flow-head="out"] { grid-column: 3; }
+/* Each head centres over its own CARDS, so it carries the padding of whichever
+   side of its band the wire now occupies. */
+.fy-flow-head[data-flow-head="checks"] { grid-column: 2; }
+.fy-flow-head[data-flow-head="out"] { grid-column: 3; padding-inline-start: 56px; }
 /* TOP-ANCHORED, so a header sits on its own content. Centred, the 13-card
    Checks band is ~2000px tall and its two neighbours centred against it — the
    Inputs head named a column that started a third of a screen below it, over
@@ -1026,8 +1043,24 @@ main [id] { scroll-margin-top: 88px; }
   grid-template-columns: minmax(0, 1fr) 56px;
 }
 .fy-flow-band[data-flow-band="in"] { grid-column: 1; }
-.fy-flow-band[data-flow-band="checks"] { grid-column: 2; }
-.fy-flow-band[data-flow-band="out"] { grid-column: 3; grid-template-columns: minmax(0, 1fr); }
+/* THE OUTGOING WIRE SITS IN THE RECORD CARD'S OWN ROW. It used to be the second
+   column of the CHECKS band, where it stretched to that band's ~2000px row and
+   its arrowhead's 50% resolved to bare dotted grid ~330px below the card it
+   names. A wire is the claim that the middle column produces the right one, and
+   it was landing on nothing. Moved into the OUT band it shares one auto row with
+   the card, so 50% IS the card's vertical centre — at every width, with no
+   number in the stylesheet that has to be kept in step with the card's content.
+   The checks band gives its 56px back to the cards. */
+.fy-flow-band[data-flow-band="checks"] { grid-column: 2; grid-template-columns: minmax(0, 1fr); }
+.fy-flow-band[data-flow-band="out"] { grid-column: 3; grid-template-columns: 56px minmax(0, 1fr); }
+.fy-flow-band[data-flow-band="out"] .fy-flow-wire { grid-column: 1; grid-row: 1; }
+.fy-flow-band[data-flow-band="out"] .fy-flow-col { grid-column: 2; grid-row: 1; }
+/* Out of flow, so the wire contributes no intrinsic height and the row is the
+   CARD's height. In flow the SVG's own viewBox aspect would set the row and the
+   50% would mean the wire's midpoint again, which is the defect. */
+.fy-flow-band[data-flow-band="out"] .fy-flow-lines { position: absolute; inset: 0; }
+/* The 390 connector only; at >=768 the run above does the work. */
+.fy-flow-wire[data-flow-wire="stack"] { display: none; }
 /* The column separators: the reference's faint dotted rules at the boundaries,
    drawn on the band rather than as items so they cannot fall out of step with
    the columns they divide, and lifted to start beside the heads. */
@@ -1675,6 +1708,9 @@ export const RESPONSIVE_CSS = `
   .fy-chart-ids { font-size: 11px; column-gap: calc(12 / 584 * 100%); }
 
   .fy-trace-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  /* A zone is 51px wide at this width where it is 80 at 1440, so the label set
+     comes down with it rather than running into its neighbour. */
+  .fy-zone-label { font-size: 8px; letter-spacing: 0.04em; }
   /* THE RAIL SPANS THE GUTTERS. Capped at 278px inside a 344px column it cost
      three things at once: one pill less of capacity on the two longest pages,
      a left edge indented ~34px from every other element, and — because the
@@ -1885,6 +1921,11 @@ export const RESPONSIVE_CSS = `
   .fy-flow { padding: 16px; }
   .fy-flow-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; row-gap: 14px; }
   .fy-flow-band, .fy-flow-band[data-flow-band="out"] { grid-template-columns: minmax(0, 1fr); }
+  /* The columns are gone, so the run that lands on the Record card's centre has
+     nothing left to point across; the stacked connector between the checks cards
+     and the Record head takes over, drawn by the wire's own pseudo-elements. */
+  .fy-flow-wire[data-flow-wire="stack"] { display: block; }
+  .fy-flow-wire[data-flow-wire="out"] { display: none; }
   .fy-flow-band:not([data-flow-band="out"])::after { content: none; }
   /* Source order is heads-then-bands, which is what lets the heads be one row
      at desktop; the order property interleaves them again when stacked.
@@ -1902,7 +1943,7 @@ export const RESPONSIVE_CSS = `
   .fy-flow-head[data-flow-head], .fy-flow-band[data-flow-band] {
     grid-column: 1; grid-row: auto;
   }
-  .fy-flow-head[data-flow-head] { text-align: start; padding-inline-end: 0; }
+  .fy-flow-head[data-flow-head] { text-align: start; padding-inline: 0; }
   .fy-flow-head[data-flow-head="in"] { order: 1; }
   .fy-flow-band[data-flow-band="in"] { order: 2; }
   .fy-flow-head[data-flow-head="checks"] { order: 3; }
