@@ -1,8 +1,8 @@
 # Site deploy: site/data + templates → static HTML → GitHub Pages.
 #
-# Serves at tools.sensiblesecurity.xyz/sscs-bootstrapper/ (the custom domain
-# lives on the p4gs user site; project sites path-route under it). The repo's
-# Pages source must be set to "GitHub Actions" or deploy-pages fails.
+# Serves at the ROOT of sscsb.dev — the custom domain in the repo-root CNAME,
+# which the build copies into dist/. The repo's Pages source must be set to
+# "GitHub Actions" or deploy-pages fails.
 #
 # The deploy IS this repo's release. There are no GitHub releases — the only
 # artifact that ships is the Pages deployment — so the provenance controls

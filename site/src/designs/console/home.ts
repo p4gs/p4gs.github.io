@@ -10,6 +10,7 @@ import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
 import { gradeChip, meterStack } from "./components";
 import { page } from "./layout";
 import type { DesignCtx } from "../types";
+import { CONTROL_COUNT } from "../../reclassify";
 
 /**
  * The flagship telemetry: p4gs/sscs-bootstrapper's live directory record
@@ -25,7 +26,7 @@ const FLAGSHIP_PHASES: readonly PhaseScore[] = [
 ];
 
 const STAT_TILES = [
-  ["54", "checks, across six phases", ""],
+  [String(CONTROL_COUNT), "checks, each answered or left unanswered", ""],
   ["3", "ways to get scanned — from outside, from your build, from your machine", ""],
   ["A+", "means every answered check passed", " accent"],
   ["0", "checks nobody could answer are ever counted against you", ""],

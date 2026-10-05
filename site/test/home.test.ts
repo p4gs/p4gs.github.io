@@ -90,9 +90,13 @@ function prose(html: string): string {
 }
 
 describe("every design renders the new home page", () => {
-  test("all four designs are covered by this suite", () => {
-    expect(HOMES.length).toBe(4);
-    expect(HOMES.map(([id]) => id).sort()).toEqual(["chain", "console", "ledger", "manual"]);
+  // Named, not counted: a design added to the registry and forgotten here
+  // would otherwise ship a home page nothing below ever renders.
+  test("all six designs are covered by this suite", () => {
+    expect(HOMES.length).toBe(6);
+    expect(HOMES.map(([id]) => id).sort()).toEqual([
+      "bulletin", "chain", "console", "factory", "ledger", "signal",
+    ]);
   });
 
   for (const [id, html] of HOMES) {

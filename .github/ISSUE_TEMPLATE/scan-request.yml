@@ -10,7 +10,7 @@ body:
         The scan runs automatically in an isolated job — the repository's code is
         **never executed** — and a maintainer reviews every result before it
         appears in the public directory. Scoring methodology:
-        https://tools.sensiblesecurity.xyz/sscsb/methodology/
+        https://sscsb.dev/methodology/
   - type: input
     id: repo_url
     attributes:

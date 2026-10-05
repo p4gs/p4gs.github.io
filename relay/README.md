@@ -45,9 +45,16 @@ If either is missing the endpoint answers `503 {"error":"scan intake not configu
    (Production; Preview optional).
 4. Deploy. The endpoint is `https://<project>.vercel.app/api/scan-request`.
 
-Allowed browser origins (reflected via CORS): `https://tools.sensiblesecurity.xyz`,
-`https://p4gs.github.io`, `http://localhost:4173`, `http://localhost:8080`.
-Edit `ALLOWED_ORIGINS` in `lib.ts` to change.
+Allowed browser origins (reflected via CORS): `https://sscsb.dev`,
+`https://tools.sensiblesecurity.xyz`, `https://p4gs.github.io`,
+`http://localhost:4173`, `http://localhost:8080`. Edit `ALLOWED_ORIGINS` in
+`lib.ts` to change. The outgoing `tools.sensiblesecurity.xyz` origin is kept on
+purpose while the site moves to `sscsb.dev`; drop it once the old host stops
+serving the directory.
+
+**This project is not connected to a Git repository** — it has no Vercel Git
+integration, so merging to `main` deploys nothing. Ship a relay change with
+`vercel deploy --prod` from `relay/` (or `vercel --cwd relay --prod`).
 
 ## Behavior
 
@@ -78,7 +85,7 @@ Pure logic only — no network; GitHub is stubbed via an injected `fetch`.
 ```sh
 curl -sS -X POST \
   -H 'content-type: application/json' \
-  -H 'origin: https://tools.sensiblesecurity.xyz' \
+  -H 'origin: https://sscsb.dev' \
   -d '{"repo":"p4gs/sscs-bootstrapper"}' \
   https://<project>.vercel.app/api/scan-request | jq .
 ```
@@ -89,7 +96,7 @@ a new `[scan] p4gs/sscs-bootstrapper` issue labeled `scan-request` on
 
 ```sh
 curl -sSi -X OPTIONS \
-  -H 'origin: https://tools.sensiblesecurity.xyz' \
+  -H 'origin: https://sscsb.dev' \
   -H 'access-control-request-method: POST' \
   https://<project>.vercel.app/api/scan-request | head -n 10
 ```

@@ -12,6 +12,12 @@
  */
 import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import { factSentences } from "../shared-facts";
+import {
+  listingShareUrl,
+  LOCAL_METHODOLOGY_SHARE_URL,
+  METHODOLOGY_SHARE_URL,
+  shareUrl,
+} from "../share-urls";
 import type { ListingFacts } from "../../listing";
 import {
   anchorCaveat,
@@ -23,13 +29,14 @@ import {
 import type { ScanRecord, Score } from "../../schema";
 import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
 import {
-  localOverlayCount,
+  LANE_TITLE,
   LOCAL_RECORD_PUBLISHED,
   LOCAL_SIGNATURE_NAMESPACE,
   LOCAL_SIGNATURE_PUBLISHED,
+  localOverlayCount,
   resolveTrustKind,
-  trustKeyOf,
   type TrustInfo,
+  trustKeyOf,
   type TrustKind,
 } from "../../trust";
 import {
@@ -67,13 +74,13 @@ function repoSlugPath(r: ScanRecord): string {
 function laneChip(kind: TrustKind): string {
   switch (kind) {
     case "verified":
-      return `<span class="lane lane-auth" title="Authenticated scan from the repository's own CI; signature verified against its workflow identity">${icon(CHECK_ICON_PATH, 12)}verified</span>`;
+      return `<span class="lane lane-auth" title="${escapeHtml(LANE_TITLE.verified)}">${icon(CHECK_ICON_PATH, 12)}verified</span>`;
     case "unsigned-action":
-      return `<span class="lane lane-unsigned" title="Authenticated-lane record without a verified signature — an unverified claim">authenticated · unsigned</span>`;
+      return `<span class="lane lane-unsigned" title="${escapeHtml(LANE_TITLE["unsigned-action"])}">authenticated · unsigned</span>`;
     case "local":
-      return `<span class="lane lane-local" title="Workstation scan signed by a key this repository commits in .sscsb/policy/allowed_signers — attributable, but a shorter chain than the authenticated lane, which proves the repository's own CI ran the scan. Its local-environment verdicts count on their own; anything a repository scan could observe waits for an independent record to agree.">local · signed</span>`;
+      return `<span class="lane lane-local" title="${escapeHtml(LANE_TITLE.local)}">local · signed</span>`;
     default:
-      return `<span class="lane lane-ext" title="Outside-in scan by the directory; GitHub-side checks ran with public-only visibility">external</span>`;
+      return `<span class="lane lane-ext" title="${escapeHtml(LANE_TITLE.external)}">external</span>`;
   }
 }
 
@@ -217,7 +224,7 @@ export function renderDirectory(
   <input type="search" id="dir-filter" placeholder="owner/repo"
     aria-label="Search the directory, or submit a repository to scan (owner/repo or GitHub URL)">
   <div class="card scan-card" id="dir-scan" hidden
-    data-api="${SCAN_API_URL}" data-fallback="${SUBMIT_URL}">
+    data-api="${escapeHtml(SCAN_API_URL)}" data-fallback="${escapeHtml(SUBMIT_URL)}">
     <p class="scan-copy"><strong>No record for this repository yet.</strong>
     Request an unauthenticated sscsb scan — a maintainer reviews every record
     before it enters the directory.</p>
@@ -263,12 +270,12 @@ export function nudgeIssueUrl(r: ScanRecord): string {
   const body = encodeURIComponent(
     [
       `This repository is listed in the SSCS Bootstrapper public directory with an external (unauthenticated) scan:`,
-      `https://tools.sensiblesecurity.xyz/sscsb/directory/${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}/`,
+      listingShareUrl(r.repo.owner, r.repo.name),
       ``,
       `External scans cannot see local-environment controls or private GitHub settings, so parts of the score show as unverified. Running the sscsb-action in this repo's own CI publishes an authenticated record instead:`,
       `${ACTION_REPO_URL}#quickstart`,
       ``,
-      `Scoring methodology: https://tools.sensiblesecurity.xyz/sscsb/methodology/`,
+      `Scoring methodology: ${METHODOLOGY_SHARE_URL}`,
     ].join("\n"),
   );
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;
@@ -325,7 +332,7 @@ function localNudgeIssueUrl(r: ScanRecord, f: CoverageFacts): string {
   const body = encodeURIComponent(
     [
       `This repository's listing in the SSCS Bootstrapper public directory is marked provisional — evidence coverage is ${f.coverage}%:`,
-      `https://tools.sensiblesecurity.xyz/sscsb/directory/${slug}/`,
+      shareUrl(`directory/${slug}/`),
       ``,
       `${plural(f.localResolvable)} are local-environment checks: commit signing, AI trailers, dependency gates and similar controls that live on a maintainer's machine, so no repository scan can ever observe them. They are shown as unverified and excluded from every denominator.`,
       ``,
@@ -337,7 +344,7 @@ function localNudgeIssueUrl(r: ScanRecord, f: CoverageFacts): string {
       ``,
       `It runs the scan locally, signs the record with the git signing key this repository already commits in .sscsb/policy/allowed_signers, and opens the submission. The directory verifies that signature against your own committed allowed_signers file before listing anything, and your record is then merged with every other evidence source we hold: where they agree that verdict stands, where they disagree the control is scored as a gap, and where a repository scan could observe a control your self-report waits for an independent record to agree with it. The local-environment controls are the ones nobody else can check, and there your signed word counts on its own.`,
       ``,
-      `Methodology: https://tools.sensiblesecurity.xyz/sscsb/methodology/#local`,
+      `Methodology: ${LOCAL_METHODOLOGY_SHARE_URL}`,
     ].join("\n"),
   );
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;

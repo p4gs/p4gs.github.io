@@ -178,3 +178,25 @@ export function textOfEach(html: string, selector: string, decode = true): strin
     .transform(html);
   return out;
 }
+
+/**
+ * The value of `attr` on every element matching `selector`, in document order.
+ *
+ * Attribute reading, like text reading, goes through the parser rather than a
+ * regex: `href="/a?x=1&amp;y=2"` is one attribute whose value contains an
+ * ampersand, and `title="a>b"` does not end its tag at the `>`. Elements
+ * without the attribute are skipped rather than yielding an empty string, so a
+ * caller can tell "no such attribute" from "the attribute is empty".
+ */
+export function attrOfEach(html: string, selector: string, attr: string): string[] {
+  const out: string[] = [];
+  new HTMLRewriter()
+    .on(selector, {
+      element(e) {
+        const v = e.getAttribute(attr);
+        if (v !== null) out.push(decodeEntities(v, ""));
+      },
+    })
+    .transform(html);
+  return out;
+}

@@ -9,14 +9,14 @@
  */
 import type { PhaseScore, Score } from "../../schema";
 import { escapeHtml } from "./layout";
+import { PHASE_NAMES } from "../../scoring";
 
-export const PHASE_NAMES: Readonly<Record<number, string>> = {
-  1: "Commit integrity",
-  2: "Dependencies",
-  3: "Build receipts",
-  4: "Code & build hardening",
-  5: "Ongoing posture",
-};
+/**
+ * The phase names come from `scoring.ts`, beside PHASES itself — re-exported
+ * here so every existing `from "./components"` import keeps working. A phase
+ * name is taxonomy shared by all five designs, never one design's copy.
+ */
+export { PHASE_NAMES };
 
 /** Short instrument labels for tight surfaces (hero card). */
 export const PHASE_SHORT: Readonly<Record<number, string>> = {

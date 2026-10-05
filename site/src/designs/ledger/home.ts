@@ -19,6 +19,7 @@ import type { ScanRecord } from "../../schema";
 import { exemplarPanels, searchControl, threatStrip } from "../home-shared";
 import type { DesignCtx } from "../types";
 import { href, page } from "./layout";
+import { CONTROL_COUNT } from "../../reclassify";
 
 /**
  * The receipt stays. It is the page's strongest hand — a terminal transcript
@@ -99,8 +100,8 @@ ${threatStrip(href)}
   </div>
   <div class="col-block">
     <h2 class="h2-display">Install the tool</h2>
-    <p class="body-copy">54 checks, six phases, one command. It sets them up and then tells
-    you, bluntly, which ones it could not answer.</p>
+    <p class="body-copy">${CONTROL_COUNT} checks, six phases, one command. It sets them up
+    and then tells you, bluntly, which ones it could not answer.</p>
     <pre class="install-cmd"><code>brew install p4gs/p4gs/sscsb</code></pre>
   </div>
 </section>`;

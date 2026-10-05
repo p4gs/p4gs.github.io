@@ -40,7 +40,7 @@ body:
         require that someone else. The local-environment controls are the ones
         nobody else can check, and there your signed word counts on its own.
 
-        Full rules: https://tools.sensiblesecurity.xyz/sscsb/methodology/#local
+        Full rules: https://sscsb.dev/methodology/#local
   - type: input
     id: repo_url
     attributes:

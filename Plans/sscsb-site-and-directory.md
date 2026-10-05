@@ -11,6 +11,19 @@
 > the domain-router repo had to exist anyway; issue-ops binds the scan
 > workflows to the repo where submissions are filed.
 
+> **Domain amendment (2026-09-12, owner decision):** the site moves off the
+> shared `tools.sensiblesecurity.xyz` router onto its own domain and serves at
+> the ROOT of **`sscsb.dev`** — `/`, `/directory/`, `/methodology/`, alternate
+> design trees at `/_d/<id>/`. `BASE_PATH` becomes `"/"` and `SITE_ORIGIN`
+> becomes `https://sscsb.dev`. The umbrella "Sensible Security Tools" landing
+> page that occupied the domain root RETIRES with the move: a domain that hosts
+> one tool has no registry to publish, and at `BASE_PATH = "/"` that page and
+> the SSCSB home are the same file. Everything below this note describes the
+> arrangement as it was BEFORE the move and is kept as the record of it — read
+> `tools.sensiblesecurity.xyz/sscsb/…` as `sscsb.dev/…` throughout. The
+> scan-intake relay keeps BOTH origins in its CORS allowlist until the old host
+> stops serving.
+
 ## Decisions
 | Decision | Choice |
 |---|---|

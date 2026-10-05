@@ -1,6 +1,12 @@
 /** Directory listing + per-repo detail pages. */
 import { ACTION_REPO_URL, SCAN_API_URL, SUBMIT_URL } from "../../config";
 import { factSentences } from "../shared-facts";
+import {
+  listingShareUrl,
+  LOCAL_METHODOLOGY_SHARE_URL,
+  METHODOLOGY_SHARE_URL,
+  shareUrl,
+} from "../share-urls";
 import type { ListingFacts } from "../../listing";
 import {
   anchorCaveat,
@@ -12,15 +18,16 @@ import {
 import type { ScanRecord, Score } from "../../schema";
 import { COVERAGE_FLOOR_PROVISIONAL } from "../../scoring";
 import {
-  localOverlayCount,
+  LANE_TITLE,
   LOCAL_RECORD_PUBLISHED,
   LOCAL_SIGNATURE_NAMESPACE,
   LOCAL_SIGNATURE_PUBLISHED,
+  localOverlayCount,
   resolveTrustKind,
   scanLaneOf,
+  type TrustInfo,
   trustKeyOf,
   trustKind,
-  type TrustInfo,
   type TrustKind,
 } from "../../trust";
 import { define, defineTerm } from "../../glossary";
@@ -46,24 +53,12 @@ export function scanLane(r: ScanRecord): "auth" | "external" {
   return scanLaneOf(r) === "action" ? "auth" : "external";
 }
 
-const LANE_LABEL: Readonly<Record<TrustKind, { text: string; title: string }>> = {
-  verified: {
-    text: "✓ verified",
-    title: "Authenticated scan from the repository's own CI; signature verified against its workflow identity",
-  },
-  "unsigned-action": {
-    text: "action · unsigned",
-    title: "Authenticated-lane record without a verified signature — an unverified claim",
-  },
-  local: {
-    text: "local · signed",
-    title:
-      "Workstation scan, signed by a key this repository commits in .sscsb/policy/allowed_signers. Attributable — but weaker than the action lane, which proves the repository's own CI ran the scan. Its local-environment verdicts count on their own; anything a repository scan could observe waits for an independent record to agree.",
-  },
-  external: {
-    text: "external",
-    title: "Outside-in scan by the directory; GitHub-side checks ran with public-only visibility",
-  },
+/** Visible label only — the title prose is `trust.ts` LANE_TITLE, one source. */
+const LANE_LABEL: Readonly<Record<TrustKind, string>> = {
+  verified: "✓ verified",
+  "unsigned-action": "action · unsigned",
+  local: "local · signed",
+  external: "external",
 };
 
 /**
@@ -78,8 +73,9 @@ export function laneBadge(
   local?: TrustInfo,
 ): string {
   const kind: TrustKind = r ? resolveTrustKind(r, t, local) : trustKind(t);
-  const l = LANE_LABEL[kind];
-  return `<span class="lane lane-${kind}" title="${escapeHtml(l.title)}">${escapeHtml(l.text)}</span>`;
+  return `<span class="lane lane-${kind}" title="${escapeHtml(
+    LANE_TITLE[kind],
+  )}">${escapeHtml(LANE_LABEL[kind])}</span>`;
 }
 
 /**
@@ -282,12 +278,12 @@ export function nudgeIssueUrl(r: ScanRecord): string {
   const body = encodeURIComponent(
     [
       `This repository is listed in the SSCS Bootstrapper public directory with an external (unauthenticated) scan:`,
-      `https://tools.sensiblesecurity.xyz/sscsb/directory/${r.repo.owner.toLowerCase()}--${r.repo.name.toLowerCase()}/`,
+      listingShareUrl(r.repo.owner, r.repo.name),
       ``,
       `External scans cannot see local-environment controls or private GitHub settings, so parts of the score show as unverified. Running the sscsb-action in this repo's own CI publishes an authenticated record instead:`,
       `${ACTION_REPO_URL}#quickstart`,
       ``,
-      `Scoring methodology: https://tools.sensiblesecurity.xyz/sscsb/methodology/`,
+      `Scoring methodology: ${METHODOLOGY_SHARE_URL}`,
     ].join("\n"),
   );
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;
@@ -300,7 +296,7 @@ export function localNudgeIssueUrl(r: ScanRecord, f: CoverageFacts): string {
   const body = encodeURIComponent(
     [
       `This repository's listing in the SSCS Bootstrapper public directory is marked provisional — evidence coverage is ${f.coverage}%:`,
-      `https://tools.sensiblesecurity.xyz/sscsb/directory/${slug}/`,
+      shareUrl(`directory/${slug}/`),
       ``,
       `${plural(f.localResolvable)} are local-environment checks: commit signing, AI trailers, dependency gates and similar controls that live on a maintainer's machine, so no repository scan can ever observe them. They are shown as unverified and excluded from every denominator.`,
       ``,
@@ -312,7 +308,7 @@ export function localNudgeIssueUrl(r: ScanRecord, f: CoverageFacts): string {
       ``,
       `It runs the scan locally, signs the record with the git signing key this repository already commits in .sscsb/policy/allowed_signers, and opens the submission. The directory verifies that signature against your own committed allowed_signers file before listing anything, and your record is then merged with every other evidence source we hold: where they agree that verdict stands, where they disagree the control is scored as a gap, and where a repository scan could observe a control your self-report waits for an independent record to agree with it. The local-environment controls are the ones nobody else can check, and there your signed word counts on its own.`,
       ``,
-      `Methodology: https://tools.sensiblesecurity.xyz/sscsb/methodology/#local`,
+      `Methodology: ${LOCAL_METHODOLOGY_SHARE_URL}`,
     ].join("\n"),
   );
   return `${r.repo.url}/issues/new?title=${title}&body=${body}`;

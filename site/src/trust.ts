@@ -188,6 +188,30 @@ export const LOCAL_SIGNATURE_NAMESPACE = LOCAL_NAMESPACE;
 
 export type TrustKind = "verified" | "unsigned-action" | "local" | "external";
 
+/**
+ * The tooltip prose for each lane — ONE SOURCE, because this text is where the
+ * provenance contract is actually spoken to a reader, and five designs each
+ * keeping their own copy is five places for it to drift. It already had:
+ * `signal` and `chain` described the local lane as "a shorter chain than the
+ * authenticated lane", where the contract word (and this file's own header,
+ * and the methodology) is strictly WEAKER. "Shorter chain" is a description of
+ * the mechanism; "weaker" is the claim a reader has to come away with.
+ *
+ * Titles only. The visible LABEL stays each design's own — "✓ verified",
+ * "CI · verified", "auth ✓ verified" are voice — but what the mark MEANS is
+ * not a design decision.
+ */
+export const LANE_TITLE: Readonly<Record<TrustKind, string>> = {
+  verified:
+    "Authenticated scan from the repository's own CI; signature verified against its workflow identity",
+  "unsigned-action":
+    "Authenticated-lane record without a verified signature — an unverified claim",
+  local:
+    "Workstation scan signed by a key this repository commits in .sscsb/policy/allowed_signers — attributable, but weaker than the action lane, which proves the repository's own CI ran the scan. Its local-environment verdicts count on their own; anything a repository scan could observe waits for an independent record to agree.",
+  external:
+    "Outside-in scan by the directory; GitHub-side checks ran with public-only visibility",
+};
+
 /** Collapse a sidecar into the four states the UI distinguishes. */
 export function trustKind(t: TrustInfo | undefined): TrustKind {
   if (!t || t.lane === "external") return "external";
