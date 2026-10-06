@@ -6,10 +6,10 @@
     "name": "p4gs.github.io",
     "url": "https://github.com/p4gs/p4gs.github.io",
     "default_branch": "main",
-    "commit": "710cf8e461f28eb1e80cd240df74b87ae8018020",
+    "commit": "e206066ba90a7aa7557227e248878f3f5b0e4fb6",
     "description": ""
   },
-  "scanned_at": "2026-09-11T15:28:38Z",
+  "scanned_at": "2026-09-12T14:27:50Z",
   "scanner": {
     "sscsb_version": "0.4.0",
     "workflow_run_id": 0,
@@ -28,7 +28,7 @@
       "messages": [
         "pre-commit + commit-msg + pre-push shims installed, executable, and unmodified (core.hooksPath=.sscsb/hooks)",
         "trufflehog: 3.96.0 (/opt/homebrew/bin/trufflehog)",
-        "gitleaks: 8.30.1 (/opt/homebrew/bin/gitleaks)"
+        "gitleaks: disabled in config"
       ]
     },
     {
@@ -71,7 +71,6 @@
       "messages": [
         "human-local: configured",
         "agent-claude-code: incomplete — run `sscsb signing setup agent-claude-code`",
-        "cloud-claude: repo-side attribution is probeable and is not in place — an attestation cannot stand in for it",
         "cloud-claude: github_app_installed: not attested — `sscsb signing setup cloud-claude --confirm`",
         "github-web: vigilant_mode: not attested — `sscsb signing setup github-web --confirm`",
         "github-web: phishing_resistant_mfa: not attested — `sscsb signing setup github-web --confirm`",
@@ -183,7 +182,7 @@
       "reclassified": false,
       "reason": null,
       "messages": [
-        "146 tracked file(s), none a compiled program or a code-carrying archive"
+        "155 tracked file(s), none a compiled program or a code-carrying archive"
       ]
     },
     {
@@ -207,7 +206,7 @@
       "reclassified": false,
       "reason": null,
       "messages": [
-        "syft 1.51.1: .sscsb/out/sbom.cdx.json validated, 91 component(s) catalogued"
+        "syft 1.51.1: .sscsb/out/sbom.cdx.json validated, 90 component(s) catalogued"
       ]
     },
     {
@@ -250,7 +249,7 @@
         "  PinnedDependenciesID [justified-exception] → actions-audit — score is 9: third-party GitHubAction not pinned by hash (sscsb SHA-pins every action except slsa-github-generator, which MUST stay tag-pinned per its trust model — the residual finding is that justified exception)",
         "  FuzzingID [sscsb-fixable] → fuzzing — score is 0: project is not fuzzed: (add cargo-fuzz targets + a ClusterFuzzLite workflow (the probe Scorecard detects for Rust) — shipping as the `fuzzing` control increment)",
         "  CIIBestPracticesID [owner-action] → no control — score is 0: no effort to earn an OpenSSF best practices badge detected (register the project at bestpractices.dev and add the badge — an owner action sscsb cannot perform)",
-        "  CodeReviewID [solo-capped] → branch-protection — score is 0: Found 0/30 approved changesets -- score normalized to 0 (Scorecard counts approved changesets; a solo maintainer merging their own PRs cannot self-approve — needs a 2nd reviewer)",
+        "  CodeReviewID [solo-capped] → branch-protection — score is 0: Found 0/29 approved changesets -- score normalized to 0 (Scorecard counts approved changesets; a solo maintainer merging their own PRs cannot self-approve — needs a 2nd reviewer)",
         "  MaintainedID [unmapped] — score is 0: project was created within the last 90 days. Please review its contents carefully:",
         "  LicenseID [unmapped] — score is 0: license file not detected:",
         "  BranchProtectionID [sscsb-fixable] → branch-protection — score is 4: branch protection is not maximal on development and all release branches: (run `sscsb harden branch-protection --apply` for the solo-safe knobs; the approver/code-owner/last-push tier needs a 2nd maintainer (`--require-reviews`))",
@@ -461,7 +460,6 @@
         "sbom.yml: harden-runner present in job `sbom`",
         "scorecard.yml: harden-runner present in job `analysis`",
         "secrets-scan.yml: harden-runner present in job `trufflehog`",
-        "secrets-scan.yml: harden-runner present in job `gitleaks`",
         "sscsb-scan.yml: harden-runner present in job `scan`",
         "vuln-scan.yml: harden-runner present in job `trivy`",
         "vuln-scan.yml: reusable-workflow only — job `osv-scanner` calls `google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2`, where harden-runner is the called workflow's concern"
@@ -721,15 +719,15 @@
     "record_version": 1,
     "lane": "local",
     "namespace": "sscsb-scan-record",
-    "generated_at": "2026-09-11T15:28:38Z",
+    "generated_at": "2026-09-12T14:27:50Z",
     "sscsb_version": "0.4.0",
     "repo": {
       "owner": "p4gs",
       "name": "p4gs.github.io",
       "url": "https://github.com/p4gs/p4gs.github.io",
       "default_branch": "main",
-      "branch": "chore/rescan-on-main",
-      "commit": "710cf8e461f28eb1e80cd240df74b87ae8018020"
+      "branch": "chore/trufflehog-only-secrets",
+      "commit": "e206066ba90a7aa7557227e248878f3f5b0e4fb6"
     },
     "worktree": {
       "clean": true,
