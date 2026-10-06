@@ -17,17 +17,17 @@ github_repo = "p4gs/p4gs.github.io"
 
 # ── Phase 1 — Local source integrity ──
 
-# Secret scanning hooks: TruffleHog blocks secrets at pre-commit and pre-push.
-# TruffleHog ONLY (owner policy 2026-09-12): where two tools cover one control we keep the
-# single strongest. TruffleHog live-validates candidate credentials against the issuing
-# provider, so it distinguishes an active secret from a dead string; Gitleaks is regex/entropy
-# matching with no verification step. Running both added duplicate unverified findings without
-# adding detection capability, so `gitleaks` is off here and its CI job and .gitleaks.toml
-# are removed rather than left dormant.
+# Secret scanning hooks: TruffleHog + Gitleaks block secrets at pre-commit and pre-push.
+# TruffleHog + Gitleaks, alongside each other (owner decision 2026-10-06, reaffirming the prior
+# policy): TruffleHog live-validates candidate credentials against the issuing provider, so a
+# verified finding means an ACTIVE secret — but its --results=verified,unknown filter drops
+# generic/unverifiable secrets (e.g. a bare `api_key = "<random>"`) that it cannot call out to a
+# provider to confirm. Gitleaks' regex/entropy matching catches exactly that class. Independent
+# probes showed each tool catches cases the other misses, so both run.
 [controls.secrets]
 enabled = true
 trufflehog = true
-gitleaks = false
+gitleaks = true
 pre_push_range_scan = true
 
 # CommitSigningGuard: human-only signing enforced on protected branches at pre-push.
