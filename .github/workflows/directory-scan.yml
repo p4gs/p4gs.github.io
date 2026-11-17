@@ -142,6 +142,7 @@ jobs:
           set -euo pipefail
           BIN="$RUNNER_TEMP/sscsb-src/target/release/sscsb"
           git -C "$RUNNER_TEMP/target" ls-files -z > "$RUNNER_TEMP/pre-files.z"
+          (cd "$GITHUB_WORKSPACE/site" && bun src/scan/verify-committed.ts --preflight "$RUNNER_TEMP/pre-files.z" "$RUNNER_TEMP/target")
           git -C "$RUNNER_TEMP/target" rev-parse HEAD > "$RUNNER_TEMP/commit.sha"
           # The target's COMMITTED approved-signer anchor, read out of HEAD
           # before init regenerates it. It decides whether the coverage nudge
@@ -155,7 +156,7 @@ jobs:
           # exit 1 (controls failed) is DATA for the directory, not a job failure;
           # exit 2 (operational error) must still fail the job.
           set +e
-          (cd "$RUNNER_TEMP/target" && "$BIN" verify --format json) > "$RUNNER_TEMP/verify.json"
+          (cd "$GITHUB_WORKSPACE/site" && bun src/scan/verify-committed.ts "$RUNNER_TEMP/pre-files.z" "$BIN" "$RUNNER_TEMP/target") > "$RUNNER_TEMP/verify.json"
           rc=$?
           set -e
           [ "$rc" -le 1 ] || { echo "::error::sscsb verify exited $rc"; exit "$rc"; }
@@ -182,8 +183,9 @@ jobs:
           OUT_PATH: scan-record.json
         run: |
           set -euo pipefail
-          export COMMIT_SHA=$(cat "$RUNNER_TEMP/commit.sha")
-          export SSCSB_VERSION=$(sscsb --version | awk '{print $2}')
+          COMMIT_SHA=$(cat "$RUNNER_TEMP/commit.sha")
+          SSCSB_VERSION=$(sscsb --version | awk '{print $2}')
+          export COMMIT_SHA SSCSB_VERSION
           bun run site/src/scan/build-record.ts
       - name: Delete clone
         if: always()
