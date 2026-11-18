@@ -178,7 +178,18 @@ export function validateScanRecord(value: unknown): ScanRecord {
     fail(`grade ${JSON.stringify(score!.grade)}`);
   }
   const phases = score!.phases;
-  if (!Array.isArray(phases) || phases.length !== 5) fail("score.phases must have 5 entries");
+  if (!Array.isArray(phases) || ![5, 6].includes(phases.length)) {
+    fail("score.phases must have 5 or 6 entries");
+  }
+  const entries = phases as Array<Record<string, unknown>>;
+  if (!entries.every((p, i) => p !== null && typeof p === "object" && p.phase === i + 1)) {
+    fail("score.phases must be ordered contiguous phases starting at 1");
+  }
+  for (const c of controls as Array<Record<string, unknown>>) {
+    if (!Number.isInteger(c.phase) || (c.phase as number) < 1 || (c.phase as number) > entries.length) {
+      fail(`control ${String(c.id)}: phase absent from score.phases`);
+    }
+  }
   // Optional and additive, like `contradiction`: a record that omits it is
   // valid, and one that carries it must carry exactly two booleans — the field
   // steers a rendered sentence, so it may not smuggle a shape into a page.
